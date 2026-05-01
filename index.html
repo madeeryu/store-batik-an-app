@@ -33,6 +33,7 @@
       --shadow: 0 1px 4px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04);
       --radius: 12px;
       --sidebar-w: 240px;
+      --primary: #1D9E75;
     }
 
     html, body { height: 100%; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text-primary); }
@@ -1194,7 +1195,7 @@ let trxData = {
 };
 
 
-// ============================================================
+/ ============================================================
 // PIUTANG — BUKU HUTANG DIGITAL
 // ============================================================
 let piutangData = [];
@@ -1209,7 +1210,7 @@ window.filterPiutang = function(tab) {
 };
  
 async function loadPiutang() {
-  const { collection, query, where, getDocs, orderBy } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+  const { collection, query, where, getDocs, orderBy } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
   const listEl = document.getElementById('piutang-list');
   listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);">⏳ Memuat data piutang...</div>';
  
@@ -1240,7 +1241,7 @@ async function loadPiutang() {
     });
  
     // Cek & update status macet
-    const { doc, updateDoc, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    const { doc, updateDoc, Timestamp } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
     const now = new Date();
     const cutoff14 = new Date(now - 14 * 24 * 60 * 60 * 1000);
  
@@ -1401,7 +1402,7 @@ window.openCatatBayar = async function(pelangganId, pelangganNama) {
   document.getElementById('bayar-tanggal').value = today;
  
   // Load transaksi belum lunas milik pelanggan ini
-  const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+  const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
   const snap = await getDocs(query(collection(db, 'transaksi'),
     where('pelanggan_id', '==', pelangganId),
     where('status', '==', 'belum_lunas')));
@@ -1450,7 +1451,7 @@ window.simpanPembayaran = async function() {
  
   try {
     const { collection, doc, getDoc, addDoc, updateDoc, getDocs, query, where, writeBatch, Timestamp } =
-      await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
  
     const trxRef = doc(db, 'transaksi', trxId);
     const trxSnap = await getDoc(trxRef);
@@ -1517,7 +1518,7 @@ window.bukaHistori = async function(pelangganId, fromPage = 'piutang') {
   navigateTo('histori');
  
   const { doc, getDoc, collection, query, where, getDocs } =
-    await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
  
   const pelSnap = await getDoc(doc(db, 'pelanggan', pelangganId));
   if (!pelSnap.exists()) return;
@@ -1633,7 +1634,7 @@ window.loadRekap = async function() {
   if (!tanggalVal) return;
  
   const { collection, query, where, getDocs, Timestamp } =
-    await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
  
   const tglStart = new Date(tanggalVal);
   tglStart.setHours(0, 0, 0, 0);
@@ -1756,7 +1757,7 @@ function buildRekapText() {
 // ============================================================
 async function loadKaryawan() {
   const { collection, query, where, getDocs } =
-    await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
   const listEl = document.getElementById('karyawan-list');
   if (!listEl) return;
   listEl.innerHTML = '<div style="color:var(--text-muted);text-align:center;">Memuat...</div>';
@@ -1788,7 +1789,7 @@ async function loadKaryawan() {
 }
  
 window.toggleKaryawan = async function(uid, currentAktif) {
-  const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+  const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
   await updateDoc(doc(db, 'users', uid), { aktif: !currentAktif });
   showToast('Status karyawan diperbarui', 'success');
   loadKaryawan();
@@ -1816,7 +1817,7 @@ window.simpanKaryawan = async function() {
     if (data.error) throw new Error(data.error.message);
  
     const uid = data.localId;
-    const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
     await setDoc(doc(db, 'users', uid), {
       nama, role: 'karyawan', aktif: true, createdAt: serverTimestamp()
     });
@@ -1834,47 +1835,9 @@ window.simpanKaryawan = async function() {
   }
 };
  
-// ============================================================
-// PATCH navigateTo — tambahkan piutang, rekap, pengaturan, histori
-// ============================================================
-window.navigateTo = function(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
-  const pageEl = document.getElementById(`page-${page}`);
-  if (pageEl) pageEl.classList.add('active');
-  document.querySelectorAll(`[data-page="${page}"]`).forEach(el => el.classList.add('active'));
-  document.getElementById('mobile-page-title').textContent = pageTitles[page] || page;
-  // Load data
-  if (page === 'dashboard') loadDashboard();
-  if (page === 'pelanggan') loadPelanggan();
-  if (page === 'produk') loadProduk();
-  if (page === 'transaksi') initTransaksi();
-  if (page === 'piutang') loadPiutang();
-  if (page === 'rekap') {
-    const today = new Date().toISOString().split('T')[0];
-    if (!document.getElementById('rekap-tanggal').value) {
-      document.getElementById('rekap-tanggal').value = today;
-    }
-    loadRekap();
-  }
-  if (page === 'pengaturan') {
-    if (currentUserData) {
-      const av = document.getElementById('settings-avatar');
-      const un = document.getElementById('settings-username');
-      const ur = document.getElementById('settings-role');
-      if (av) av.textContent = (currentUserData.nama || 'U')[0].toUpperCase();
-      if (un) un.textContent = currentUserData.nama || currentUser?.email;
-      if (ur) ur.textContent = currentUserData.role === 'owner' ? '👑 Owner' : '🧑 Karyawan';
-    }
-    if (currentUserData?.role === 'owner') loadKaryawan();
-  }
-};
- 
-// Expose
+// Expose (piutang functions sudah tersedia, navigateTo ditangani di bawah)
 window.loadPiutang = loadPiutang;
 window.loadRekap = loadRekap;
-window.bukaHistori = window.bukaHistori;
 
 
 
@@ -2026,6 +1989,25 @@ window.navigateTo = function(page) {
   if (page === 'pelanggan') loadPelanggan();
   if (page === 'produk') loadProduk();
   if (page === 'transaksi') initTransaksi();
+  if (page === 'piutang') loadPiutang();
+  if (page === 'rekap') {
+    const today = new Date().toISOString().split('T')[0];
+    if (!document.getElementById('rekap-tanggal').value) {
+      document.getElementById('rekap-tanggal').value = today;
+    }
+    loadRekap();
+  }
+  if (page === 'pengaturan') {
+    if (currentUserData) {
+      const av = document.getElementById('settings-avatar');
+      const un = document.getElementById('settings-username');
+      const ur = document.getElementById('settings-role');
+      if (av) av.textContent = (currentUserData.nama || 'U')[0].toUpperCase();
+      if (un) un.textContent = currentUserData.nama || currentUser?.email;
+      if (ur) ur.textContent = currentUserData.role === 'owner' ? '👑 Owner' : '🧑 Karyawan';
+    }
+    if (currentUserData?.role === 'owner') loadKaryawan();
+  }
 };
 
 // ============================================================
