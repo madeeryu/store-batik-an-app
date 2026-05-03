@@ -263,7 +263,7 @@
     .subtotal-row.total { font-size: 18px; font-weight: 800; color: var(--green); }
 
     /* ===== ITEM FORM ===== */
-    .item-entry { display: grid; grid-template-columns: 1fr 80px 120px 90px 36px; gap: 8px; align-items: end; padding: 12px; background: var(--bg); border-radius: 10px; margin-bottom: 8px; }
+    .item-entry { display: grid; grid-template-columns: 1fr 80px 100px 120px 90px 36px; gap: 8px; align-items: end; padding: 12px; background: var(--bg); border-radius: 10px; margin-bottom: 8px; }
 
     /* ===== PASARAN INFO ===== */
     .pasaran-card { background: linear-gradient(135deg, var(--green), #14856a); color: white; border-radius: var(--radius); padding: 20px; margin-bottom: 24px; }
@@ -1311,10 +1311,17 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Jumlah Kodi yang Dipindahkan ke Mobil</label>
-        <input type="number" class="form-control" id="isi-mobil-jumlah" placeholder="0" min="1" oninput="validateIsiMobil()" />
-        <div id="isi-mobil-warning" style="font-size:12px;color:#DC2626;margin-top:4px;display:none;"></div>
-      </div>
+  <label class="form-label">Satuan</label>
+  <select class="form-control" id="isi-mobil-satuan" onchange="validateIsiMobil()">
+    <option value="kodi">Kodi</option>
+    <option value="pcs">PCS</option>
+  </select>
+</div>
+<div class="form-group">
+  <label class="form-label" id="isi-mobil-jumlah-label">Jumlah Kodi yang Dipindahkan ke Mobil</label>
+  <input type="number" class="form-control" id="isi-mobil-jumlah" placeholder="0" min="1" oninput="validateIsiMobil()" />
+  <div id="isi-mobil-warning" style="font-size:12px;color:#DC2626;margin-top:4px;display:none;"></div>
+</div>
       <div class="form-group">
         <label class="form-label">Catatan <span style="color:var(--text-muted);font-weight:400;">(opsional)</span></label>
         <input type="text" class="form-control" id="isi-mobil-catatan" placeholder="Misal: persiapan pasaran Selasa" />
@@ -1343,9 +1350,16 @@
         <input type="text" class="form-control" id="tambah-rumah-produk-nama" readonly style="background:#f9fafb;" />
       </div>
       <div class="form-group">
-        <label class="form-label">Jumlah Kodi Masuk</label>
-        <input type="number" class="form-control" id="tambah-rumah-jumlah" placeholder="0" min="1" />
-      </div>
+  <label class="form-label">Satuan</label>
+  <select class="form-control" id="tambah-rumah-satuan">
+    <option value="kodi">Kodi</option>
+    <option value="pcs">PCS</option>
+  </select>
+</div>
+<div class="form-group">
+  <label class="form-label">Jumlah Masuk</label>
+  <input type="number" class="form-control" id="tambah-rumah-jumlah" placeholder="0" min="1" />
+</div>
       <div class="form-group">
         <label class="form-label">Sumber</label>
         <select class="form-control" id="tambah-rumah-sumber">
@@ -1669,21 +1683,30 @@
         <input type="text" class="form-control" id="inp-produk-nama" placeholder="Contoh: Batik Tapih" />
       </div>
       <div class="form-group">
-        <label class="form-label">Modal per Kodi (Rp) <span style="color:var(--text-muted);font-weight:400;">(opsional)</span></label>
-        <input type="number" class="form-control" id="inp-produk-modal" placeholder="0" min="0" />
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Harga beli / biaya produksi per kodi</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Harga Default per Kodi (Rp)</label>
-        <input type="number" class="form-control" id="inp-produk-harga" placeholder="500000" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Sumber</label>
-        <select class="form-control" id="inp-produk-sumber">
-          <option value="produksi">Produksi Sendiri</option>
-          <option value="pabrik">Beli dari Pabrik</option>
-        </select>
-      </div>
+  <label class="form-label">Modal per Kodi (Rp) <span style="color:var(--text-muted);font-weight:400;">(opsional)</span></label>
+  <input type="number" class="form-control" id="inp-produk-modal" placeholder="0" min="0" />
+  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Harga beli / biaya produksi per kodi</div>
+</div>
+<div class="form-group">
+  <label class="form-label">Harga Default per Kodi (Rp)</label>
+  <input type="number" class="form-control" id="inp-produk-harga" placeholder="500000" oninput="hitungHargaPcs()" />
+</div>
+<div class="form-group">
+  <label class="form-label">Jumlah PCS per Kodi</label>
+  <input type="number" class="form-control" id="inp-produk-pcs-per-kodi" placeholder="20" min="1" value="20" oninput="hitungHargaPcs()" />
+  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Default: 20 pcs/kodi. Ubah jika produk ini beda.</div>
+</div>
+<div class="form-group">
+  <label class="form-label">Harga per PCS (Rp) — otomatis</label>
+  <input type="text" class="form-control" id="inp-produk-harga-pcs" readonly placeholder="Rp 0" style="background:#f9fafb;" />
+</div>
+<div class="form-group">
+  <label class="form-label">Sumber</label>
+  <select class="form-control" id="inp-produk-sumber">
+    <option value="produksi">Produksi Sendiri</option>
+    <option value="pabrik">Beli dari Pabrik</option>
+  </select>
+</div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-tambah-produk')">Batal</button>
@@ -3027,6 +3050,7 @@ function renderProduk() {
       <div class="li-right flex-center gap-8">
         <div>
           <div class="li-amount">${formatRupiah(p.harga_default)}/kodi</div>
+<div style="font-size:12px;color:var(--text-muted);">${formatRupiah(p.harga_per_pcs || (p.harga_default / (p.pcs_per_kodi || 20)))}/pcs</div>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="editProduk('${p.id}')">Edit</button>
         <button class="btn btn-sm ${p.aktif ? 'btn-danger' : 'btn-secondary'}" onclick="toggleAktifProduk('${p.id}', ${!p.aktif})">${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}</button>
@@ -3044,7 +3068,16 @@ window.editProduk = function(id) {
   document.getElementById('inp-produk-harga').value = p.harga_default;
   document.getElementById('inp-produk-sumber').value = p.sumber;
   document.getElementById('inp-produk-modal').value = p.modal_per_kodi || 0;
+  document.getElementById('inp-produk-pcs-per-kodi').value = p.pcs_per_kodi || 20;
+  hitungHargaPcs();
   openModal('modal-tambah-produk');
+};
+
+window.hitungHargaPcs = function() {
+  const hargaKodi = parseFloat(document.getElementById('inp-produk-harga').value) || 0;
+  const pcsPerKodi = parseInt(document.getElementById('inp-produk-pcs-per-kodi').value) || 20;
+  const hargaPcs = pcsPerKodi > 0 ? hargaKodi / pcsPerKodi : 0;
+  document.getElementById('inp-produk-harga-pcs').value = hargaPcs > 0 ? 'Rp ' + Math.round(hargaPcs).toLocaleString('id-ID') : '';
 };
 
 window.saveProduk = async function() {
@@ -3053,29 +3086,33 @@ window.saveProduk = async function() {
   const harga = parseFloat(document.getElementById('inp-produk-harga').value);
   const sumber = document.getElementById('inp-produk-sumber').value;
   const modal = parseFloat(document.getElementById('inp-produk-modal').value) || 0;
+  const pcsPerKodi = parseInt(document.getElementById('inp-produk-pcs-per-kodi').value) || 20;
+  const hargaPcs = harga / pcsPerKodi;
   if (!nama || !harga) { showToast('Nama dan harga wajib diisi', 'error'); return; }
   const btn = document.getElementById('btn-save-produk');
   btn.innerHTML = '<span class="loading-spinner"></span>';
   btn.disabled = true;
   try {
     if (id) {
-      await updateDoc(doc(db, 'produk', id), { nama, harga_default: harga, sumber, modal_per_kodi: modal });
+      await updateDoc(doc(db, 'produk', id), { nama, harga_default: harga, sumber, modal_per_kodi: modal, pcs_per_kodi: pcsPerKodi, harga_per_pcs: hargaPcs });
       // Sync ke koleksi stok
       try {
-        await updateDoc(doc(db, 'stok', id), { modal_per_kodi: modal, harga_jual_per_kodi: harga, produk_nama: nama });
+        await updateDoc(doc(db, 'stok', id), { modal_per_kodi: modal, harga_jual_per_kodi: harga, produk_nama: nama, pcs_per_kodi: pcsPerKodi, harga_per_pcs: hargaPcs });
       } catch(e) {}
       showToast('Produk berhasil diperbarui');
     } else {
-      const newRef = await addDoc(collection(db, 'produk'), { nama, harga_default: harga, sumber, modal_per_kodi: modal, aktif: true });
-      // Buat dokumen stok awal
-      try {
-        await setDoc(doc(db, 'stok', newRef.id), {
-          produk_id: newRef.id, produk_nama: nama,
-          modal_per_kodi: modal, harga_jual_per_kodi: harga,
-          stok_rumah: 0, stok_mobil: 0, sumber,
-          last_opname: null, updated_at: serverTimestamp()
-        });
-      } catch(e) {}
+      const newRef = await addDoc(collection(db, 'produk'), { nama, harga_default: harga, sumber, modal_per_kodi: modal, pcs_per_kodi: pcsPerKodi, harga_per_pcs: hargaPcs, aktif: true });
+// Buat dokumen stok awal
+try {
+  await setDoc(doc(db, 'stok', newRef.id), {
+    produk_id: newRef.id, produk_nama: nama,
+    modal_per_kodi: modal, harga_jual_per_kodi: harga,
+    stok_rumah: 0, stok_mobil: 0,
+    stok_rumah_pcs: 0, stok_mobil_pcs: 0,
+    pcs_per_kodi: pcsPerKodi, harga_per_pcs: hargaPcs,
+    sumber, last_opname: null, updated_at: serverTimestamp()
+  });
+} catch(e) {}
       showToast('Produk berhasil ditambahkan');
     }
     closeModal('modal-tambah-produk');
@@ -3169,9 +3206,9 @@ window.stepNext = function(from) {
   } else if (from === 3) {
     const items = collectItems();
     if (items.length === 0) { showToast('Tambahkan minimal 1 produk', 'error'); return; }
-    if (items.some(i => !i.produk_nama || i.jumlah_kodi <= 0)) {
-      showToast('Lengkapi semua data produk', 'error'); return;
-    }
+    if (items.some(i => !i.produk_nama || (i.jumlah_kodi <= 0 && i.jumlah_pcs <= 0))) {
+  showToast('Lengkapi semua data produk', 'error'); return;
+}
     trxData.items = items;
     renderSummary();
     showStep(4);
@@ -3336,11 +3373,18 @@ window.addItemRow = function() {
       </select>
     </div>
     <div class="form-group" style="margin:0;">
-      <label class="form-label" style="font-size:11px;">Kodi</label>
-      <input type="number" class="form-control" id="item-kodi-${itemRowCount}" placeholder="0" min="0" oninput="calcSubtotal(${itemRowCount})" />
+      <label class="form-label" style="font-size:11px;">Satuan</label>
+      <select class="form-control" id="item-satuan-${itemRowCount}" onchange="onSatuanChange(${itemRowCount})">
+        <option value="kodi">Kodi</option>
+        <option value="pcs">PCS</option>
+      </select>
     </div>
     <div class="form-group" style="margin:0;">
-      <label class="form-label" style="font-size:11px;">Harga/Kodi</label>
+      <label class="form-label" style="font-size:11px;" id="item-jumlah-label-${itemRowCount}">Jumlah (Kodi)</label>
+      <input type="number" class="form-control" id="item-kodi-${itemRowCount}" placeholder="0" min="0" step="0.1" oninput="calcSubtotal(${itemRowCount})" />
+    </div>
+    <div class="form-group" style="margin:0;">
+      <label class="form-label" style="font-size:11px;" id="item-harga-label-${itemRowCount}">Harga/Kodi</label>
       <input type="number" class="form-control" id="item-harga-${itemRowCount}" placeholder="0" min="0" oninput="calcSubtotal(${itemRowCount})" />
     </div>
     <div class="form-group" style="margin:0;">
@@ -3363,16 +3407,45 @@ window.removeItemRow = function(rowId) {
 
 window.onProdukChange = function(n) {
   const sel = document.getElementById(`item-produk-${n}`);
-  const opt = sel.options[sel.selectedIndex];
-  const harga = opt?.dataset.harga || 0;
-  document.getElementById(`item-harga-${n}`).value = harga;
+  const produkId = sel.value;
+  const produk = allProduk.find(p => p.id === produkId);
+  if (!produk) return;
+  const satuan = document.getElementById(`item-satuan-${n}`).value;
+  if (satuan === 'pcs') {
+    const hargaPcs = produk.harga_per_pcs || (produk.harga_default / (produk.pcs_per_kodi || 20));
+    document.getElementById(`item-harga-${n}`).value = Math.round(hargaPcs);
+  } else {
+    document.getElementById(`item-harga-${n}`).value = produk.harga_default || 0;
+  }
+  calcSubtotal(n);
+};
+
+window.onSatuanChange = function(n) {
+  const satuan = document.getElementById(`item-satuan-${n}`).value;
+  const produkId = document.getElementById(`item-produk-${n}`).value;
+  const produk = allProduk.find(p => p.id === produkId);
+  const labelJumlah = document.getElementById(`item-jumlah-label-${n}`);
+  const labelHarga = document.getElementById(`item-harga-label-${n}`);
+  if (satuan === 'pcs') {
+    if (labelJumlah) labelJumlah.textContent = 'Jumlah (PCS)';
+    if (labelHarga) labelHarga.textContent = 'Harga/PCS';
+    if (produk) {
+      const hargaPcs = produk.harga_per_pcs || (produk.harga_default / (produk.pcs_per_kodi || 20));
+      document.getElementById(`item-harga-${n}`).value = Math.round(hargaPcs);
+    }
+  } else {
+    if (labelJumlah) labelJumlah.textContent = 'Jumlah (Kodi)';
+    if (labelHarga) labelHarga.textContent = 'Harga/Kodi';
+    if (produk) document.getElementById(`item-harga-${n}`).value = produk.harga_default || 0;
+  }
+  document.getElementById(`item-kodi-${n}`).value = '';
   calcSubtotal(n);
 };
 
 window.calcSubtotal = function(n) {
-  const kodi = parseFloat(document.getElementById(`item-kodi-${n}`).value) || 0;
+  const jumlah = parseFloat(document.getElementById(`item-kodi-${n}`).value) || 0;
   const harga = parseFloat(document.getElementById(`item-harga-${n}`).value) || 0;
-  const sub = kodi * harga;
+  const sub = jumlah * harga;
   document.getElementById(`item-subtotal-${n}`).value = formatRupiah(sub);
 };
 
@@ -3382,15 +3455,26 @@ function collectItems() {
     const n = sel.id.replace('item-produk-', '');
     const produkId = sel.value;
     const produk = allProduk.find(p => p.id === produkId);
-    const kodi = parseFloat(document.getElementById(`item-kodi-${n}`)?.value) || 0;
+    const jumlah = parseFloat(document.getElementById(`item-kodi-${n}`)?.value) || 0;
     const harga = parseFloat(document.getElementById(`item-harga-${n}`)?.value) || 0;
-    if (produkId && kodi > 0) {
+    const satuanEl = document.getElementById(`item-satuan-${n}`);
+    const satuan = satuanEl ? satuanEl.value : 'kodi';
+    const pcsPerKodi = produk?.pcs_per_kodi || 20;
+
+    // Konversi ke kodi (desimal) untuk penyimpanan
+    const jumlahKodi = satuan === 'pcs' ? jumlah / pcsPerKodi : jumlah;
+    const hargaPerKodi = satuan === 'pcs' ? harga * pcsPerKodi : harga;
+
+    if (produkId && jumlah > 0) {
       items.push({
         produk_id: produkId,
         produk_nama: produk?.nama || '-',
-        jumlah_kodi: kodi,
-        harga_kodi: harga,
-        subtotal: kodi * harga
+        jumlah_kodi: jumlahKodi,          // selalu kodi (desimal)
+        jumlah_pcs: satuan === 'pcs' ? jumlah : jumlahKodi * pcsPerKodi,
+        satuan: satuan,                    // 'kodi' atau 'pcs'
+        harga_kodi: hargaPerKodi,
+        harga_pcs: satuan === 'pcs' ? harga : harga / pcsPerKodi,
+        subtotal: jumlah * harga
       });
     }
   });
@@ -3405,11 +3489,18 @@ function renderSummary() {
     <div style="background:var(--bg);border-radius:10px;padding:16px;margin-bottom:16px;">
       <div class="section-label" style="margin-bottom:12px;">Detail Pembelian</div>
       ${items.map(i => `
-        <div class="subtotal-row">
-          <span>${i.produk_nama} <span class="text-muted">(${i.jumlah_kodi} kodi × ${formatRupiah(i.harga_kodi)})</span></span>
-          <span class="font-bold">${formatRupiah(i.subtotal)}</span>
-        </div>
-      `).join('')}
+  <div class="subtotal-row">
+    <span>${i.produk_nama}
+      <span class="text-muted">
+        (${i.satuan === 'pcs'
+          ? `${i.jumlah_pcs} pcs × ${formatRupiah(i.harga_pcs)}`
+          : `${i.jumlah_kodi} kodi × ${formatRupiah(i.harga_kodi)}`
+        })
+      </span>
+    </span>
+    <span class="font-bold">${formatRupiah(i.subtotal)}</span>
+  </div>
+`).join('')}
       <div class="subtotal-row total">
         <span>Total Tagihan</span>
         <span>${formatRupiah(total)}</span>
@@ -3738,13 +3829,19 @@ function renderStok(list) {
         </div>
         <div class="stok-card-body">
           <div class="stok-info-row">
-            <span class="stok-info-label">🚗 Stok Mobil</span>
-            <span class="stok-info-value" style="${stokMobilColor}">${stokMobilBadge(stokMobil)}</span>
-          </div>
-          <div class="stok-info-row">
-            <span class="stok-info-label">🏠 Stok Rumah</span>
-            <span class="stok-info-value" style="${stokRumahColor}">${stokRumah} kodi</span>
-          </div>
+  <span class="stok-info-label">🚗 Stok Mobil</span>
+  <span class="stok-info-value" style="${stokMobilColor}">
+    ${stokMobilBadge(stokMobil)}
+    <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">(${Math.round(stokMobil * (s.pcs_per_kodi || 20))} pcs)</span>
+  </span>
+</div>
+<div class="stok-info-row">
+  <span class="stok-info-label">🏠 Stok Rumah</span>
+  <span class="stok-info-value" style="${stokRumahColor}">
+    ${stokRumah} kodi
+    <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">(${Math.round(stokRumah * (s.pcs_per_kodi || 20))} pcs)</span>
+  </span>
+</div>
           ${ownerExtra}
         </div>
         <div class="stok-card-actions">
@@ -3767,12 +3864,17 @@ window.filterStok = function() {
 window.openIsiMobil = function(produkId) {
   const p = allStok.find(x => x.id === produkId);
   if (!p) return;
+  const pcsPerKodi = p.stok.pcs_per_kodi || p.pcs_per_kodi || 20;
   document.getElementById('isi-mobil-produk-id').value = produkId;
   document.getElementById('isi-mobil-produk-nama').value = p.nama;
-  document.getElementById('isi-mobil-stok-rumah').value = (p.stok.stok_rumah || 0) + ' kodi';
-  document.getElementById('isi-mobil-stok-mobil').value = (p.stok.stok_mobil || 0) + ' kodi';
+  const stokRumah = p.stok.stok_rumah || 0;
+  const stokMobil = p.stok.stok_mobil || 0;
+  document.getElementById('isi-mobil-stok-rumah').value = `${stokRumah} kodi (${Math.round(stokRumah * pcsPerKodi)} pcs)`;
+  document.getElementById('isi-mobil-stok-mobil').value = `${stokMobil} kodi (${Math.round(stokMobil * pcsPerKodi)} pcs)`;
   document.getElementById('isi-mobil-jumlah').value = '';
   document.getElementById('isi-mobil-catatan').value = '';
+  document.getElementById('isi-mobil-satuan').value = 'kodi';
+  document.getElementById('isi-mobil-jumlah-label').textContent = 'Jumlah Kodi yang Dipindahkan ke Mobil';
   document.getElementById('isi-mobil-warning').style.display = 'none';
   openModal('modal-isi-mobil');
 };
@@ -3780,11 +3882,22 @@ window.openIsiMobil = function(produkId) {
 window.validateIsiMobil = function() {
   const p = allStok.find(x => x.id === document.getElementById('isi-mobil-produk-id').value);
   if (!p) return;
-  const jumlah = parseInt(document.getElementById('isi-mobil-jumlah').value) || 0;
+  const satuan = document.getElementById('isi-mobil-satuan').value;
+  const pcsPerKodi = p.stok.pcs_per_kodi || p.pcs_per_kodi || 20;
+  const jumlah = parseFloat(document.getElementById('isi-mobil-jumlah').value) || 0;
   const stokRumah = p.stok.stok_rumah || 0;
+  const labelEl = document.getElementById('isi-mobil-jumlah-label');
+  if (satuan === 'pcs') {
+    labelEl.textContent = 'Jumlah PCS yang Dipindahkan ke Mobil';
+  } else {
+    labelEl.textContent = 'Jumlah Kodi yang Dipindahkan ke Mobil';
+  }
+  const jumlahDalamKodi = satuan === 'pcs' ? jumlah / pcsPerKodi : jumlah;
   const warnEl = document.getElementById('isi-mobil-warning');
-  if (jumlah > stokRumah) {
-    warnEl.textContent = `Tidak cukup! Stok rumah hanya ${stokRumah} kodi.`;
+  if (jumlahDalamKodi > stokRumah) {
+    warnEl.textContent = satuan === 'pcs'
+      ? `Tidak cukup! Stok rumah hanya ${Math.round(stokRumah * pcsPerKodi)} pcs.`
+      : `Tidak cukup! Stok rumah hanya ${stokRumah} kodi.`;
     warnEl.style.display = 'block';
   } else {
     warnEl.style.display = 'none';
@@ -3797,16 +3910,19 @@ window.simpanIsiMobil = async function() {
   const catatan = document.getElementById('isi-mobil-catatan').value.trim();
   const p = allStok.find(x => x.id === produkId);
   if (!p) return;
-  if (!jumlah || jumlah <= 0) { showToast('Masukkan jumlah kodi yang valid', 'error'); return; }
-  if (jumlah > (p.stok.stok_rumah || 0)) { showToast('Melebihi stok rumah yang tersedia', 'error'); return; }
+  const satuanIsi = document.getElementById('isi-mobil-satuan').value;
+const pcsPerKodiIsi = p.stok.pcs_per_kodi || p.pcs_per_kodi || 20;
+const jumlahDalamKodiIsi = satuanIsi === 'pcs' ? jumlah / pcsPerKodiIsi : jumlah;
+if (!jumlah || jumlah <= 0) { showToast('Masukkan jumlah yang valid', 'error'); return; }
+if (jumlahDalamKodiIsi > (p.stok.stok_rumah || 0)) { showToast('Melebihi stok rumah yang tersedia', 'error'); return; }
 
   const btn = document.getElementById('btn-simpan-isi-mobil');
   btn.innerHTML = '<span class="loading-spinner"></span>'; btn.disabled = true;
   try {
     const stokRumahBefore = p.stok.stok_rumah || 0;
     const stokMobilBefore = p.stok.stok_mobil || 0;
-    const stokRumahAfter = stokRumahBefore - jumlah;
-    const stokMobilAfter = stokMobilBefore + jumlah;
+    const stokRumahAfter = stokRumahBefore - jumlahDalamKodiIsi;
+const stokMobilAfter = stokMobilBefore + jumlahDalamKodiIsi;
 
     const batch = writeBatch(db);
     const stokRef = doc(db, 'stok', produkId);
@@ -3834,7 +3950,8 @@ window.simpanIsiMobil = async function() {
     });
 
     await batch.commit();
-    showToast(`${jumlah} kodi ${p.nama} dipindahkan ke mobil ✅`, 'success');
+    const labelSatuan = satuanIsi === 'pcs' ? `${jumlah} pcs` : `${jumlah} kodi`;
+showToast(`${labelSatuan} ${p.nama} dipindahkan ke mobil ✅`, 'success');
     closeModal('modal-isi-mobil');
     loadStok();
   } catch (e) {
@@ -3865,14 +3982,16 @@ window.simpanTambahRumah = async function() {
   const catatan = document.getElementById('tambah-rumah-catatan').value.trim();
   const p = allStok.find(x => x.id === produkId);
   if (!p) return;
-  if (!jumlah || jumlah <= 0) { showToast('Masukkan jumlah kodi yang valid', 'error'); return; }
+  const satuanTambah = document.getElementById('tambah-rumah-satuan').value;
+const pcsPerKodiTambah = p.stok.pcs_per_kodi || p.pcs_per_kodi || 20;
+const jumlahKodiTambah = satuanTambah === 'pcs' ? jumlah / pcsPerKodiTambah : jumlah;
 
   const btn = document.getElementById('btn-simpan-tambah-rumah');
   btn.innerHTML = '<span class="loading-spinner"></span>'; btn.disabled = true;
   try {
     const stokRumahBefore = p.stok.stok_rumah || 0;
     const stokMobilBefore = p.stok.stok_mobil || 0;
-    const stokRumahAfter = stokRumahBefore + jumlah;
+    const stokRumahAfter = stokRumahBefore + jumlahKodiTambah;
 
     const batch = writeBatch(db);
     const stokRef = doc(db, 'stok', produkId);
@@ -4638,7 +4757,10 @@ function buildRekapSayaText() {
   if (rekapSayaTrxData.length > 0) {
     txt += `\n═══════════════════════\n🛒 TRANSAKSI DIBUAT\n`;
     rekapSayaTrxData.forEach(t => {
-      const produkStr = (t.items||[]).map(i=>`${i.produk_nama} ${i.jumlah_kodi}k`).join('+');
+      const produkStr = (t.items||[]).map(i => {
+  if (i.satuan === 'pcs') return `${i.produk_nama} ${i.jumlah_pcs}pcs`;
+  return `${i.produk_nama} ${i.jumlah_kodi}k`;
+}).join('+');
       txt += `• ${t.pelanggan_nama}: ${produkStr} = ${formatRupiah(t.total_tagihan)}\n`;
     });
   }
