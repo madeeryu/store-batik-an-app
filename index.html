@@ -2592,16 +2592,30 @@ window.saveProduk = async function() {
   const nama = document.getElementById('inp-produk-nama').value.trim();
   const harga = parseFloat(document.getElementById('inp-produk-harga').value);
   const sumber = document.getElementById('inp-produk-sumber').value;
+  const modal = parseFloat(document.getElementById('inp-produk-modal').value) || 0;
   if (!nama || !harga) { showToast('Nama dan harga wajib diisi', 'error'); return; }
   const btn = document.getElementById('btn-save-produk');
   btn.innerHTML = '<span class="loading-spinner"></span>';
   btn.disabled = true;
   try {
     if (id) {
-      await updateDoc(doc(db, 'produk', id), { nama, harga_default: harga, sumber });
+      await updateDoc(doc(db, 'produk', id), { nama, harga_default: harga, sumber, modal_per_kodi: modal });
+      // Sync ke koleksi stok
+      try {
+        await updateDoc(doc(db, 'stok', id), { modal_per_kodi: modal, harga_jual_per_kodi: harga, produk_nama: nama });
+      } catch(e) {}
       showToast('Produk berhasil diperbarui');
     } else {
-      await addDoc(collection(db, 'produk'), { nama, harga_default: harga, sumber, aktif: true });
+      const newRef = await addDoc(collection(db, 'produk'), { nama, harga_default: harga, sumber, modal_per_kodi: modal, aktif: true });
+      // Buat dokumen stok awal
+      try {
+        await setDoc(doc(db, 'stok', newRef.id), {
+          produk_id: newRef.id, produk_nama: nama,
+          modal_per_kodi: modal, harga_jual_per_kodi: harga,
+          stok_rumah: 0, stok_mobil: 0, sumber,
+          last_opname: null, updated_at: serverTimestamp()
+        });
+      } catch(e) {}
       showToast('Produk berhasil ditambahkan');
     }
     closeModal('modal-tambah-produk');
