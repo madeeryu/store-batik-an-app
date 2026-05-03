@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#1D9E75" />
   <meta name="description" content="Batik AN — Sistem Manajemen Grosir" />
@@ -10,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏷️</text></svg>" />
+  
   <!-- PWA Manifest inline -->
    <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22Batik%20AN%20Grosir%22%2C%22short_name%22%3A%22BatikAN%22%2C%22theme_color%22%3A%22%231D9E75%22%2C%22background_color%22%3A%22%23F5F6FA%22%2C%22display%22%3A%22standalone%22%7D" />
   <style>
@@ -452,6 +454,120 @@
       border: 2px solid white;
     }
 
+    /* ===== REKAP ADMIN ===== */
+.rekap-admin-tab {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.rekap-admin-tab.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.rekap-finansial-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+}
+@media (max-width: 600px) {
+  .rekap-finansial-grid { grid-template-columns: 1fr 1fr; }
+}
+.rekap-finansial-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.rekap-finansial-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.rekap-finansial-value {
+  font-size: 18px;
+  font-weight: 800;
+}
+.rekap-admin-chart-wrap {
+  position: relative;
+  height: 200px;
+  margin-bottom: 8px;
+}
+@media (max-width: 600px) {
+  .rekap-admin-chart-wrap { height: 160px; }
+}
+.rekap-admin-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.rekap-admin-table th {
+  background: #E8F7F1;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+.rekap-admin-table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.rekap-admin-table tr:last-child td { border-bottom: none; }
+.rekap-admin-table tr:hover td { background: #FAFBFC; }
+.rekap-accordion-detail {
+  display: none;
+  background: #F9FAFB;
+  border-top: 1px solid var(--border);
+}
+.rekap-accordion-detail.open { display: table-row-group; }
+.rekap-accordion-td { padding: 12px 16px; }
+.rekap-nav-week {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rekap-nav-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.rekap-nav-btn:hover { background: var(--bg); }
+.rekap-loading-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  border-radius: 8px;
+  height: 60px;
+  margin-bottom: 8px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
     /* ===== UTILS ===== */
     .hidden { display: none !important; }
     .text-right { text-align: right; }
@@ -529,6 +645,8 @@
 .rekap-empty .empty-icon { font-size:40px;margin-bottom:8px; }
 
   </style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
 </head>
 <body>
 
@@ -931,104 +1049,249 @@
       <div id="histori-content-lunas" style="display:none;"></div>
     </div>
  
-    <!-- ====== REKAP HARIAN (owner only) ====== -->
-    <div class="page owner-only" id="page-rekap">
-      <div class="page-header">
-        <div class="page-title">Rekap Harian</div>
-        <div class="page-subtitle">Laporan penjualan & pembayaran harian</div>
+    <!-- ====== REKAP ADMIN (owner only) — PROMPT C ====== -->
+<div class="page owner-only" id="page-rekap">
+  <div class="page-header flex justify-between" style="align-items:flex-start;">
+    <div>
+      <div class="page-title">📊 Rekap Admin</div>
+      <div class="page-subtitle" id="rekap-admin-subtitle">Laporan analitik bisnis</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary btn-sm" onclick="downloadRekapAdminTxt()">⬇️ .txt</button>
+      <button class="btn btn-primary btn-sm" onclick="exportRekapAdminPdf()">📄 PDF</button>
+    </div>
+  </div>
+
+  <!-- TAB PERIODE -->
+  <div class="card card-body" style="margin-bottom:16px;">
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="rekap-admin-tab active" id="ra-tab-harian"   onclick="setRekapAdminTab('harian')">📅 Harian</button>
+      <button class="rekap-admin-tab"         id="ra-tab-mingguan" onclick="setRekapAdminTab('mingguan')">📆 Mingguan</button>
+      <button class="rekap-admin-tab"         id="ra-tab-bulanan"  onclick="setRekapAdminTab('bulanan')">🗓️ Bulanan</button>
+    </div>
+
+    <!-- Filter Harian -->
+    <div id="ra-filter-harian">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <button class="rekap-filter-btn active" onclick="setRekapAdminHari('hari_ini',this)">Hari Ini</button>
+        <button class="rekap-filter-btn" onclick="setRekapAdminHari('kemarin',this)">Kemarin</button>
+        <button class="rekap-filter-btn" onclick="setRekapAdminHari('custom',this)">📅 Pilih</button>
       </div>
- 
-      <!-- Filter tanggal / pasaran -->
-      <div class="card card-body" style="margin-bottom:16px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-          <div style="flex:1;min-width:150px;">
-            <label class="form-label">Tanggal</label>
-            <input type="date" class="form-control" id="rekap-tanggal" onchange="loadRekap()" />
-          </div>
-          <div style="flex:1;min-width:150px;">
-            <label class="form-label">atau pilih Hari Pasaran</label>
-            <select class="form-control" id="rekap-pasaran" onchange="pilihPasaran()">
-              <option value="">— Pilih Hari Pasaran —</option>
-              <option value="selasa-tegal_gubug">Selasa — Tegal Gubug</option>
-              <option value="rabu-jatibarang">Rabu — Jatibarang</option>
-              <option value="sabtu-tegal_gubug">Sabtu — Tegal Gubug</option>
-              <option value="minggu-jatibarang">Minggu — Jatibarang</option>
-            </select>
-          </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="flex:1;min-width:140px;">
+          <label class="form-label">Tanggal</label>
+          <input type="date" class="form-control" id="ra-tanggal" onchange="loadRekapAdmin()" />
         </div>
-      </div>
- 
-      <!-- Ringkasan 4 kartu -->
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px;">
-        <div class="card card-body" style="text-align:center;">
-          <div style="font-size:12px;color:var(--text-muted);">Total Transaksi</div>
-          <div id="rekap-count" style="font-size:22px;font-weight:700;color:var(--primary);">0</div>
+        <div style="flex:1;min-width:140px;">
+          <label class="form-label">Hari Pasaran</label>
+          <select class="form-control" id="ra-pasaran" onchange="pilihPasaranAdmin()">
+            <option value="">— Pilih Pasaran —</option>
+            <option value="selasa">Selasa — Tegal Gubug</option>
+            <option value="rabu">Rabu — Jatibarang</option>
+            <option value="sabtu">Sabtu — Tegal Gubug</option>
+            <option value="minggu">Minggu — Jatibarang</option>
+          </select>
         </div>
-        <div class="card card-body" style="text-align:center;">
-          <div style="font-size:12px;color:var(--text-muted);">Nilai Penjualan</div>
-          <div id="rekap-penjualan" style="font-size:18px;font-weight:700;color:var(--primary);">Rp 0</div>
-        </div>
-        <div class="card card-body" style="text-align:center;">
-          <div style="font-size:12px;color:var(--text-muted);">Kas Masuk</div>
-          <div id="rekap-kas" style="font-size:18px;font-weight:700;color:#16A34A;">Rp 0</div>
-        </div>
-        <div class="card card-body" style="text-align:center;">
-          <div style="font-size:12px;color:var(--text-muted);">Piutang Baru</div>
-          <div id="rekap-piutang-baru" style="font-size:18px;font-weight:700;color:#DC2626;">Rp 0</div>
-        </div>
-      </div>
- 
-      <!-- Tabel transaksi baru -->
-      <div class="card" style="margin-bottom:16px;">
-        <div class="card-header"><strong>💰 Transaksi Baru</strong></div>
-        <div class="card-body" style="overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;" id="rekap-tabel-trx">
-            <thead>
-              <tr style="border-bottom:1px solid var(--border);">
-                <th style="text-align:left;padding:8px 4px;">Pelanggan</th>
-                <th style="text-align:left;padding:8px 4px;">Produk</th>
-                <th style="text-align:right;padding:8px 4px;">Total</th>
-                <th style="text-align:center;padding:8px 4px;">Jenis</th>
-              </tr>
-            </thead>
-            <tbody id="rekap-trx-body">
-              <tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-muted);">Pilih tanggal untuk melihat rekap</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
- 
-      <!-- Tabel pembayaran masuk -->
-      <div class="card" style="margin-bottom:16px;">
-        <div class="card-header"><strong>💵 Pembayaran Masuk</strong></div>
-        <div class="card-body" style="overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;">
-            <thead>
-              <tr style="border-bottom:1px solid var(--border);">
-                <th style="text-align:left;padding:8px 4px;">Pelanggan</th>
-                <th style="text-align:right;padding:8px 4px;">Nominal</th>
-                <th style="text-align:center;padding:8px 4px;">Metode</th>
-              </tr>
-            </thead>
-            <tbody id="rekap-bayar-body">
-              <tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text-muted);">—</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
- 
-      <!-- Tombol export -->
-      <div class="card card-body" style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn btn-primary" onclick="exportRekap()">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-          Copy ke Clipboard
-        </button>
-        <button class="btn" style="background:#f3f4f6;color:#374151;border:1px solid var(--border);" onclick="downloadRekap()">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          Download .txt
-        </button>
       </div>
     </div>
+
+    <!-- Filter Mingguan -->
+    <div id="ra-filter-mingguan" style="display:none;">
+      <div class="rekap-nav-week">
+        <button class="rekap-nav-btn" onclick="navigasiMinggu(-1)">← Prev</button>
+        <button class="rekap-nav-btn" onclick="setMingguIni()">Minggu Ini</button>
+        <button class="rekap-nav-btn" onclick="navigasiMinggu(1)">Next →</button>
+      </div>
+      <div id="ra-range-minggu" style="font-size:13px;color:var(--text-muted);margin-top:8px;font-weight:600;"></div>
+    </div>
+
+    <!-- Filter Bulanan -->
+    <div id="ra-filter-bulanan" style="display:none;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+        <div>
+          <label class="form-label">Bulan</label>
+          <select class="form-control" id="ra-bulan">
+            <option value="0">Januari</option><option value="1">Februari</option>
+            <option value="2">Maret</option><option value="3">April</option>
+            <option value="4">Mei</option><option value="5">Juni</option>
+            <option value="6">Juli</option><option value="7">Agustus</option>
+            <option value="8">September</option><option value="9">Oktober</option>
+            <option value="10">November</option><option value="11">Desember</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Tahun</label>
+          <input type="number" class="form-control" id="ra-tahun" style="width:100px;" />
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="rekap-nav-btn" onclick="navigasiBulan(-1)">← Prev</button>
+          <button class="rekap-nav-btn" onclick="setBulanIni()">Bulan Ini</button>
+          <button class="rekap-nav-btn" onclick="navigasiBulan(1)">Next →</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="loadRekapAdmin()">Tampilkan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADING SKELETON -->
+  <div id="ra-loading" style="display:none;">
+    <div class="rekap-loading-skeleton"></div>
+    <div class="rekap-loading-skeleton" style="height:40px;"></div>
+    <div class="rekap-loading-skeleton" style="height:40px;"></div>
+  </div>
+
+  <!-- SECTION 1: KARTU FINANSIAL -->
+  <div id="ra-content" style="display:none;">
+    <div class="rekap-finansial-grid" id="ra-kartu-grid">
+      <div class="rekap-finansial-card">
+        <div class="rekap-finansial-label">💰 Omzet</div>
+        <div class="rekap-finansial-value text-green" id="ra-omzet">Rp 0</div>
+      </div>
+      <div class="rekap-finansial-card">
+        <div class="rekap-finansial-label">💵 Kas Masuk</div>
+        <div class="rekap-finansial-value" id="ra-kas">Rp 0</div>
+      </div>
+      <div class="rekap-finansial-card">
+        <div class="rekap-finansial-label">📦 HPP</div>
+        <div class="rekap-finansial-value" id="ra-hpp">Rp 0</div>
+      </div>
+      <div class="rekap-finansial-card">
+        <div class="rekap-finansial-label">📈 Laba Kotor</div>
+        <div class="rekap-finansial-value" id="ra-laba-kotor">Rp 0</div>
+      </div>
+      <div class="rekap-finansial-card">
+        <div class="rekap-finansial-label">💸 Pengeluaran</div>
+        <div class="rekap-finansial-value text-red" id="ra-pengeluaran">Rp 0</div>
+      </div>
+      <div class="rekap-finansial-card">
+        <div class="rekap-finansial-label">✅ Laba Bersih</div>
+        <div class="rekap-finansial-value" id="ra-laba-bersih">Rp 0</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">
+      ℹ️ Omzet termasuk piutang baru. Kas masuk adalah uang yang benar-benar diterima.
+      <span id="ra-hpp-note" style="display:none;color:#D97706;"> · *HPP parsial, data modal beberapa produk belum diisi.</span>
+    </div>
+
+    <!-- SECTION 2: GRAFIK TREN (mingguan & bulanan) -->
+    <div class="card" id="ra-grafik-wrap" style="display:none;margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">📈 Grafik Tren</div></div>
+      <div class="card-body">
+        <div class="rekap-admin-chart-wrap">
+          <canvas id="ra-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: REKAP PER KARYAWAN -->
+    <div class="card rekap-admin-table" style="margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">👥 Rekap Per Karyawan</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Karyawan</th>
+              <th class="text-right">Trx Dibuat</th>
+              <th class="text-right">Kas Diterima</th>
+              <th class="text-right">Pengeluaran</th>
+              <th class="text-right">Saldo Bersih</th>
+            </tr>
+          </thead>
+          <tbody id="ra-karyawan-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECTION 4: TABEL TRANSAKSI -->
+    <div class="card rekap-admin-table" style="margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">🛒 Transaksi Baru</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Pelanggan</th>
+              <th>Produk</th>
+              <th class="text-right">Total</th>
+              <th>Jenis</th>
+              <th>Pasar</th>
+              <th>Oleh</th>
+            </tr>
+          </thead>
+          <tbody id="ra-trx-tbody"></tbody>
+        </table>
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-weight:700;">
+        <span>Total Omzet</span><span class="text-green" id="ra-trx-total">Rp 0</span>
+      </div>
+    </div>
+
+    <!-- SECTION 5: TABEL PEMBAYARAN -->
+    <div class="card rekap-admin-table" style="margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">💵 Pembayaran Masuk</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Pelanggan</th>
+              <th class="text-right">Nominal</th>
+              <th>Metode</th>
+              <th>Dicatat Oleh</th>
+              <th>Waktu</th>
+            </tr>
+          </thead>
+          <tbody id="ra-bayar-tbody"></tbody>
+        </table>
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-weight:700;">
+        <span>Total Kas Masuk</span><span style="color:#16A34A;" id="ra-bayar-total">Rp 0</span>
+      </div>
+    </div>
+
+    <!-- SECTION 6: TABEL PENGELUARAN -->
+    <div class="card rekap-admin-table" style="margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">💸 Pengeluaran (Semua Karyawan)</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Karyawan</th>
+              <th>Kategori</th>
+              <th>Keterangan</th>
+              <th class="text-right">Nominal</th>
+              <th>Waktu</th>
+            </tr>
+          </thead>
+          <tbody id="ra-keluar-tbody"></tbody>
+        </table>
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-weight:700;">
+        <span>Total Pengeluaran</span><span class="text-red" id="ra-keluar-total">Rp 0</span>
+      </div>
+    </div>
+
+    <!-- SECTION 7: PRODUK TERLARIS (mingguan & bulanan) -->
+    <div class="card rekap-admin-table" id="ra-produk-wrap" style="display:none;margin-bottom:24px;">
+      <div class="card-header"><div class="card-title">🏆 Produk Terlaris</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Produk</th>
+              <th class="text-right">Total Kodi</th>
+              <th class="text-right">Total Omzet</th>
+              <th class="text-right">Total HPP</th>
+              <th class="text-right">Laba Produk</th>
+            </tr>
+          </thead>
+          <tbody id="ra-produk-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- end #ra-content -->
+</div>
  
     <!-- ====== PENGATURAN (owner only) ====== -->
     <div class="page owner-only" id="page-pengaturan">
@@ -4807,6 +5070,8 @@ window.downloadRekapSayaTxt  = downloadRekapSayaTxt;
 window.setRekapSayaFilter    = setRekapSayaFilter;
 window.selectKategori        = selectKategori;
 window.updateNominalPengeluaranPreview = updateNominalPengeluaranPreview;
+
+
 // ============================================================
 // END PATCH B
 // ============================================================
@@ -4822,76 +5087,914 @@ window.openKoreksiStok = window.openKoreksiStok;
 window.openRiwayatStok = window.openRiwayatStok;
 window.openEditModalHarga = window.openEditModalHarga;
 
-</script>
 
-<!--
-╔══════════════════════════════════════════════════════════════╗
-║       TUTORIAL SETUP FIREBASE — BATIK AN GROSIR             ║
-╚══════════════════════════════════════════════════════════════╝
+// ============================================================
+// PATCH C — REKAP ADMIN (Harian + Mingguan + Bulanan + PDF)
+// ============================================================
 
-LANGKAH 1 — BUAT PROJECT FIREBASE
-1. Buka https://console.firebase.google.com
-2. Klik "Add project" → beri nama misal "batik-an-grosir"
-3. Matikan Google Analytics (opsional) → klik Continue
-4. Tunggu project dibuat → klik Continue
+// ---- STATE REKAP ADMIN ----
+let raTab = 'harian';
+let raHariMode = 'hari_ini';
+let raMingguOffset = 0;   // 0 = minggu ini, -1 = minggu lalu, dst
+let raChartInstance = null;
 
-LANGKAH 2 — AKTIFKAN AUTHENTICATION
-1. Di sidebar kiri klik "Authentication" → "Get started"
-2. Pilih tab "Sign-in method"
-3. Klik "Email/Password" → Enable → Save
+// Data hasil fetch
+let raTrxData = [];
+let raBayarData = [];
+let raKeluarData = [];
+let raStokMap = {};   // produk_id → modal_per_kodi
+let raUsersMap = {};  // uid → nama
 
-LANGKAH 3 — BUAT AKUN OWNER PERTAMA
-1. Masih di Authentication → tab "Users"
-2. Klik "Add user" → isi email & password owner
-3. Copy UID-nya (akan dipakai di Langkah 5)
+// ---- INIT SAAT NAVIGASI KE REKAP ----
+// Override navigateTo agar memanggil initRekapAdmin
+const _navigateToOrig2 = window.navigateTo;
+window.navigateTo = function(page) {
+  _navigateToOrig2(page);
+  if (page === 'rekap') {
+    initRekapAdmin();
+  }
+};
 
-LANGKAH 4 — AKTIFKAN FIRESTORE
-1. Di sidebar kiri klik "Firestore Database" → "Create database"
-2. Pilih "Start in production mode" → Next
-3. Pilih region terdekat (asia-southeast1 untuk Indonesia) → Enable
+function initRekapAdmin() {
+  // Set default nilai
+  const now = new Date();
+  document.getElementById('ra-tahun').value = now.getFullYear();
+  document.getElementById('ra-bulan').value = now.getMonth();
+  setRekapAdminTab('harian');
+}
 
-LANGKAH 5 — BUAT DATA USER OWNER DI FIRESTORE
-1. Di Firestore → klik "Start collection"
-2. Collection ID: users
-3. Document ID: [paste UID dari Langkah 3]
-4. Tambah field:
-   - nama       (string)  : [nama owner]
-   - role       (string)  : owner
-   - aktif      (boolean) : true
-   - createdAt  (timestamp): [pilih tanggal sekarang]
+// ---- TAB SWITCHING ----
+window.setRekapAdminTab = function(tab) {
+  raTab = tab;
+  ['harian','mingguan','bulanan'].forEach(t => {
+    document.getElementById(`ra-tab-${t}`).classList.toggle('active', t === tab);
+    document.getElementById(`ra-filter-${t}`).style.display = t === tab ? 'block' : 'none';
+  });
+  if (tab === 'harian') {
+    setRekapAdminHari(raHariMode, null);
+  } else if (tab === 'mingguan') {
+    raMingguOffset = 0;
+    setMingguIni();
+  } else {
+    setBulanIni();
+  }
+};
 
-LANGKAH 6 — ATUR FIRESTORE RULES
-1. Di Firestore → tab "Rules"
-2. Ganti semua isi dengan rules berikut:
+// ---- FILTER HARIAN ----
+window.setRekapAdminHari = function(mode, el) {
+  raHariMode = mode;
+  document.querySelectorAll('#ra-filter-harian .rekap-filter-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const now = new Date();
+  let d;
+  if (mode === 'hari_ini') d = now;
+  else if (mode === 'kemarin') { d = new Date(now); d.setDate(now.getDate()-1); }
+  if (d) document.getElementById('ra-tanggal').value = d.toISOString().split('T')[0];
+  if (mode !== 'custom') loadRekapAdmin();
+};
 
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+window.pilihPasaranAdmin = function() {
+  const val = document.getElementById('ra-pasaran').value;
+  if (!val) return;
+  const hariMap = { selasa:2, rabu:3, sabtu:6, minggu:0 };
+  const target = hariMap[val];
+  const now = new Date();
+  for (let i = 0; i <= 7; i++) {
+    const check = new Date(now);
+    check.setDate(now.getDate() - i);
+    if (check.getDay() === target) {
+      document.getElementById('ra-tanggal').value = check.toISOString().split('T')[0];
+      break;
     }
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+  }
+  loadRekapAdmin();
+};
+
+// ---- FILTER MINGGUAN ----
+window.setMingguIni = function() {
+  raMingguOffset = 0;
+  updateRangeMinggu();
+  loadRekapAdmin();
+};
+
+window.navigasiMinggu = function(delta) {
+  raMingguOffset += delta;
+  updateRangeMinggu();
+  loadRekapAdmin();
+};
+
+function getMingguRange() {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=minggu
+  // Senin sebagai hari pertama minggu
+  const startOfThisWeek = new Date(now);
+  startOfThisWeek.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
+  startOfThisWeek.setHours(0,0,0,0);
+
+  const dari = new Date(startOfThisWeek);
+  dari.setDate(startOfThisWeek.getDate() + raMingguOffset * 7);
+  const sampai = new Date(dari);
+  sampai.setDate(dari.getDate() + 6);
+  sampai.setHours(23,59,59,999);
+  return { dari, sampai };
+}
+
+function updateRangeMinggu() {
+  const { dari, sampai } = getMingguRange();
+  const fmt = d => d.toLocaleDateString('id-ID', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+  const el = document.getElementById('ra-range-minggu');
+  if (el) el.textContent = `${fmt(dari)} — ${fmt(sampai)}`;
+}
+
+// ---- FILTER BULANAN ----
+window.setBulanIni = function() {
+  const now = new Date();
+  document.getElementById('ra-bulan').value = now.getMonth();
+  document.getElementById('ra-tahun').value = now.getFullYear();
+  loadRekapAdmin();
+};
+
+window.navigasiBulan = function(delta) {
+  let bulan = parseInt(document.getElementById('ra-bulan').value);
+  let tahun = parseInt(document.getElementById('ra-tahun').value);
+  bulan += delta;
+  if (bulan < 0) { bulan = 11; tahun--; }
+  if (bulan > 11) { bulan = 0; tahun++; }
+  document.getElementById('ra-bulan').value = bulan;
+  document.getElementById('ra-tahun').value = tahun;
+  loadRekapAdmin();
+};
+
+function getBulananRange() {
+  const bulan = parseInt(document.getElementById('ra-bulan').value);
+  const tahun = parseInt(document.getElementById('ra-tahun').value);
+  const dari = new Date(tahun, bulan, 1, 0, 0, 0);
+  const sampai = new Date(tahun, bulan + 1, 0, 23, 59, 59, 999);
+  return { dari, sampai };
+}
+
+// ---- LOAD DATA UTAMA ----
+window.loadRekapAdmin = async function() {
+  // Tampilkan loading, sembunyikan content
+  document.getElementById('ra-loading').style.display = 'block';
+  document.getElementById('ra-content').style.display = 'none';
+
+  let dari, sampai;
+  if (raTab === 'harian') {
+    const tglVal = document.getElementById('ra-tanggal').value;
+    if (!tglVal) { document.getElementById('ra-loading').style.display = 'none'; return; }
+    dari = new Date(tglVal); dari.setHours(0,0,0,0);
+    sampai = new Date(tglVal); sampai.setHours(23,59,59,999);
+    document.getElementById('rekap-admin-subtitle').textContent =
+      dari.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  } else if (raTab === 'mingguan') {
+    ({ dari, sampai } = getMingguRange());
+    updateRangeMinggu();
+    document.getElementById('rekap-admin-subtitle').textContent =
+      document.getElementById('ra-range-minggu').textContent;
+  } else {
+    ({ dari, sampai } = getBulananRange());
+    const bulanNama = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    document.getElementById('rekap-admin-subtitle').textContent =
+      `${bulanNama[dari.getMonth()]} ${dari.getFullYear()}`;
+  }
+
+  try {
+    const tsFrom = Timestamp.fromDate(dari);
+    const tsTo   = Timestamp.fromDate(sampai);
+
+    // Parallel fetch: transaksi, pembayaran, pengeluaran, stok, users
+    const [trxSnap, bayarSnap, keluarSnap, stokSnap, usersSnap] = await Promise.all([
+      getDocs(collection(db, 'transaksi')),
+      getDocs(collection(db, 'pembayaran')),
+      getDocs(query(collection(db, 'pengeluaran'), where('is_deleted', '==', false))),
+      getDocs(collection(db, 'stok')),
+      getDocs(collection(db, 'users'))
+    ]);
+
+    const fromMs = dari.getTime();
+    const toMs   = sampai.getTime();
+
+    // Filter di client
+    raTrxData = trxSnap.docs.map(d => ({id:d.id,...d.data()})).filter(t => {
+      const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+      return tgl.getTime() >= fromMs && tgl.getTime() <= toMs;
+    });
+
+    raBayarData = bayarSnap.docs.map(d => ({id:d.id,...d.data()})).filter(b => {
+      const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date(b.tanggal||0);
+      return tgl.getTime() >= fromMs && tgl.getTime() <= toMs;
+    });
+
+    raKeluarData = keluarSnap.docs.map(d => ({id:d.id,...d.data()})).filter(k => {
+      const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date(k.tanggal||0);
+      return tgl.getTime() >= fromMs && tgl.getTime() <= toMs;
+    });
+
+    // Buat map stok (produk_id → modal_per_kodi)
+    raStokMap = {};
+    stokSnap.forEach(d => { raStokMap[d.id] = d.data().modal_per_kodi || 0; });
+
+    // Buat map users (uid → nama)
+    raUsersMap = {};
+    usersSnap.forEach(d => { raUsersMap[d.id] = d.data().nama || d.id; });
+
+    renderRekapAdmin(dari, sampai);
+  } catch(e) {
+    console.error('loadRekapAdmin error:', e);
+    showToast('Gagal memuat rekap: ' + e.message, 'error');
+  } finally {
+    document.getElementById('ra-loading').style.display = 'none';
+    document.getElementById('ra-content').style.display = 'block';
+  }
+};
+
+// ---- RENDER SEMUA SECTION ----
+function renderRekapAdmin(dari, sampai) {
+  // Hitung HPP
+  let hpp = 0;
+  let hppParsial = false;
+  raTrxData.forEach(t => {
+    (t.items||[]).forEach(item => {
+      const modal = raStokMap[item.produk_id];
+      if (modal === undefined || modal === null) { hppParsial = true; return; }
+      hpp += (item.jumlah_kodi || 0) * modal;
+    });
+  });
+
+  const omzet     = raTrxData.reduce((s,t) => s + (t.total_tagihan||0), 0);
+  const kasMasuk  = raBayarData.reduce((s,b) => s + (b.nominal||0), 0);
+  const labaKotor = omzet - hpp;
+  const pengeluaran = raKeluarData.reduce((s,k) => s + (k.nominal||0), 0);
+  const labaBersih  = labaKotor - pengeluaran;
+
+  // Update kartu
+  document.getElementById('ra-omzet').textContent      = formatRupiah(omzet);
+  document.getElementById('ra-kas').textContent         = formatRupiah(kasMasuk);
+  document.getElementById('ra-hpp').textContent         = formatRupiah(hpp);
+  document.getElementById('ra-laba-kotor').textContent  = formatRupiah(labaKotor);
+  document.getElementById('ra-pengeluaran').textContent = formatRupiah(pengeluaran);
+
+  const labaBersihEl = document.getElementById('ra-laba-bersih');
+  labaBersihEl.textContent = formatRupiah(labaBersih);
+  labaBersihEl.className   = 'rekap-finansial-value ' + (labaBersih >= 0 ? 'text-green' : 'text-red');
+
+  document.getElementById('ra-hpp-note').style.display = hppParsial ? '' : 'none';
+
+  // Section 2: Grafik (hanya mingguan & bulanan)
+  const showGrafik = raTab !== 'harian';
+  document.getElementById('ra-grafik-wrap').style.display = showGrafik ? '' : 'none';
+  if (showGrafik) renderGrafik(dari, sampai);
+
+  // Section 3: Karyawan
+  renderKaryawanTable();
+
+  // Section 4: Transaksi
+  renderTrxTable();
+
+  // Section 5: Pembayaran
+  renderBayarTable();
+
+  // Section 6: Pengeluaran
+  renderKeluarTable();
+
+  // Section 7: Produk terlaris (hanya mingguan & bulanan)
+  const showProduk = raTab !== 'harian';
+  document.getElementById('ra-produk-wrap').style.display = showProduk ? '' : 'none';
+  if (showProduk) renderProdukTable();
+}
+
+// ---- SECTION 2: GRAFIK ----
+function renderGrafik(dari, sampai) {
+  // Destroy chart lama
+  if (raChartInstance) { raChartInstance.destroy(); raChartInstance = null; }
+
+  const ctx = document.getElementById('ra-chart').getContext('2d');
+
+  if (raTab === 'mingguan') {
+    // Grafik garis per hari dalam minggu
+    const labels = [];
+    const omzetPerHari = [];
+    const kasPerHari = [];
+    const keluarPerHari = [];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(dari);
+      d.setDate(dari.getDate() + i);
+      labels.push(d.toLocaleDateString('id-ID', { weekday:'short', day:'numeric' }));
+
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+      const dayEnd   = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+      const dsMs = dayStart.getTime(), deMs = dayEnd.getTime();
+
+      const omzetHari = raTrxData.filter(t => {
+        const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+        return tgl.getTime() >= dsMs && tgl.getTime() <= deMs;
+      }).reduce((s,t) => s+(t.total_tagihan||0), 0);
+
+      const kasHari = raBayarData.filter(b => {
+        const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date(b.tanggal||0);
+        return tgl.getTime() >= dsMs && tgl.getTime() <= deMs;
+      }).reduce((s,b) => s+(b.nominal||0), 0);
+
+      const keluarHari = raKeluarData.filter(k => {
+        const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date(k.tanggal||0);
+        return tgl.getTime() >= dsMs && tgl.getTime() <= deMs;
+      }).reduce((s,k) => s+(k.nominal||0), 0);
+
+      omzetPerHari.push(omzetHari);
+      kasPerHari.push(kasHari);
+      keluarPerHari.push(keluarHari);
     }
+
+    raChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label:'Omzet', data:omzetPerHari, borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.08)', tension:0.3, fill:true },
+          { label:'Kas Masuk', data:kasPerHari, borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,0.05)', tension:0.3 },
+          { label:'Pengeluaran', data:keluarPerHari, borderColor:'#DC2626', backgroundColor:'rgba(220,38,38,0.05)', tension:0.3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position:'bottom' } },
+        scales: {
+          y: { ticks: { callback: v => 'Rp '+v.toLocaleString('id-ID') } }
+        }
+      }
+    });
+
+  } else if (raTab === 'bulanan') {
+    // Bar chart per minggu dalam bulan
+    const weeks = [];
+    const omzetPerMinggu = [];
+    const keluarPerMinggu = [];
+
+    let weekStart = new Date(dari);
+    let w = 1;
+    while (weekStart <= sampai) {
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      if (weekEnd > sampai) weekEnd.setTime(sampai.getTime());
+      weekEnd.setHours(23,59,59,999);
+
+      const wsMs = weekStart.getTime(), weMs = weekEnd.getTime();
+      weeks.push(`Minggu ${w}`);
+
+      omzetPerMinggu.push(raTrxData.filter(t => {
+        const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+        return tgl.getTime() >= wsMs && tgl.getTime() <= weMs;
+      }).reduce((s,t) => s+(t.total_tagihan||0), 0));
+
+      keluarPerMinggu.push(raKeluarData.filter(k => {
+        const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date(k.tanggal||0);
+        return tgl.getTime() >= wsMs && tgl.getTime() <= weMs;
+      }).reduce((s,k) => s+(k.nominal||0), 0));
+
+      weekStart.setDate(weekStart.getDate() + 7);
+      w++;
+    }
+
+    raChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: weeks,
+        datasets: [
+          { label:'Omzet', data:omzetPerMinggu, backgroundColor:'rgba(29,158,117,0.7)' },
+          { label:'Pengeluaran', data:keluarPerMinggu, backgroundColor:'rgba(220,38,38,0.6)' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position:'bottom' } },
+        scales: {
+          y: { ticks: { callback: v => 'Rp '+v.toLocaleString('id-ID') } }
+        }
+      }
+    });
   }
 }
 
-3. Klik Publish
+// ---- SECTION 3: KARYAWAN ----
+function renderKaryawanTable() {
+  const tbody = document.getElementById('ra-karyawan-tbody');
+  // Kelompokkan per karyawan
+  const map = {};
+  raTrxData.forEach(t => {
+    const uid = t.created_by || 'unknown';
+    if (!map[uid]) map[uid] = { nama: raUsersMap[uid] || uid, trx: 0, kas: 0, keluar: 0 };
+    map[uid].trx++;
+  });
+  raBayarData.forEach(b => {
+    const uid = b.dicatat_oleh || 'unknown';
+    if (!map[uid]) map[uid] = { nama: raUsersMap[uid] || uid, trx: 0, kas: 0, keluar: 0 };
+    map[uid].kas += b.nominal || 0;
+  });
+  raKeluarData.forEach(k => {
+    const uid = k.dicatat_oleh || 'unknown';
+    if (!map[uid]) map[uid] = { nama: raUsersMap[uid] || uid, trx: 0, kas: 0, keluar: 0 };
+    map[uid].keluar += k.nominal || 0;
+  });
 
-LANGKAH 7 — AMBIL FIREBASE CONFIG
-1. Di sidebar klik ikon ⚙️ (Project Settings)
-2. Scroll ke bawah ke bagian "Your apps"
-3. Klik ikon </> (Web) 
-4. Beri nama app → Register app
-5. Copy nilai dari firebaseConfig yang muncul
-6. Paste ke bagian firebaseConfig di file HTML ini
-   (cari komentar "🔧 KONFIGURASI FIREBASE" di atas)
+  if (Object.keys(map).length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada data</td></tr>';
+    return;
+  }
 
-SELESAI! Buka file HTML di browser dan login dengan akun owner.
-══════════════════════════════════════════════════════════════
--->
+  tbody.innerHTML = Object.entries(map).map(([uid, d]) => {
+    const saldo = d.kas - d.keluar;
+    const saldoColor = saldo >= 0 ? '#16A34A' : '#DC2626';
+    const bayarDetail = raBayarData.filter(b => b.dicatat_oleh === uid);
+    const keluarDetail = raKeluarData.filter(k => k.dicatat_oleh === uid);
+
+    const detailHTML = `
+      <tr class="rekap-accordion-detail" id="kary-detail-${uid}">
+        <td colspan="5">
+          <div class="rekap-accordion-td">
+            ${bayarDetail.length > 0 ? `
+              <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:6px;">💵 PEMBAYARAN DICATAT:</div>
+              ${bayarDetail.map(b => {
+                const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date();
+                return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #f3f4f6;">
+                  <span>${b.pelanggan_nama||'-'}</span>
+                  <span style="color:#16A34A;font-weight:600;">${formatRupiah(b.nominal)}</span>
+                  <span style="color:var(--text-muted);">${tgl.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
+                </div>`;
+              }).join('')}
+            ` : '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">💵 Tidak ada pembayaran dicatat</div>'}
+            ${keluarDetail.length > 0 ? `
+              <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-top:8px;margin-bottom:6px;">💸 PENGELUARAN:</div>
+              ${keluarDetail.map(k => {
+                const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date();
+                return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #f3f4f6;">
+                  <span>${k.kategori} ${k.keterangan ? '— '+k.keterangan : ''}</span>
+                  <span style="color:#DC2626;font-weight:600;">${formatRupiah(k.nominal)}</span>
+                  <span style="color:var(--text-muted);">${tgl.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
+                </div>`;
+              }).join('')}
+            ` : '<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">💸 Tidak ada pengeluaran</div>'}
+          </div>
+        </td>
+      </tr>`;
+
+    return `
+      <tr onclick="toggleKaryawanDetail('${uid}')" style="cursor:pointer;">
+        <td><span style="font-weight:600;color:var(--primary);">${d.nama}</span></td>
+        <td class="text-right">${d.trx}</td>
+        <td class="text-right" style="color:#16A34A;">${formatRupiah(d.kas)}</td>
+        <td class="text-right text-red">${formatRupiah(d.keluar)}</td>
+        <td class="text-right" style="color:${saldoColor};font-weight:700;">${formatRupiah(saldo)}</td>
+      </tr>
+      ${detailHTML}`;
+  }).join('');
+}
+
+window.toggleKaryawanDetail = function(uid) {
+  const el = document.getElementById(`kary-detail-${uid}`);
+  if (el) el.classList.toggle('open');
+};
+
+// ---- SECTION 4: TABEL TRANSAKSI ----
+function renderTrxTable() {
+  const tbody = document.getElementById('ra-trx-tbody');
+  const total = raTrxData.reduce((s,t) => s+(t.total_tagihan||0), 0);
+  document.getElementById('ra-trx-total').textContent = formatRupiah(total);
+
+  if (raTrxData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada transaksi</td></tr>';
+    return;
+  }
+
+  const sorted = [...raTrxData].sort((a,b) => (b.created_at?.seconds||0)-(a.created_at?.seconds||0));
+  tbody.innerHTML = sorted.map((t, i) => {
+    const produkStr = (t.items||[]).map(it => `${it.produk_nama} ${it.jumlah_kodi}k`).join(', ');
+    const pasarStr  = t.pasar === 'tegal_gubug' ? 'Tegal Gubug' : 'Jatibarang';
+    const jenisBadge = t.jenis_bayar === 'kontan'
+      ? '<span class="badge badge-green">Kontan</span>'
+      : t.jenis_bayar === 'tahunan'
+      ? '<span class="badge badge-amber">Tahunan</span>'
+      : '<span class="badge badge-amber">Cicilan</span>';
+    const oleh = raUsersMap[t.created_by] || '-';
+    const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date();
+
+    const itemsDetailHTML = (t.items||[]).map(it => `
+      <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed #f3f4f6;">
+        <span>${it.produk_nama}</span>
+        <span>${it.jumlah_kodi} kodi × ${formatRupiah(it.harga_kodi)}</span>
+        <span style="font-weight:700;">${formatRupiah(it.subtotal)}</span>
+      </div>`).join('');
+    const statusBadge = t.status === 'lunas'
+      ? '<span class="badge badge-green">Lunas</span>'
+      : `<span class="badge badge-red">Sisa ${formatRupiah(t.sisa_hutang||0)}</span>`;
+
+    const detailHTML = `
+      <tr class="rekap-accordion-detail" id="trx-detail-${t.id}">
+        <td colspan="7">
+          <div class="rekap-accordion-td">
+            ${itemsDetailHTML}
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;">
+              <span style="font-weight:700;">Total Tagihan</span>
+              <span style="font-weight:800;">${formatRupiah(t.total_tagihan)}</span>
+            </div>
+            <div style="margin-top:4px;">${statusBadge}</div>
+          </div>
+        </td>
+      </tr>`;
+
+    return `
+      <tr onclick="toggleTrxDetail('${t.id}')" style="cursor:pointer;">
+        <td>${i+1}</td>
+        <td style="font-weight:600;">${t.pelanggan_nama}</td>
+        <td style="max-width:140px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${produkStr}</td>
+        <td class="text-right font-bold">${formatRupiah(t.total_tagihan)}</td>
+        <td>${jenisBadge}</td>
+        <td style="font-size:12px;">${pasarStr}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${oleh}</td>
+      </tr>
+      ${detailHTML}`;
+  }).join('');
+}
+
+window.toggleTrxDetail = function(id) {
+  const el = document.getElementById(`trx-detail-${id}`);
+  if (el) el.classList.toggle('open');
+};
+
+// ---- SECTION 5: TABEL PEMBAYARAN ----
+function renderBayarTable() {
+  const tbody = document.getElementById('ra-bayar-tbody');
+  const total = raBayarData.reduce((s,b) => s+(b.nominal||0), 0);
+  document.getElementById('ra-bayar-total').textContent = formatRupiah(total);
+
+  if (raBayarData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada pembayaran</td></tr>';
+    return;
+  }
+
+  const sorted = [...raBayarData].sort((a,b) => (b.tanggal?.seconds||0)-(a.tanggal?.seconds||0));
+  tbody.innerHTML = sorted.map((b, i) => {
+    const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date();
+    const tglStr = tgl.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const metodeBadge = b.metode === 'transfer'
+      ? '<span class="badge badge-blue">Transfer</span>'
+      : '<span class="badge badge-gray">Tunai</span>';
+    const oleh = b.dicatat_oleh_nama || raUsersMap[b.dicatat_oleh] || '-';
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-weight:600;">${b.pelanggan_nama||'-'}</td>
+      <td class="text-right" style="color:#16A34A;font-weight:700;">${formatRupiah(b.nominal)}</td>
+      <td>${metodeBadge}</td>
+      <td style="font-size:12px;color:var(--text-muted);">${oleh}</td>
+      <td style="font-size:12px;">${tglStr}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---- SECTION 6: TABEL PENGELUARAN ----
+function renderKeluarTable() {
+  const tbody = document.getElementById('ra-keluar-tbody');
+  const total = raKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
+  document.getElementById('ra-keluar-total').textContent = formatRupiah(total);
+  const KATEGORI_ICON_ADMIN = { bensin:'⛽', makan:'🍽️', becak:'🛺', lainnya:'📝' };
+
+  if (raKeluarData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada pengeluaran</td></tr>';
+    return;
+  }
+
+  const sorted = [...raKeluarData].sort((a,b) => (b.tanggal?.seconds||0)-(a.tanggal?.seconds||0));
+  tbody.innerHTML = sorted.map((k, i) => {
+    const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date();
+    const tglStr = tgl.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const ikon = KATEGORI_ICON_ADMIN[k.kategori] || '📝';
+    const oleh = k.dicatat_oleh_nama || raUsersMap[k.dicatat_oleh] || '-';
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-size:12px;">${oleh}</td>
+      <td>${ikon} ${k.kategori}</td>
+      <td style="font-size:12px;color:var(--text-muted);">${k.keterangan||'-'}</td>
+      <td class="text-right text-red font-bold">${formatRupiah(k.nominal)}</td>
+      <td style="font-size:12px;">${tglStr}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---- SECTION 7: PRODUK TERLARIS ----
+function renderProdukTable() {
+  const tbody = document.getElementById('ra-produk-tbody');
+  const produkMap = {};
+
+  raTrxData.forEach(t => {
+    (t.items||[]).forEach(item => {
+      if (!produkMap[item.produk_id]) {
+        produkMap[item.produk_id] = {
+          nama: item.produk_nama,
+          totalKodi: 0,
+          totalOmzet: 0,
+          totalHpp: 0
+        };
+      }
+      produkMap[item.produk_id].totalKodi  += item.jumlah_kodi || 0;
+      produkMap[item.produk_id].totalOmzet += item.subtotal || 0;
+      const modal = raStokMap[item.produk_id] || 0;
+      produkMap[item.produk_id].totalHpp   += (item.jumlah_kodi||0) * modal;
+    });
+  });
+
+  const sorted = Object.values(produkMap).sort((a,b) => b.totalKodi - a.totalKodi);
+
+  if (sorted.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada data</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map(p => {
+    const laba = p.totalOmzet - p.totalHpp;
+    return `<tr>
+      <td style="font-weight:600;">${p.nama}</td>
+      <td class="text-right">${p.totalKodi.toFixed(1)} kodi</td>
+      <td class="text-right">${formatRupiah(p.totalOmzet)}</td>
+      <td class="text-right">${formatRupiah(p.totalHpp)}</td>
+      <td class="text-right" style="color:${laba>=0?'#16A34A':'#DC2626'};font-weight:700;">${formatRupiah(laba)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---- EXPORT .TXT ----
+window.downloadRekapAdminTxt = function() {
+  const omzet       = raTrxData.reduce((s,t) => s+(t.total_tagihan||0), 0);
+  const kasMasuk    = raBayarData.reduce((s,b) => s+(b.nominal||0), 0);
+  const pengeluaran = raKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
+  let hpp = 0;
+  raTrxData.forEach(t => (t.items||[]).forEach(it => {
+    hpp += (it.jumlah_kodi||0) * (raStokMap[it.produk_id]||0);
+  }));
+  const labaKotor  = omzet - hpp;
+  const labaBersih = labaKotor - pengeluaran;
+  const periode    = document.getElementById('rekap-admin-subtitle').textContent;
+  const tabLabel   = raTab === 'harian' ? 'HARIAN' : raTab === 'mingguan' ? 'MINGGUAN' : 'BULANAN';
+  const nm         = currentUserData?.nama || currentUser?.email || '-';
+
+  let txt = `📊 REKAP ${tabLabel} STORE BATIK AN\n`;
+  txt += `Periode: ${periode}\n`;
+  txt += `═══════════════════════════\n`;
+  txt += `💰 FINANSIAL\n`;
+  txt += `Omzet        : ${formatRupiah(omzet)}\n`;
+  txt += `Kas Masuk    : ${formatRupiah(kasMasuk)}\n`;
+  txt += `HPP          : ${formatRupiah(hpp)}\n`;
+  txt += `Laba Kotor   : ${formatRupiah(labaKotor)}\n`;
+  txt += `Pengeluaran  : ${formatRupiah(pengeluaran)}\n`;
+  txt += `LABA BERSIH  : ${formatRupiah(labaBersih)} ${labaBersih >= 0 ? '✅ UNTUNG' : '❌ RUGI'}\n`;
+
+  if (raTrxData.length > 0) {
+    txt += `\n═══════════════════════════\n🛒 TRANSAKSI BARU (${raTrxData.length} transaksi)\n`;
+    raTrxData.forEach(t => {
+      const produkStr = (t.items||[]).map(it => `${it.produk_nama} ${it.jumlah_kodi}k`).join('+');
+      const jenis = t.jenis_bayar === 'kontan' ? 'Kontan' : t.jenis_bayar === 'tahunan' ? 'Tahunan' : 'Cicilan';
+      txt += `• ${t.pelanggan_nama}: ${produkStr} = ${formatRupiah(t.total_tagihan)} (${jenis})\n`;
+    });
+  }
+
+  if (raBayarData.length > 0) {
+    txt += `\n═══════════════════════════\n💵 PEMBAYARAN MASUK (${raBayarData.length} pembayaran)\n`;
+    raBayarData.forEach(b => {
+      txt += `• ${b.pelanggan_nama||'-'}: ${formatRupiah(b.nominal)} (${b.metode})\n`;
+    });
+  }
+
+  // Per karyawan
+  const karyMap = {};
+  raBayarData.forEach(b => {
+    const uid = b.dicatat_oleh || 'unknown';
+    if (!karyMap[uid]) karyMap[uid] = { nama: raUsersMap[uid]||uid, kas:0, keluar:0 };
+    karyMap[uid].kas += b.nominal || 0;
+  });
+  raKeluarData.forEach(k => {
+    const uid = k.dicatat_oleh || 'unknown';
+    if (!karyMap[uid]) karyMap[uid] = { nama: raUsersMap[uid]||uid, kas:0, keluar:0 };
+    karyMap[uid].keluar += k.nominal || 0;
+  });
+  if (Object.keys(karyMap).length > 0) {
+    txt += `\n═══════════════════════════\n👥 PER KARYAWAN\n`;
+    Object.values(karyMap).forEach(k => {
+      txt += `• ${k.nama}: Terima ${formatRupiah(k.kas)} | Keluar ${formatRupiah(k.keluar)}\n`;
+    });
+  }
+
+  txt += `\n═══════════════════════════\n`;
+  txt += `Dicetak oleh: ${nm}\n`;
+  txt += `Waktu cetak : ${new Date().toLocaleString('id-ID')}\n`;
+
+  const blob = new Blob([txt], { type:'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `rekap-admin-${tabLabel.toLowerCase()}-${new Date().toISOString().split('T')[0]}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('File .txt berhasil diunduh 📥', 'success');
+};
+
+// ---- EXPORT PDF ----
+window.exportRekapAdminPdf = async function() {
+  showToast('Menyiapkan PDF...', 'info');
+
+  // Load jsPDF jika belum ada
+  if (!window.jspdf) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const contentW = pageW - margin * 2;
+  let y = margin;
+
+  const omzet       = raTrxData.reduce((s,t) => s+(t.total_tagihan||0), 0);
+  const kasMasuk    = raBayarData.reduce((s,b) => s+(b.nominal||0), 0);
+  const pengeluaran = raKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
+  let hpp = 0;
+  raTrxData.forEach(t => (t.items||[]).forEach(it => {
+    hpp += (it.jumlah_kodi||0) * (raStokMap[it.produk_id]||0);
+  }));
+  const labaKotor  = omzet - hpp;
+  const labaBersih = labaKotor - pengeluaran;
+  const periode    = document.getElementById('rekap-admin-subtitle').textContent;
+  const tabLabel   = raTab === 'harian' ? 'Harian' : raTab === 'mingguan' ? 'Mingguan' : 'Bulanan';
+  const nm         = currentUserData?.nama || currentUser?.email || '-';
+  let pageNum = 1;
+
+  function addHeader() {
+    doc.setFillColor(29, 158, 117);
+    doc.rect(0, 0, pageW, 22, 'F');
+    doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+    doc.text('STORE BATIK AN', margin, 10);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.text(`Laporan Rekap ${tabLabel} | Periode: ${periode}`, margin, 16);
+    doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')} oleh ${nm}`, pageW - margin, 16, { align:'right' });
+    y = 28;
+    doc.setTextColor(17,24,39);
+  }
+
+  function addFooter() {
+    doc.setFontSize(8); doc.setTextColor(107,114,128);
+    doc.text(`Halaman ${pageNum}`, margin, pageH - 6);
+    doc.text('Store Batik AN', pageW - margin, pageH - 6, { align:'right' });
+    doc.setTextColor(17,24,39);
+  }
+
+  function checkNewPage(needed = 10) {
+    if (y + needed > pageH - 14) {
+      addFooter();
+      doc.addPage();
+      pageNum++;
+      addHeader();
+    }
+  }
+
+  function sectionTitle(title) {
+    checkNewPage(14);
+    doc.setFontSize(10); doc.setFont('helvetica','bold');
+    doc.setFillColor(232,247,241);
+    doc.rect(margin, y, contentW, 7, 'F');
+    doc.text(title, margin + 2, y + 5);
+    doc.setFont('helvetica','normal');
+    y += 10;
+  }
+
+  function tableRow(cols, widths, isHeader = false, bgColor = null) {
+    checkNewPage(7);
+    if (bgColor) { doc.setFillColor(...bgColor); doc.rect(margin, y, contentW, 6.5, 'F'); }
+    doc.setFontSize(8);
+    doc.setFont('helvetica', isHeader ? 'bold' : 'normal');
+    let x = margin;
+    cols.forEach((col, i) => {
+      doc.text(String(col||''), x + 1, y + 4.5, { maxWidth: widths[i] - 2 });
+      x += widths[i];
+    });
+    // Border bawah
+    doc.setDrawColor(229,231,235);
+    doc.line(margin, y + 6.5, margin + contentW, y + 6.5);
+    y += 7;
+    doc.setFont('helvetica','normal');
+    doc.setDrawColor(0,0,0);
+  }
+
+  // ---- START PDF ----
+  addHeader();
+
+  // Ringkasan Finansial
+  sectionTitle('RINGKASAN FINANSIAL');
+  const finRows = [
+    ['Omzet', formatRupiah(omzet)],
+    ['Kas Masuk', formatRupiah(kasMasuk)],
+    ['HPP', formatRupiah(hpp)],
+    ['Laba Kotor', formatRupiah(labaKotor)],
+    ['Pengeluaran', formatRupiah(pengeluaran)],
+    ['LABA BERSIH', formatRupiah(labaBersih) + (labaBersih >= 0 ? ' ✅' : ' ❌')]
+  ];
+  const labaBersihBg = labaBersih >= 0 ? [232,247,241] : [254,226,226];
+  tableRow(['Keterangan','Nilai'], [contentW*0.6, contentW*0.4], true, [232,247,241]);
+  finRows.forEach((row, i) => {
+    const bg = i === 5 ? labaBersihBg : null;
+    tableRow(row, [contentW*0.6, contentW*0.4], false, bg);
+  });
+  y += 4;
+
+  // Detail Transaksi
+  if (raTrxData.length > 0) {
+    sectionTitle(`DETAIL TRANSAKSI (${raTrxData.length})`);
+    tableRow(['#','Pelanggan','Produk','Total','Jenis'], [8, contentW*0.22, contentW*0.28, contentW*0.22, contentW*0.18], true, [232,247,241]);
+    raTrxData.forEach((t, i) => {
+      const produkStr = (t.items||[]).map(it => `${it.produk_nama} ${it.jumlah_kodi}k`).join(', ');
+      tableRow([i+1, t.pelanggan_nama, produkStr, formatRupiah(t.total_tagihan), t.jenis_bayar], [8, contentW*0.22, contentW*0.28, contentW*0.22, contentW*0.18]);
+    });
+    y += 4;
+  }
+
+  // Detail Pembayaran
+  if (raBayarData.length > 0) {
+    sectionTitle(`DETAIL PEMBAYARAN MASUK (${raBayarData.length})`);
+    tableRow(['#','Pelanggan','Nominal','Metode','Dicatat Oleh'], [8, contentW*0.3, contentW*0.22, contentW*0.18, contentW*0.2], true, [232,247,241]);
+    raBayarData.forEach((b, i) => {
+      const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date();
+      tableRow([i+1, b.pelanggan_nama||'-', formatRupiah(b.nominal), b.metode, b.dicatat_oleh_nama||'-'], [8, contentW*0.3, contentW*0.22, contentW*0.18, contentW*0.2]);
+    });
+    y += 4;
+  }
+
+  // Detail Pengeluaran
+  if (raKeluarData.length > 0) {
+    sectionTitle(`DETAIL PENGELUARAN (${raKeluarData.length})`);
+    tableRow(['#','Karyawan','Kategori','Keterangan','Nominal'], [8, contentW*0.22, contentW*0.15, contentW*0.33, contentW*0.2], true, [232,247,241]);
+    raKeluarData.forEach((k, i) => {
+      tableRow([i+1, k.dicatat_oleh_nama||'-', k.kategori, k.keterangan||'-', formatRupiah(k.nominal)], [8, contentW*0.22, contentW*0.15, contentW*0.33, contentW*0.2]);
+    });
+    y += 4;
+  }
+
+  // Rekap Per Karyawan
+  const karyMap = {};
+  raBayarData.forEach(b => {
+    const uid = b.dicatat_oleh||'unknown';
+    if (!karyMap[uid]) karyMap[uid] = { nama:raUsersMap[uid]||uid, trx:0, kas:0, keluar:0 };
+    karyMap[uid].kas += b.nominal||0;
+  });
+  raKeluarData.forEach(k => {
+    const uid = k.dicatat_oleh||'unknown';
+    if (!karyMap[uid]) karyMap[uid] = { nama:raUsersMap[uid]||uid, trx:0, kas:0, keluar:0 };
+    karyMap[uid].keluar += k.nominal||0;
+  });
+  raTrxData.forEach(t => {
+    const uid = t.created_by||'unknown';
+    if (!karyMap[uid]) karyMap[uid] = { nama:raUsersMap[uid]||uid, trx:0, kas:0, keluar:0 };
+    karyMap[uid].trx++;
+  });
+  if (Object.keys(karyMap).length > 0) {
+    sectionTitle('REKAP PER KARYAWAN');
+    tableRow(['Karyawan','Trx','Kas Diterima','Pengeluaran','Saldo'], [contentW*0.3, contentW*0.1, contentW*0.2, contentW*0.2, contentW*0.2], true, [232,247,241]);
+    Object.values(karyMap).forEach(k => {
+      tableRow([k.nama, k.trx, formatRupiah(k.kas), formatRupiah(k.keluar), formatRupiah(k.kas-k.keluar)], [contentW*0.3, contentW*0.1, contentW*0.2, contentW*0.2, contentW*0.2]);
+    });
+  }
+
+  addFooter();
+
+  const filename = `rekap-admin-${tabLabel.toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(filename);
+  showToast('PDF berhasil diunduh 📄', 'success');
+};
+
+// Expose
+window.loadRekapAdmin         = loadRekapAdmin;
+window.setRekapAdminTab       = setRekapAdminTab;
+window.setRekapAdminHari      = setRekapAdminHari;
+window.pilihPasaranAdmin      = pilihPasaranAdmin;
+window.setMingguIni           = setMingguIni;
+window.navigasiMinggu         = navigasiMinggu;
+window.setBulanIni            = setBulanIni;
+window.navigasiBulan          = navigasiBulan;
+window.toggleKaryawanDetail   = toggleKaryawanDetail;
+window.toggleTrxDetail        = toggleTrxDetail;
+window.downloadRekapAdminTxt  = downloadRekapAdminTxt;
+window.exportRekapAdminPdf    = exportRekapAdminPdf;
+
+// ============================================================
+// END PATCH C
+// ============================================================
+
+</script>
 
 </body>
 </html>
