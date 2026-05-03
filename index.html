@@ -408,6 +408,50 @@
       .item-entry > *:last-child { grid-column: 1; }
     }
 
+
+    /* ===== STOK PAGE ===== */
+    .stok-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    @media (max-width: 600px) { .stok-summary-grid { grid-template-columns: 1fr 1fr; } }
+    .stok-summary-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+    .stok-summary-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .stok-summary-value { font-size: 18px; font-weight: 800; color: var(--text-primary); }
+    
+    .stok-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 12px; overflow: hidden; }
+    .stok-card-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .stok-card-nama { font-size: 15px; font-weight: 700; }
+    .stok-card-body { padding: 12px 16px; }
+    .stok-info-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5; }
+    .stok-info-row:last-child { border-bottom: none; }
+    .stok-info-label { color: var(--text-muted); font-weight: 500; }
+    .stok-info-value { font-weight: 700; }
+    .stok-card-actions { padding: 10px 16px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--border); background: #fafafa; }
+    
+    .badge-stok-hijau { background: #DCFCE7; color: #16A34A; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .badge-stok-kuning { background: #FEF3C7; color: #D97706; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .badge-stok-merah { background: #FEE2E2; color: #DC2626; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    
+    .stok-log-item { padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+    .stok-log-item:last-child { border-bottom: none; }
+    .stok-log-jenis { display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+    .log-isi_mobil { background: #DBEAFE; color: #2563EB; }
+    .log-tambah_rumah { background: #DCFCE7; color: #16A34A; }
+    .log-penjualan { background: #FEE2E2; color: #DC2626; }
+    .log-opname { background: #FEF3C7; color: #D97706; }
+    .log-koreksi { background: #F3E8FF; color: #7C3AED; }
+    
+    .badge-nav-alert { 
+      display: inline-flex; align-items: center; justify-content: center;
+      background: #DC2626; color: white; border-radius: 999px;
+      font-size: 10px; font-weight: 800; min-width: 18px; height: 18px;
+      padding: 0 4px; margin-left: auto;
+    }
+    .bnav-badge { position: relative; }
+    .bnav-badge-dot {
+      position: absolute; top: 6px; right: 50%; transform: translateX(12px);
+      width: 8px; height: 8px; background: #DC2626; border-radius: 50%;
+      border: 2px solid white;
+    }
+
     /* ===== UTILS ===== */
     .hidden { display: none !important; }
     .text-right { text-align: right; }
@@ -490,6 +534,11 @@
       <a class="nav-item" data-page="produk" onclick="navigateTo('produk')">
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
         Produk
+      </a>
+      <a class="nav-item" data-page="stok" onclick="navigateTo('stok')">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m8-4v8"/></svg>
+        Stok
+        <span class="badge-nav-alert hidden" id="stok-badge-sidebar">0</span>
       </a>
       <div class="nav-section" style="margin-top:8px;" id="owner-section">Owner</div>
       <a class="nav-item owner-only" data-page="rekap" onclick="navigateTo('rekap')">
@@ -963,6 +1012,46 @@
         </div>
       </div>
     </div>
+
+
+    <!-- ====== STOK ====== -->
+    <div class="page" id="page-stok">
+      <div class="page-header flex justify-between" style="align-items:flex-start;">
+        <div>
+          <div class="page-title">📦 Stok</div>
+          <div class="page-subtitle" id="stok-subtitle">Manajemen stok produk</div>
+        </div>
+      </div>
+
+      <!-- Ringkasan owner only -->
+      <div id="stok-owner-summary" style="display:none;" class="stok-summary-grid">
+        <div class="stok-summary-card">
+          <div class="stok-summary-label">Nilai Stok Rumah</div>
+          <div class="stok-summary-value text-green" id="stok-val-rumah">Rp 0</div>
+        </div>
+        <div class="stok-summary-card">
+          <div class="stok-summary-label">Nilai Stok Mobil</div>
+          <div class="stok-summary-value" id="stok-val-mobil">Rp 0</div>
+        </div>
+        <div class="stok-summary-card">
+          <div class="stok-summary-label">Total Nilai Stok</div>
+          <div class="stok-summary-value" id="stok-val-total">Rp 0</div>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="search-filter" style="margin-bottom:16px;">
+        <div class="search-box flex-1">
+          <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" class="form-control" id="search-stok" placeholder="Cari produk..." oninput="filterStok()" style="padding-left:38px;" />
+        </div>
+      </div>
+
+      <!-- Stok list -->
+      <div id="stok-list">
+        <div style="padding:40px;text-align:center;color:var(--text-muted);">Memuat data stok...</div>
+      </div>
+    </div>
  
 
   </main>
@@ -990,12 +1079,181 @@
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
         Produk
       </button>
+      <button class="bnav-item bnav-badge" onclick="navigateTo('stok')" id="bnav-stok">
+        <span class="bnav-badge-dot hidden" id="stok-badge-bnav"></span>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m8-4v8"/></svg>
+        Stok
+      </button> 
     </div>
   </div>
 
 </div>
 
 <!-- ==================== MODALS ==================== -->
+
+
+<!-- ==================== MODAL STOK ==================== -->
+
+<!-- Modal Isi ke Mobil -->
+<div class="modal-backdrop" id="modal-isi-mobil" onclick="handleBackdropClick(event,'modal-isi-mobil')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">🚗 Isi ke Mobil</div>
+      <button class="modal-close" onclick="closeModal('modal-isi-mobil')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="isi-mobil-produk-id" />
+      <div class="form-group">
+        <label class="form-label">Produk</label>
+        <input type="text" class="form-control" id="isi-mobil-produk-nama" readonly style="background:#f9fafb;" />
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Stok Rumah Saat Ini</label>
+          <input type="text" class="form-control" id="isi-mobil-stok-rumah" readonly style="background:#f9fafb;" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stok Mobil Saat Ini</label>
+          <input type="text" class="form-control" id="isi-mobil-stok-mobil" readonly style="background:#f9fafb;" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Jumlah Kodi yang Dipindahkan ke Mobil</label>
+        <input type="number" class="form-control" id="isi-mobil-jumlah" placeholder="0" min="1" oninput="validateIsiMobil()" />
+        <div id="isi-mobil-warning" style="font-size:12px;color:#DC2626;margin-top:4px;display:none;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Catatan <span style="color:var(--text-muted);font-weight:400;">(opsional)</span></label>
+        <input type="text" class="form-control" id="isi-mobil-catatan" placeholder="Misal: persiapan pasaran Selasa" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-isi-mobil')">Batal</button>
+      <button class="btn btn-primary" id="btn-simpan-isi-mobil" onclick="simpanIsiMobil()">Pindahkan ke Mobil</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tambah Stok Rumah (owner only) -->
+<div class="modal-backdrop" id="modal-tambah-stok-rumah" onclick="handleBackdropClick(event,'modal-tambah-stok-rumah')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">🏠 Tambah Stok Rumah</div>
+      <button class="modal-close" onclick="closeModal('modal-tambah-stok-rumah')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tambah-rumah-produk-id" />
+      <div class="form-group">
+        <label class="form-label">Produk</label>
+        <input type="text" class="form-control" id="tambah-rumah-produk-nama" readonly style="background:#f9fafb;" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Jumlah Kodi Masuk</label>
+        <input type="number" class="form-control" id="tambah-rumah-jumlah" placeholder="0" min="1" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sumber</label>
+        <select class="form-control" id="tambah-rumah-sumber">
+          <option value="produksi">Hasil Produksi Sendiri</option>
+          <option value="pabrik">Beli dari Pabrik</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Modal per Kodi (Rp)</label>
+        <input type="number" class="form-control" id="tambah-rumah-modal" placeholder="0" min="0" />
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Pre-fill dari data stok. Ubah jika beda dari sebelumnya.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Catatan <span style="color:var(--text-muted);font-weight:400;">(opsional)</span></label>
+        <input type="text" class="form-control" id="tambah-rumah-catatan" placeholder="Misal: restok dari pabrik Pekalongan" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tambah-stok-rumah')">Batal</button>
+      <button class="btn btn-primary" id="btn-simpan-tambah-rumah" onclick="simpanTambahRumah()">Tambah Stok</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Koreksi Stok (owner only) -->
+<div class="modal-backdrop" id="modal-koreksi-stok" onclick="handleBackdropClick(event,'modal-koreksi-stok')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">🔧 Koreksi Stok / Opname</div>
+      <button class="modal-close" onclick="closeModal('modal-koreksi-stok')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="koreksi-produk-id" />
+      <div class="form-group">
+        <label class="form-label">Produk</label>
+        <input type="text" class="form-control" id="koreksi-produk-nama" readonly style="background:#f9fafb;" />
+      </div>
+      <div class="warning-box amber">
+        ⚠️ Opname akan menimpa data stok sistem dengan nilai fisik aktual. Pastikan sudah dihitung dengan benar.
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Stok Rumah Sistem</label>
+          <input type="text" class="form-control" id="koreksi-rumah-sistem" readonly style="background:#f9fafb;" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stok Rumah Fisik Aktual</label>
+          <input type="number" class="form-control" id="koreksi-rumah-aktual" placeholder="0" min="0" />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Stok Mobil Sistem</label>
+          <input type="text" class="form-control" id="koreksi-mobil-sistem" readonly style="background:#f9fafb;" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stok Mobil Fisik Aktual</label>
+          <input type="number" class="form-control" id="koreksi-mobil-aktual" placeholder="0" min="0" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Alasan Koreksi <span style="color:#DC2626;">*</span></label>
+        <input type="text" class="form-control" id="koreksi-catatan" placeholder="Wajib: alasan koreksi stok" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-koreksi-stok')">Batal</button>
+      <button class="btn btn-primary" id="btn-simpan-koreksi" onclick="simpanKoreksi()">Simpan Opname</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Riwayat Stok -->
+<div class="modal-backdrop" id="modal-riwayat-stok" onclick="handleBackdropClick(event,'modal-riwayat-stok')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:560px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="riwayat-stok-title">Riwayat Stok</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="riwayat-stok-subtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-riwayat-stok')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:12px 16px;">
+      <div id="riwayat-stok-list">
+        <div style="text-align:center;padding:24px;color:var(--text-muted);">Memuat riwayat...</div>
+      </div>
+      <div id="riwayat-stok-load-more" style="display:none;text-align:center;margin-top:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="loadMoreRiwayatStok()">Lihat Lebih Banyak</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-riwayat-stok')">Tutup</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal Catat Bayar -->
 <div class="modal-backdrop" id="modal-catat-bayar" onclick="handleBackdropClick(event,'modal-catat-bayar')">
@@ -1142,6 +1400,11 @@
       <div class="form-group">
         <label class="form-label">Nama Produk</label>
         <input type="text" class="form-control" id="inp-produk-nama" placeholder="Contoh: Batik Tapih" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Modal per Kodi (Rp) <span style="color:var(--text-muted);font-weight:400;">(opsional)</span></label>
+        <input type="number" class="form-control" id="inp-produk-modal" placeholder="0" min="0" />
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Harga beli / biaya produksi per kodi</div>
       </div>
       <div class="form-group">
         <label class="form-label">Harga Default per Kodi (Rp)</label>
@@ -1887,6 +2150,7 @@ window.navigateTo = function(page) {
     }
     if (currentUserData?.role === 'owner') loadKaryawan();
   }
+  if (page === 'stok') loadStok();
 };
  
 // Expose
@@ -2028,7 +2292,7 @@ function showApp() {
 const pageTitles = {
   dashboard: 'Dashboard', transaksi: 'Transaksi Baru', piutang: 'Piutang',
   pelanggan: 'Pelanggan', produk: 'Produk', rekap: 'Rekap', pengaturan: 'Pengaturan',
-  histori: 'Histori Pelanggan'
+  histori: 'Histori Pelanggan', stok: 'Stok'
 };
 
 // navigateTo didefinisikan lengkap di bawah (bagian PATCH), tidak perlu duplikat di sini
@@ -2319,6 +2583,7 @@ window.editProduk = function(id) {
   document.getElementById('inp-produk-nama').value = p.nama;
   document.getElementById('inp-produk-harga').value = p.harga_default;
   document.getElementById('inp-produk-sumber').value = p.sumber;
+  document.getElementById('inp-produk-modal').value = p.modal_per_kodi || 0;
   openModal('modal-tambah-produk');
 };
 
@@ -2766,6 +3031,49 @@ window.simpanTransaksi = async function() {
     });
 
     await batch.commit();
+    // ---- INTEGRASI STOK: kurangi stok_mobil setiap item terjual ----
+    try {
+      const stokBatch = writeBatch(db);
+      for (const item of trxData.items) {
+        if (!item.produk_id) continue;
+        const stokRef = doc(db, 'stok', item.produk_id);
+        const stokSnap = await getDoc(stokRef);
+        if (!stokSnap.exists()) {
+          console.warn(`Stok untuk produk ${item.produk_id} tidak ditemukan, skip.`);
+          continue;
+        }
+        const stokData = stokSnap.data();
+        const stokMobilBefore = stokData.stok_mobil || 0;
+        const stokMobilAfter = stokMobilBefore - (item.jumlah_kodi || 0);
+
+        stokBatch.update(stokRef, {
+          stok_mobil: stokMobilAfter,
+          updated_at: serverTimestamp()
+        });
+
+        const logRef = doc(collection(db, 'stok_log'));
+        stokBatch.set(logRef, {
+          produk_id: item.produk_id,
+          produk_nama: item.produk_nama,
+          jenis: 'penjualan',
+          jumlah_kodi: -(item.jumlah_kodi || 0),
+          stok_rumah_sebelum: stokData.stok_rumah || 0,
+          stok_rumah_sesudah: stokData.stok_rumah || 0,
+          stok_mobil_sebelum: stokMobilBefore,
+          stok_mobil_sesudah: stokMobilAfter,
+          referensi_id: trxRef.id,
+          catatan: `Terjual ke ${trxData.pelanggan.nama} - ${formatPasar(trxData.pasar)}`,
+          created_by: currentUser.uid,
+          created_by_nama: currentUserData?.nama || '-',
+          created_at: serverTimestamp()
+        });
+      }
+      await stokBatch.commit();
+    } catch (stokErr) {
+      console.warn('Gagal update stok setelah transaksi:', stokErr);
+      // Jangan throw — transaksi sudah berhasil, stok hanya warning
+    }
+    // ---- END INTEGRASI STOK ----
     showToast('Transaksi berhasil disimpan! 🎉', 'success');
     initTransaksi();
     navigateTo('dashboard');
@@ -2797,11 +3105,504 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// ============================================================
+// MANAJEMEN STOK — PROMPT A
+// ============================================================
+let allStok = [];
+let riwayatStokProdukId = null;
+let riwayatStokLimit = 20;
+
+async function loadStok() {
+  const isOwner = currentUserData?.role === 'owner';
+  const listEl = document.getElementById('stok-list');
+  const ownerSummary = document.getElementById('stok-owner-summary');
+
+  listEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">⏳ Memuat stok...</div>';
+  if (ownerSummary) ownerSummary.style.display = isOwner ? 'grid' : 'none';
+
+  try {
+    // Load semua produk aktif
+    const produkSnap = await getDocs(query(collection(db, 'produk'), where('aktif', '==', true), orderBy('nama')));
+    const produkList = produkSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Load semua stok
+    const stokSnap = await getDocs(collection(db, 'stok'));
+    const stokMap = {};
+    stokSnap.forEach(d => { stokMap[d.id] = { id: d.id, ...d.data() }; });
+
+    // Untuk produk yang belum punya doc stok, inisialisasi otomatis (owner only)
+    if (isOwner) {
+      const batch = writeBatch(db);
+      let needCommit = false;
+      for (const p of produkList) {
+        if (!stokMap[p.id]) {
+          const stokRef = doc(db, 'stok', p.id);
+          const newStok = {
+            produk_id: p.id,
+            produk_nama: p.nama,
+            modal_per_kodi: p.modal_per_kodi || 0,
+            harga_jual_per_kodi: p.harga_default || 0,
+            stok_rumah: 0,
+            stok_mobil: 0,
+            sumber: p.sumber || 'produksi',
+            last_opname: null,
+            updated_at: serverTimestamp()
+          };
+          batch.set(stokRef, newStok);
+          stokMap[p.id] = { id: p.id, ...newStok, stok_rumah: 0, stok_mobil: 0 };
+          needCommit = true;
+        }
+      }
+      if (needCommit) await batch.commit();
+    }
+
+    // Gabungkan produk + stok
+    allStok = produkList.map(p => ({
+      ...p,
+      stok: stokMap[p.id] || { stok_rumah: 0, stok_mobil: 0, modal_per_kodi: 0, sumber: p.sumber }
+    }));
+
+    // Hitung ringkasan owner
+    if (isOwner) {
+      let valRumah = 0, valMobil = 0;
+      allStok.forEach(p => {
+        const modal = p.stok.modal_per_kodi || 0;
+        valRumah += modal * (p.stok.stok_rumah || 0);
+        valMobil += modal * (p.stok.stok_mobil || 0);
+      });
+      document.getElementById('stok-val-rumah').textContent = formatRupiah(valRumah);
+      document.getElementById('stok-val-mobil').textContent = formatRupiah(valMobil);
+      document.getElementById('stok-val-total').textContent = formatRupiah(valRumah + valMobil);
+    }
+
+    // Update badge stok kritis
+    const kritis = allStok.filter(p => (p.stok.stok_mobil || 0) <= 2).length;
+    updateStokBadge(kritis);
+
+    // Subtitle header
+    const totalMobil = allStok.reduce((s, p) => s + (p.stok.stok_mobil || 0), 0);
+    document.getElementById('stok-subtitle').textContent = `${allStok.length} produk · ${totalMobil} kodi di mobil`;
+
+    renderStok(allStok);
+  } catch (e) {
+    console.error(e);
+    listEl.innerHTML = `<div style="padding:32px;text-align:center;color:#DC2626;">❌ Gagal memuat: ${e.message}</div>`;
+  }
+}
+
+function updateStokBadge(count) {
+  const badgeSidebar = document.getElementById('stok-badge-sidebar');
+  const badgeBnav = document.getElementById('stok-badge-bnav');
+  if (badgeSidebar) {
+    badgeSidebar.textContent = count;
+    badgeSidebar.classList.toggle('hidden', count === 0);
+  }
+  if (badgeBnav) {
+    badgeBnav.classList.toggle('hidden', count === 0);
+  }
+}
+
+function stokMobilBadge(jumlah) {
+  if (jumlah <= 1) return `<span class="badge-stok-merah">${jumlah} kodi</span>`;
+  if (jumlah <= 4) return `<span class="badge-stok-kuning">${jumlah} kodi</span>`;
+  return `<span class="badge-stok-hijau">${jumlah} kodi</span>`;
+}
+
+function renderStok(list) {
+  const isOwner = currentUserData?.role === 'owner';
+  const listEl = document.getElementById('stok-list');
+  if (list.length === 0) {
+    listEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">📦 Belum ada produk stok</div>';
+    return;
+  }
+
+  listEl.innerHTML = list.map(p => {
+    const s = p.stok;
+    const stokRumah = s.stok_rumah || 0;
+    const stokMobil = s.stok_mobil || 0;
+    const modal = s.modal_per_kodi || 0;
+    const hargaJual = s.harga_jual_per_kodi || p.harga_default || 0;
+    const totalKodi = stokRumah + stokMobil;
+    const nilaiStok = modal * totalKodi;
+    const sumber = (s.sumber || p.sumber) === 'produksi'
+      ? '<span class="badge badge-blue">🏭 Produksi</span>'
+      : '<span class="badge badge-amber">🏪 Pabrik</span>';
+    const stokMobilColor = stokMobil < 0 ? 'color:#DC2626;' : '';
+    const stokRumahColor = stokRumah < 0 ? 'color:#DC2626;' : '';
+
+    const ownerExtra = isOwner ? `
+      <div class="stok-info-row">
+        <span class="stok-info-label">Modal/kodi</span>
+        <span class="stok-info-value">${formatRupiah(modal)}</span>
+      </div>
+      <div class="stok-info-row">
+        <span class="stok-info-label">Harga Jual</span>
+        <span class="stok-info-value">${formatRupiah(hargaJual)}</span>
+      </div>
+      <div class="stok-info-row">
+        <span class="stok-info-label">Nilai Stok (modal × total)</span>
+        <span class="stok-info-value text-green">${formatRupiah(nilaiStok)}</span>
+      </div>
+    ` : '';
+
+    const ownerActions = isOwner ? `
+      <button class="btn btn-secondary btn-sm" onclick="openEditModalHarga('${p.id}')">✏️ Edit Modal</button>
+      <button class="btn btn-secondary btn-sm" onclick="openTambahStokRumah('${p.id}')">+ Stok Rumah</button>
+      <button class="btn btn-sm" style="background:#F3E8FF;color:#7C3AED;border:none;" onclick="openKoreksiStok('${p.id}')">🔧 Koreksi</button>
+    ` : '';
+
+    return `
+      <div class="stok-card">
+        <div class="stok-card-header">
+          <div>
+            <div class="stok-card-nama">${p.nama}</div>
+            <div style="margin-top:4px;">${sumber}</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="openRiwayatStok('${p.id}', '${p.nama.replace(/'/g,"\\'")}')">📋 Riwayat</button>
+        </div>
+        <div class="stok-card-body">
+          <div class="stok-info-row">
+            <span class="stok-info-label">🚗 Stok Mobil</span>
+            <span class="stok-info-value" style="${stokMobilColor}">${stokMobilBadge(stokMobil)}</span>
+          </div>
+          <div class="stok-info-row">
+            <span class="stok-info-label">🏠 Stok Rumah</span>
+            <span class="stok-info-value" style="${stokRumahColor}">${stokRumah} kodi</span>
+          </div>
+          ${ownerExtra}
+        </div>
+        <div class="stok-card-actions">
+          <button class="btn btn-primary btn-sm" onclick="openIsiMobil('${p.id}')">🚗 Isi ke Mobil</button>
+          ${ownerActions}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.filterStok = function() {
+  const q = document.getElementById('search-stok').value.toLowerCase();
+  if (!q) { renderStok(allStok); return; }
+  const filtered = allStok.filter(p => p.nama.toLowerCase().includes(q));
+  renderStok(filtered);
+};
+
+// ---- MODAL: ISI KE MOBIL ----
+window.openIsiMobil = function(produkId) {
+  const p = allStok.find(x => x.id === produkId);
+  if (!p) return;
+  document.getElementById('isi-mobil-produk-id').value = produkId;
+  document.getElementById('isi-mobil-produk-nama').value = p.nama;
+  document.getElementById('isi-mobil-stok-rumah').value = (p.stok.stok_rumah || 0) + ' kodi';
+  document.getElementById('isi-mobil-stok-mobil').value = (p.stok.stok_mobil || 0) + ' kodi';
+  document.getElementById('isi-mobil-jumlah').value = '';
+  document.getElementById('isi-mobil-catatan').value = '';
+  document.getElementById('isi-mobil-warning').style.display = 'none';
+  openModal('modal-isi-mobil');
+};
+
+window.validateIsiMobil = function() {
+  const p = allStok.find(x => x.id === document.getElementById('isi-mobil-produk-id').value);
+  if (!p) return;
+  const jumlah = parseInt(document.getElementById('isi-mobil-jumlah').value) || 0;
+  const stokRumah = p.stok.stok_rumah || 0;
+  const warnEl = document.getElementById('isi-mobil-warning');
+  if (jumlah > stokRumah) {
+    warnEl.textContent = `Tidak cukup! Stok rumah hanya ${stokRumah} kodi.`;
+    warnEl.style.display = 'block';
+  } else {
+    warnEl.style.display = 'none';
+  }
+};
+
+window.simpanIsiMobil = async function() {
+  const produkId = document.getElementById('isi-mobil-produk-id').value;
+  const jumlah = parseInt(document.getElementById('isi-mobil-jumlah').value);
+  const catatan = document.getElementById('isi-mobil-catatan').value.trim();
+  const p = allStok.find(x => x.id === produkId);
+  if (!p) return;
+  if (!jumlah || jumlah <= 0) { showToast('Masukkan jumlah kodi yang valid', 'error'); return; }
+  if (jumlah > (p.stok.stok_rumah || 0)) { showToast('Melebihi stok rumah yang tersedia', 'error'); return; }
+
+  const btn = document.getElementById('btn-simpan-isi-mobil');
+  btn.innerHTML = '<span class="loading-spinner"></span>'; btn.disabled = true;
+  try {
+    const stokRumahBefore = p.stok.stok_rumah || 0;
+    const stokMobilBefore = p.stok.stok_mobil || 0;
+    const stokRumahAfter = stokRumahBefore - jumlah;
+    const stokMobilAfter = stokMobilBefore + jumlah;
+
+    const batch = writeBatch(db);
+    const stokRef = doc(db, 'stok', produkId);
+    batch.update(stokRef, {
+      stok_rumah: stokRumahAfter,
+      stok_mobil: stokMobilAfter,
+      updated_at: serverTimestamp()
+    });
+
+    const logRef = doc(collection(db, 'stok_log'));
+    batch.set(logRef, {
+      produk_id: produkId,
+      produk_nama: p.nama,
+      jenis: 'isi_mobil',
+      jumlah_kodi: jumlah,
+      stok_rumah_sebelum: stokRumahBefore,
+      stok_rumah_sesudah: stokRumahAfter,
+      stok_mobil_sebelum: stokMobilBefore,
+      stok_mobil_sesudah: stokMobilAfter,
+      referensi_id: '',
+      catatan: catatan,
+      created_by: currentUser.uid,
+      created_by_nama: currentUserData?.nama || '-',
+      created_at: serverTimestamp()
+    });
+
+    await batch.commit();
+    showToast(`${jumlah} kodi ${p.nama} dipindahkan ke mobil ✅`, 'success');
+    closeModal('modal-isi-mobil');
+    loadStok();
+  } catch (e) {
+    showToast('Gagal: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = 'Pindahkan ke Mobil'; btn.disabled = false;
+  }
+};
+
+// ---- MODAL: TAMBAH STOK RUMAH (owner) ----
+window.openTambahStokRumah = function(produkId) {
+  const p = allStok.find(x => x.id === produkId);
+  if (!p) return;
+  document.getElementById('tambah-rumah-produk-id').value = produkId;
+  document.getElementById('tambah-rumah-produk-nama').value = p.nama;
+  document.getElementById('tambah-rumah-jumlah').value = '';
+  document.getElementById('tambah-rumah-sumber').value = p.stok.sumber || p.sumber || 'produksi';
+  document.getElementById('tambah-rumah-modal').value = p.stok.modal_per_kodi || 0;
+  document.getElementById('tambah-rumah-catatan').value = '';
+  openModal('modal-tambah-stok-rumah');
+};
+
+window.simpanTambahRumah = async function() {
+  const produkId = document.getElementById('tambah-rumah-produk-id').value;
+  const jumlah = parseInt(document.getElementById('tambah-rumah-jumlah').value);
+  const sumber = document.getElementById('tambah-rumah-sumber').value;
+  const modal = parseFloat(document.getElementById('tambah-rumah-modal').value) || 0;
+  const catatan = document.getElementById('tambah-rumah-catatan').value.trim();
+  const p = allStok.find(x => x.id === produkId);
+  if (!p) return;
+  if (!jumlah || jumlah <= 0) { showToast('Masukkan jumlah kodi yang valid', 'error'); return; }
+
+  const btn = document.getElementById('btn-simpan-tambah-rumah');
+  btn.innerHTML = '<span class="loading-spinner"></span>'; btn.disabled = true;
+  try {
+    const stokRumahBefore = p.stok.stok_rumah || 0;
+    const stokMobilBefore = p.stok.stok_mobil || 0;
+    const stokRumahAfter = stokRumahBefore + jumlah;
+
+    const batch = writeBatch(db);
+    const stokRef = doc(db, 'stok', produkId);
+    const stokUpdate = {
+      stok_rumah: stokRumahAfter,
+      sumber: sumber,
+      updated_at: serverTimestamp()
+    };
+    if (modal !== p.stok.modal_per_kodi) stokUpdate.modal_per_kodi = modal;
+    batch.update(stokRef, stokUpdate);
+
+    const logRef = doc(collection(db, 'stok_log'));
+    batch.set(logRef, {
+      produk_id: produkId,
+      produk_nama: p.nama,
+      jenis: 'tambah_rumah',
+      jumlah_kodi: jumlah,
+      stok_rumah_sebelum: stokRumahBefore,
+      stok_rumah_sesudah: stokRumahAfter,
+      stok_mobil_sebelum: stokMobilBefore,
+      stok_mobil_sesudah: stokMobilBefore,
+      referensi_id: '',
+      catatan: catatan || `Tambah stok dari ${sumber}`,
+      created_by: currentUser.uid,
+      created_by_nama: currentUserData?.nama || '-',
+      created_at: serverTimestamp()
+    });
+
+    await batch.commit();
+    showToast(`+${jumlah} kodi ${p.nama} berhasil ditambahkan ✅`, 'success');
+    closeModal('modal-tambah-stok-rumah');
+    loadStok();
+  } catch (e) {
+    showToast('Gagal: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = 'Tambah Stok'; btn.disabled = false;
+  }
+};
+
+// ---- MODAL: KOREKSI STOK (owner) ----
+window.openKoreksiStok = function(produkId) {
+  const p = allStok.find(x => x.id === produkId);
+  if (!p) return;
+  document.getElementById('koreksi-produk-id').value = produkId;
+  document.getElementById('koreksi-produk-nama').value = p.nama;
+  document.getElementById('koreksi-rumah-sistem').value = (p.stok.stok_rumah || 0) + ' kodi';
+  document.getElementById('koreksi-mobil-sistem').value = (p.stok.stok_mobil || 0) + ' kodi';
+  document.getElementById('koreksi-rumah-aktual').value = p.stok.stok_rumah || 0;
+  document.getElementById('koreksi-mobil-aktual').value = p.stok.stok_mobil || 0;
+  document.getElementById('koreksi-catatan').value = '';
+  openModal('modal-koreksi-stok');
+};
+
+window.simpanKoreksi = async function() {
+  const produkId = document.getElementById('koreksi-produk-id').value;
+  const rumahAktual = parseInt(document.getElementById('koreksi-rumah-aktual').value) || 0;
+  const mobilAktual = parseInt(document.getElementById('koreksi-mobil-aktual').value) || 0;
+  const catatan = document.getElementById('koreksi-catatan').value.trim();
+  const p = allStok.find(x => x.id === produkId);
+  if (!p) return;
+  if (!catatan) { showToast('Alasan koreksi wajib diisi', 'error'); return; }
+
+  if (!confirm(`Yakin ingin mengkoreksi stok "${p.nama}"?\nStok Rumah: ${p.stok.stok_rumah} → ${rumahAktual}\nStok Mobil: ${p.stok.stok_mobil} → ${mobilAktual}`)) return;
+
+  const btn = document.getElementById('btn-simpan-koreksi');
+  btn.innerHTML = '<span class="loading-spinner"></span>'; btn.disabled = true;
+  try {
+    const stokRumahBefore = p.stok.stok_rumah || 0;
+    const stokMobilBefore = p.stok.stok_mobil || 0;
+
+    const batch = writeBatch(db);
+    const stokRef = doc(db, 'stok', produkId);
+    batch.update(stokRef, {
+      stok_rumah: rumahAktual,
+      stok_mobil: mobilAktual,
+      last_opname: serverTimestamp(),
+      updated_at: serverTimestamp()
+    });
+
+    const logRef = doc(collection(db, 'stok_log'));
+    batch.set(logRef, {
+      produk_id: produkId,
+      produk_nama: p.nama,
+      jenis: stokRumahBefore === rumahAktual && stokMobilBefore === mobilAktual ? 'opname' : 'koreksi',
+      jumlah_kodi: 0,
+      stok_rumah_sebelum: stokRumahBefore,
+      stok_rumah_sesudah: rumahAktual,
+      stok_mobil_sebelum: stokMobilBefore,
+      stok_mobil_sesudah: mobilAktual,
+      referensi_id: '',
+      catatan: catatan,
+      created_by: currentUser.uid,
+      created_by_nama: currentUserData?.nama || '-',
+      created_at: serverTimestamp()
+    });
+
+    await batch.commit();
+    showToast(`Stok ${p.nama} berhasil dikoreksi ✅`, 'success');
+    closeModal('modal-koreksi-stok');
+    loadStok();
+  } catch (e) {
+    showToast('Gagal: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = 'Simpan Opname'; btn.disabled = false;
+  }
+};
+
+// ---- MODAL: EDIT MODAL & HARGA (owner) ----
+window.openEditModalHarga = function(produkId) {
+  const p = allStok.find(x => x.id === produkId);
+  if (!p) return;
+  // Gunakan modal tambah produk yang sudah ada (edit mode)
+  document.getElementById('modal-produk-title').textContent = 'Edit Modal & Harga';
+  document.getElementById('edit-produk-id').value = p.id;
+  document.getElementById('inp-produk-nama').value = p.nama;
+  document.getElementById('inp-produk-harga').value = p.harga_default || 0;
+  document.getElementById('inp-produk-sumber').value = p.sumber;
+  document.getElementById('inp-produk-modal').value = p.stok.modal_per_kodi || 0;
+  openModal('modal-tambah-produk');
+};
+
+// ---- MODAL: RIWAYAT STOK ----
+window.openRiwayatStok = async function(produkId, produkNama) {
+  riwayatStokProdukId = produkId;
+  riwayatStokLimit = 20;
+  document.getElementById('riwayat-stok-title').textContent = `Riwayat: ${produkNama}`;
+  document.getElementById('riwayat-stok-subtitle').textContent = 'Memuat...';
+  document.getElementById('riwayat-stok-list').innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">⏳ Memuat riwayat...</div>';
+  openModal('modal-riwayat-stok');
+  await fetchRiwayatStok(produkId, riwayatStokLimit);
+};
+
+async function fetchRiwayatStok(produkId, limitNum) {
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'stok_log'),
+      where('produk_id', '==', produkId),
+      orderBy('created_at', 'desc'),
+      limit(limitNum)
+    ));
+    const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('riwayat-stok-subtitle').textContent = `${logs.length} entri terakhir`;
+
+    const jenisLabel = {
+      isi_mobil: '🚗 Isi Mobil',
+      tambah_rumah: '🏠 Tambah Stok',
+      penjualan: '🛍️ Penjualan',
+      opname: '📋 Opname',
+      koreksi: '🔧 Koreksi'
+    };
+
+    if (logs.length === 0) {
+      document.getElementById('riwayat-stok-list').innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">Belum ada riwayat pergerakan stok</div>';
+      document.getElementById('riwayat-stok-load-more').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('riwayat-stok-list').innerHTML = logs.map(log => {
+      const tgl = log.created_at?.toDate ? log.created_at.toDate() : new Date();
+      const tglStr = tgl.toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const jenisClass = `log-${log.jenis}`;
+      const refLink = log.jenis === 'penjualan' && log.referensi_id
+        ? `<div style="font-size:11px;color:var(--text-muted);">Ref: ${log.referensi_id}</div>` : '';
+      return `
+        <div class="stok-log-item">
+          <span class="stok-log-jenis ${jenisClass}">${jenisLabel[log.jenis] || log.jenis}</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;">
+            <span style="font-size:12px;color:var(--text-muted);">${tglStr}</span>
+            <span style="font-weight:600;">${log.jumlah_kodi > 0 ? '+' : ''}${log.jumlah_kodi} kodi</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">
+            Rumah: ${log.stok_rumah_sebelum} → ${log.stok_rumah_sesudah} &nbsp;|&nbsp; Mobil: ${log.stok_mobil_sebelum} → ${log.stok_mobil_sesudah}
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">oleh: ${log.created_by_nama}</div>
+          ${log.catatan ? `<div style="font-size:12px;font-style:italic;margin-top:2px;color:#4B5563;">"${log.catatan}"</div>` : ''}
+          ${refLink}
+        </div>
+      `;
+    }).join('');
+
+    document.getElementById('riwayat-stok-load-more').style.display = logs.length >= limitNum ? 'block' : 'none';
+  } catch (e) {
+    document.getElementById('riwayat-stok-list').innerHTML = `<div style="color:#DC2626;padding:16px;">Gagal memuat: ${e.message}</div>`;
+  }
+}
+
+window.loadMoreRiwayatStok = function() {
+  riwayatStokLimit += 20;
+  fetchRiwayatStok(riwayatStokProdukId, riwayatStokLimit);
+};
+
+window.loadStok = loadStok;
 // Expose functions globally
 window.loadDashboard = loadDashboard;
 window.loadPelanggan = loadPelanggan;
 window.loadProduk = loadProduk;
+window.loadStok = loadStok;
+window.filterStok = filterStok;
+window.openIsiMobil = window.openIsiMobil;
+window.openTambahStokRumah = window.openTambahStokRumah;
+window.openKoreksiStok = window.openKoreksiStok;
+window.openRiwayatStok = window.openRiwayatStok;
+window.openEditModalHarga = window.openEditModalHarga;
 
 </script>
+
+
 </body>
 </html>
