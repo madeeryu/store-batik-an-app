@@ -887,6 +887,14 @@
           <button class="piutang-tab" data-tab="tahunan" onclick="filterPiutang('tahunan')">Tahunan</button>
           <button class="piutang-tab" data-tab="macet" onclick="filterPiutang('macet')">🔴 Macet</button>
         </div>
+        <!-- TAMBAHAN: Filter Tanggal -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px;">
+          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">Tanggal:</span>
+          <button class="piutang-tab active" id="piutang-date-tab-hari-ini"
+            onclick="setPiutangDateFilter('hari_ini')">📅 Hari Ini</button>
+          <button class="piutang-tab" id="piutang-date-tab-semua"
+            onclick="setPiutangDateFilter('semua_tanggal')">📋 Semua</button>
+        </div>
         <input type="text" class="form-control" id="piutang-search" placeholder="🔍 Cari nama pelanggan..." oninput="renderPiutangList()" />
       </div>
  
@@ -1708,6 +1716,16 @@ let trxData = {
 // ============================================================
 let piutangData = [];
 let piutangFilter = 'semua';
+let piutangDateFilter = 'hari_ini'; // TAMBAHAN
+
+window.setPiutangDateFilter = function(mode) {
+  piutangDateFilter = mode;
+  document.getElementById('piutang-date-tab-hari-ini')
+    .classList.toggle('active', mode === 'hari_ini');
+  document.getElementById('piutang-date-tab-semua')
+    .classList.toggle('active', mode === 'semua_tanggal');
+  renderPiutangList();
+};
  
 window.filterPiutang = function(tab) {
   piutangFilter = tab;
@@ -1795,9 +1813,25 @@ async function loadPiutang() {
 window.renderPiutangList = function() {
   const listEl = document.getElementById('piutang-list');
   const searchVal = (document.getElementById('piutang-search')?.value || '').toLowerCase();
- 
+
+  // Filter tanggal — hanya tampilkan pelanggan yang punya transaksi HARI INI
+  const todayStr = new Date().toDateString();
+
   let filtered = piutangData.filter(p => {
+    // Filter search
     if (searchVal && !p.pelanggan_nama.toLowerCase().includes(searchVal)) return false;
+
+    // Filter tanggal — jika "Hari Ini", hanya tampilkan pelanggan
+    // yang memiliki minimal 1 transaksi di hari ini
+    if (piutangDateFilter === 'hari_ini') {
+      const adaTrxHariIni = p.transaksi.some(t => {
+        const tgl = t.tanggal?.toDate ? t.tanggal.toDate() : new Date(t.tanggal);
+        return tgl.toDateString() === todayStr;
+      });
+      if (!adaTrxHariIni) return false;
+    }
+
+    // Filter status
     if (piutangFilter === 'macet') return p.status === 'macet' || p.status === 'diblokir';
     if (piutangFilter === 'cicilan') return p.transaksi.some(t => t.jenis_bayar === 'cicilan');
     if (piutangFilter === 'tahunan') return p.transaksi.some(t => t.jenis_bayar === 'tahunan');
@@ -1977,6 +2011,7 @@ window.simpanPembayaran = async function() {
     batch.set(bayarRef, {
       transaksi_id: trxId,
       pelanggan_id: pelangganId,
+      pelanggan_nama: pelangganNama,        // ← TAMBAHKAN INI
       nominal: nominal,
       tanggal: Timestamp.fromDate(new Date(tanggalVal)),
       metode: metode,
@@ -3258,6 +3293,7 @@ window.simpanTransaksi = async function() {
       batch.set(bayarRef, {
         transaksi_id: trxRef.id,
         pelanggan_id: trxData.pelanggan.id,
+        pelanggan_nama: trxData.pelanggan.nama,   // ← TAMBAHKAN INI
         nominal: total,
         tanggal: tanggalTrx,
         metode: 'tunai',
@@ -4068,11 +4104,27 @@ async function renderRekapSaya() {
 
     const sorted = [...rekapSayaBayarData].sort((a,b) => (b.tanggal?.seconds||0)-(a.tanggal?.seconds||0));
     bayarEl.innerHTML = sorted.map(b => {
-      const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date(b.tanggal);
-      const tglStr = tgl.toLocaleString('id-ID', {
-        weekday: 'short', day: '2-digit', month: 'short',
-        year: 'numeric', hour: '2-digit', minute: '2-digit'
+      // Ambil tanggal dari field 'tanggal' (saat catat bayar) bukan 'created_at'
+      // Field 'tanggal' di koleksi pembayaran adalah Timestamp dari input user
+      const tglRaw = b.tanggal?.toDate
+        ? b.tanggal.toDate()
+        : (b.tanggal ? new Date(b.tanggal) : new Date());
+
+      // Format jam yang benar — tampilkan jam & menit dari tanggal bayar
+      const tglStr = tglRaw.toLocaleString('id-ID', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
       });
+
+      // Nama pelanggan — ambil dari field pembayaran, fallback ke data transaksi
+      const namaPelanggan = b.pelanggan_nama
+        || (b.transaksi_id && trxDetailMap[b.transaksi_id]?.pelanggan_nama)
+        || '-';
 
       const metodeBadge = b.metode === 'transfer'
         ? '<span class="badge badge-blue">Transfer</span>'
@@ -4146,7 +4198,7 @@ async function renderRekapSaya() {
         <div style="border-bottom:1px solid var(--border);padding:14px 16px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;">
             <div style="flex:1;min-width:0;">
-              <div style="font-size:14px;font-weight:700;">${b.pelanggan_nama || '-'}</div>
+              <div style="font-size:14px;font-weight:700;">${namaPelanggan}</div>
               <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
                 ${tglStr} &nbsp;${metodeBadge}
               </div>
