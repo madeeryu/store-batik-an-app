@@ -1529,7 +1529,7 @@
 
 <!-- Modal Tambah Pelanggan -->
 <div class="modal-backdrop" id="modal-tambah-pelanggan" onclick="handleBackdropClick(event,'modal-tambah-pelanggan')">
-  <div class="modal" onclick="event.stopPropagation()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:520px;">
     <div class="modal-header">
       <div class="modal-title" id="modal-pelanggan-title">Tambah Pelanggan</div>
       <button class="modal-close" onclick="closeModal('modal-tambah-pelanggan')">
@@ -1538,6 +1538,8 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="edit-pelanggan-id" />
+
+      <!-- DATA DASAR -->
       <div class="form-group">
         <label class="form-label">Nama Lengkap</label>
         <input type="text" class="form-control" id="inp-pelanggan-nama" placeholder="Nama pelanggan" />
@@ -1553,6 +1555,80 @@
           <option value="jatibarang">Jatibarang</option>
         </select>
       </div>
+
+      <!-- TOGGLE HUTANG BERJALAN — hanya muncul saat mode tambah baru -->
+      <div id="blok-migrasi-toggle" style="display:none; margin-top:4px;">
+        <div style="height:1px;background:var(--border);margin:12px 0;"></div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;">
+          <input type="checkbox" id="chk-ada-hutang" onchange="toggleBlokHutang()" style="width:16px;height:16px;accent-color:var(--green);" />
+          <span style="font-size:13px;font-weight:600;color:var(--text-primary);">
+            Pelanggan ini sudah punya hutang berjalan
+          </span>
+        </label>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;margin-left:26px;">
+          Centang jika ingin memasukkan sisa hutang dari catatan lama
+        </div>
+      </div>
+
+      <!-- BLOK DATA HUTANG — muncul jika checkbox dicentang -->
+      <div id="blok-hutang-migrasi" style="display:none;margin-top:16px;">
+        <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:700;color:#D97706;margin-bottom:2px;">⚠️ Data Migrasi</div>
+          <div style="font-size:12px;color:#92400E;">Data ini akan dibuat sebagai 1 transaksi awal. Isi sesuai catatan buku lama kamu.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Sisa Hutang Saat Ini (Rp) <span style="color:var(--red-text);">*</span></label>
+          <input type="number" class="form-control" id="inp-migrasi-sisa"
+            placeholder="Contoh: 1500000" min="0"
+            oninput="updateMigrasiPreview()" />
+          <div id="preview-sisa-migrasi" style="font-size:12px;color:var(--primary);font-weight:600;margin-top:4px;"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Catatan Produk <span style="color:var(--text-muted);font-weight:400;">(opsional)</span></label>
+          <input type="text" class="form-control" id="inp-migrasi-produk"
+            placeholder="Misal: Batik Tapih 3 kodi + Sarung 2 kodi" />
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Tulis bebas, hanya sebagai catatan</div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Jenis Hutang</label>
+            <select class="form-control" id="inp-migrasi-jenis">
+              <option value="cicilan">Cicilan (mingguan/bulanan)</option>
+              <option value="tahunan">Tahunan (lunas Lebaran)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tanggal Transaksi Awal</label>
+            <input type="date" class="form-control" id="inp-migrasi-tanggal-trx" />
+          </div>
+        </div>
+
+        <!-- Pembayaran Terakhir -->
+        <div style="height:1px;background:var(--border);margin:8px 0 14px;"></div>
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;">
+          Pembayaran Terakhir <span style="font-weight:400;text-transform:none;">(opsional — untuk status aktif/macet)</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Nominal Bayar Terakhir (Rp)</label>
+            <input type="number" class="form-control" id="inp-migrasi-bayar-nominal"
+              placeholder="0" min="0" oninput="updateMigrasiPreview()" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tanggal Bayar Terakhir</label>
+            <input type="date" class="form-control" id="inp-migrasi-bayar-tanggal" />
+          </div>
+        </div>
+
+        <div id="migrasi-status-preview" style="display:none;" class="warning-box green" >
+          <span>✅</span><div id="migrasi-status-text"></div>
+        </div>
+      </div>
+
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-tambah-pelanggan')">Batal</button>
@@ -2462,13 +2538,56 @@ window.showToast = function(msg, type = 'success') {
 
 
 window.openTambahPelanggan = function() {
-  // Reset semua field ke kondisi awal (mode tambah baru)
   document.getElementById('modal-pelanggan-title').textContent = 'Tambah Pelanggan';
   document.getElementById('edit-pelanggan-id').value = '';
   document.getElementById('inp-pelanggan-nama').value = '';
   document.getElementById('inp-pelanggan-hp').value = '';
   document.getElementById('inp-pelanggan-pasar').value = 'tegal_gubug';
+  // Tampilkan toggle migrasi (hanya saat mode tambah baru)
+  document.getElementById('blok-migrasi-toggle').style.display = '';
+  document.getElementById('blok-hutang-migrasi').style.display = 'none';
+  document.getElementById('chk-ada-hutang').checked = false;
+  // Reset semua field migrasi
+  ['inp-migrasi-sisa','inp-migrasi-produk','inp-migrasi-bayar-nominal'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('inp-migrasi-jenis').value = 'cicilan';
+  document.getElementById('preview-sisa-migrasi').textContent = '';
+  document.getElementById('migrasi-status-preview').style.display = 'none';
+  // Set default tanggal transaksi = hari ini
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('inp-migrasi-tanggal-trx').value = today;
+  document.getElementById('inp-migrasi-bayar-tanggal').value = today;
   openModal('modal-tambah-pelanggan');
+};
+
+// Toggle blok isian hutang
+window.toggleBlokHutang = function() {
+  const checked = document.getElementById('chk-ada-hutang').checked;
+  document.getElementById('blok-hutang-migrasi').style.display = checked ? '' : 'none';
+};
+
+// Preview nominal sisa hutang & status
+window.updateMigrasiPreview = function() {
+  const sisa = parseFloat(document.getElementById('inp-migrasi-sisa').value) || 0;
+  const prevSisa = document.getElementById('preview-sisa-migrasi');
+  prevSisa.textContent = sisa > 0 ? 'Rp ' + sisa.toLocaleString('id-ID') : '';
+
+  const bayarNominal = parseFloat(document.getElementById('inp-migrasi-bayar-nominal').value) || 0;
+  const statusEl = document.getElementById('migrasi-status-preview');
+  const statusText = document.getElementById('migrasi-status-text');
+
+  if (bayarNominal > 0) {
+    statusEl.style.display = 'flex';
+    statusEl.className = 'warning-box green';
+    statusText.innerHTML = `Pembayaran <strong>Rp ${bayarNominal.toLocaleString('id-ID')}</strong> akan dicatat → status pelanggan: <strong>Aktif</strong>`;
+  } else if (sisa > 0) {
+    statusEl.style.display = 'flex';
+    statusEl.className = 'warning-box amber';
+    statusText.innerHTML = `Tidak ada catatan bayar → status pelanggan: <strong>Macet</strong> (bisa diubah manual nanti)`;
+  } else {
+    statusEl.style.display = 'none';
+  }
 };
 
 // ============================================================
@@ -2747,34 +2866,112 @@ window.editPelanggan = function(id) {
   document.getElementById('inp-pelanggan-nama').value = p.nama;
   document.getElementById('inp-pelanggan-hp').value = p.hp || '';
   document.getElementById('inp-pelanggan-pasar').value = p.pasar_utama;
+  // Sembunyikan blok migrasi saat mode edit
+  document.getElementById('blok-migrasi-toggle').style.display = 'none';
+  document.getElementById('blok-hutang-migrasi').style.display = 'none';
   openModal('modal-tambah-pelanggan');
 };
 
 window.savePelanggan = async function() {
-  const id = document.getElementById('edit-pelanggan-id').value;
-  const nama = document.getElementById('inp-pelanggan-nama').value.trim();
-  const hp = document.getElementById('inp-pelanggan-hp').value.trim();
+  const id    = document.getElementById('edit-pelanggan-id').value;
+  const nama  = document.getElementById('inp-pelanggan-nama').value.trim();
+  const hp    = document.getElementById('inp-pelanggan-hp').value.trim();
   const pasar = document.getElementById('inp-pelanggan-pasar').value;
   if (!nama) { showToast('Nama wajib diisi', 'error'); return; }
+
   const btn = document.getElementById('btn-save-pelanggan');
   btn.innerHTML = '<span class="loading-spinner"></span>';
   btn.disabled = true;
+
   try {
     if (id) {
+      // ── MODE EDIT — hanya update data dasar ──
       await updateDoc(doc(db, 'pelanggan', id), { nama, hp, pasar_utama: pasar });
       showToast('Pelanggan berhasil diperbarui');
+
     } else {
-      await addDoc(collection(db, 'pelanggan'), {
-        nama, hp, pasar_utama: pasar, status: 'aktif',
-        diblokir_manual: false, total_hutang_aktif: 0, createdAt: serverTimestamp()
+      // ── MODE TAMBAH BARU ──
+      const adaHutang = document.getElementById('chk-ada-hutang')?.checked;
+      const sisaHutang    = adaHutang ? (parseFloat(document.getElementById('inp-migrasi-sisa').value) || 0) : 0;
+      const catatanProduk = adaHutang ? document.getElementById('inp-migrasi-produk').value.trim() : '';
+      const jenisHutang   = adaHutang ? document.getElementById('inp-migrasi-jenis').value : 'cicilan';
+      const tglTrxVal     = adaHutang ? document.getElementById('inp-migrasi-tanggal-trx').value : '';
+      const bayarNominal  = adaHutang ? (parseFloat(document.getElementById('inp-migrasi-bayar-nominal').value) || 0) : 0;
+      const tglBayarVal   = adaHutang ? document.getElementById('inp-migrasi-bayar-tanggal').value : '';
+
+      // Validasi: jika ada hutang, sisa wajib diisi
+      if (adaHutang && sisaHutang <= 0) {
+        showToast('Isi sisa hutang terlebih dahulu', 'error');
+        btn.innerHTML = 'Simpan'; btn.disabled = false;
+        return;
+      }
+
+      // Tentukan status awal pelanggan
+      let statusAwal = 'aktif';
+      if (adaHutang && sisaHutang > 0 && bayarNominal <= 0) statusAwal = 'macet';
+
+      // 1. Simpan data pelanggan
+      const pelRef = await addDoc(collection(db, 'pelanggan'), {
+        nama, hp, pasar_utama: pasar,
+        status: statusAwal,
+        diblokir_manual: false,
+        total_hutang_aktif: sisaHutang,
+        createdAt: serverTimestamp()
       });
-      showToast('Pelanggan berhasil ditambahkan');
+
+      // 2. Jika ada hutang berjalan, buat transaksi migrasi
+      if (adaHutang && sisaHutang > 0) {
+        const tglTrx = tglTrxVal
+          ? Timestamp.fromDate(new Date(tglTrxVal))
+          : serverTimestamp();
+
+        // Hitung total tagihan = sisa hutang + pembayaran yang sudah masuk
+        const totalTagihan = sisaHutang + bayarNominal;
+
+        const trxRef = await addDoc(collection(db, 'transaksi'), {
+          pelanggan_id   : pelRef.id,
+          pelanggan_nama : nama,
+          pasar          : pasar,
+          tanggal        : tglTrx,
+          items          : catatanProduk
+            ? [{ produk_id: 'migrasi', produk_nama: catatanProduk, jumlah_kodi: 0, harga_kodi: 0, subtotal: totalTagihan }]
+            : [],
+          total_tagihan  : totalTagihan,
+          jenis_bayar    : jenisHutang,
+          status         : 'belum_lunas',
+          sisa_hutang    : sisaHutang,
+          nominal_dibayar: bayarNominal,
+          is_migrasi     : true,          // penanda bahwa ini data awal / migrasi
+          created_by     : currentUser.uid,
+          created_at     : serverTimestamp()
+        });
+
+        // 3. Jika ada catatan bayar terakhir, simpan juga sebagai pembayaran
+        if (bayarNominal > 0 && tglBayarVal) {
+          await addDoc(collection(db, 'pembayaran'), {
+            transaksi_id      : trxRef.id,
+            pelanggan_id      : pelRef.id,
+            pelanggan_nama    : nama,
+            nominal           : bayarNominal,
+            tanggal           : Timestamp.fromDate(new Date(tglBayarVal)),
+            metode            : 'tunai',
+            dicatat_oleh      : currentUser.uid,
+            dicatat_oleh_nama : currentUserData?.nama || currentUser.email,
+            is_migrasi        : true
+          });
+        }
+      }
+
+      showToast('Pelanggan berhasil ditambahkan' + (adaHutang && sisaHutang > 0 ? ' beserta data hutangnya ✅' : ''));
     }
+
     closeModal('modal-tambah-pelanggan');
     loadPelanggan();
+
   } catch (e) {
     showToast('Gagal menyimpan: ' + e.message, 'error');
   }
+
   btn.innerHTML = 'Simpan'; btn.disabled = false;
   document.getElementById('edit-pelanggan-id').value = '';
   document.getElementById('modal-pelanggan-title').textContent = 'Tambah Pelanggan';
