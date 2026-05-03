@@ -3533,12 +3533,16 @@ window.openRiwayatStok = async function(produkId, produkNama) {
 async function fetchRiwayatStok(produkId, limitNum) {
   try {
     const snap = await getDocs(query(
-      collection(db, 'stok_log'),
-      where('produk_id', '==', produkId),
-      orderBy('created_at', 'desc'),
-      limit(limitNum)
-    ));
-    const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  collection(db, 'stok_log'),
+  where('produk_id', '==', produkId),
+  limit(limitNum * 3)
+));
+snap.docs.sort((a, b) => {
+  const ta = a.data().created_at?.seconds || 0;
+  const tb = b.data().created_at?.seconds || 0;
+  return tb - ta;
+});
+const logs = snap.docs.map(d => ({ id: d.id, ...d.data() })).slice(0, limitNum);
     document.getElementById('riwayat-stok-subtitle').textContent = `${logs.length} entri terakhir`;
 
     const jenisLabel = {
