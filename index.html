@@ -3998,7 +3998,7 @@ window.loadRekapSaya = async function() {
   }
 };
 
-function renderRekapSaya() {
+async function renderRekapSaya() {
   // Hitung total
   const totalKas    = rekapSayaBayarData.reduce((s,b) => s+(b.nominal||0), 0);
   const totalTrxVal = rekapSayaTrxData.reduce((s,t) => s+(t.total_tagihan||0), 0);
@@ -4043,21 +4043,24 @@ function renderRekapSaya() {
     rekapSayaTrxData.forEach(t => { trxDetailMap[t.id] = t; });
 
     // Fetch transaksi yang tidak ada di periode ini (misal bayar untuk transaksi lama)
+    // Fetch transaksi yang tidak ada di periode ini (misal bayar untuk transaksi lama)
     const missingIds = trxIdSet.filter(id => !trxDetailMap[id]);
     if (missingIds.length > 0) {
       try {
-        // Firestore tidak support 'in' lebih dari 30 item, batch per 10
         const chunks = [];
         for (let i = 0; i < missingIds.length; i += 10) {
           chunks.push(missingIds.slice(i, i + 10));
         }
-        for (const chunk of chunks) {
-          const snap = await getDocs(query(
+        const fetchPromises = chunks.map(chunk =>
+          getDocs(query(
             collection(db, 'transaksi'),
-            where('__name__', 'in', chunk.map(id => id))
-          ));
+            where('__name__', 'in', chunk)
+          ))
+        );
+        const snapshots = await Promise.all(fetchPromises);
+        snapshots.forEach(snap => {
           snap.forEach(d => { trxDetailMap[d.id] = { id: d.id, ...d.data() }; });
-        }
+        });
       } catch(e) {
         console.warn('Gagal fetch detail transaksi referensi:', e.message);
       }
