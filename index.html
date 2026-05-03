@@ -475,6 +475,59 @@
     .w-full { width: 100%; }
     .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+
+    /* ===== REKAP SAYA ===== */
+.rekap-saya-filter { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px; }
+.rekap-filter-btn {
+  padding:7px 16px;border-radius:20px;border:1px solid var(--border);
+  background:#fff;color:var(--text-muted);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all 0.2s;font-family:inherit;
+}
+.rekap-filter-btn.active { background:var(--primary);color:#fff;border-color:var(--primary); }
+
+.rekap-section { margin-bottom:20px; }
+.rekap-section-header {
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:12px;
+}
+.rekap-section-title { font-size:15px;font-weight:700; }
+
+.pengeluaran-item {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;border-bottom:1px solid var(--border);
+}
+.pengeluaran-item:last-child { border-bottom:none; }
+.pengeluaran-icon { font-size:22px;margin-right:12px;flex-shrink:0; }
+.pengeluaran-info { flex:1;min-width:0; }
+.pengeluaran-kategori { font-size:14px;font-weight:600; }
+.pengeluaran-keterangan { font-size:12px;color:var(--text-muted); }
+.pengeluaran-actions { display:flex;gap:6px;align-items:center; }
+.pengeluaran-nominal { font-size:15px;font-weight:700;color:#DC2626;white-space:nowrap; }
+
+.kategori-chip-grid { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px; }
+.kategori-chip {
+  padding:8px 16px;border-radius:20px;border:2px solid var(--border);
+  background:#fff;font-size:13px;font-weight:600;cursor:pointer;
+  transition:all 0.15s;font-family:inherit;
+}
+.kategori-chip.selected { border-color:var(--primary);background:#E8F7F1;color:var(--primary); }
+
+.saldo-box {
+  background:#f9fafb;border-radius:12px;padding:16px 20px;
+  border:1px solid var(--border);
+}
+.saldo-row { display:flex;justify-content:space-between;padding:5px 0;font-size:14px; }
+.saldo-row.total {
+  border-top:2px solid var(--border);margin-top:8px;padding-top:12px;
+  font-size:16px;font-weight:800;
+}
+.saldo-positif { color:#16A34A; }
+.saldo-negatif { color:#DC2626; }
+
+.rekap-empty { text-align:center;padding:32px 16px;color:var(--text-muted);font-size:14px; }
+.rekap-empty .empty-icon { font-size:40px;margin-bottom:8px; }
+
   </style>
 </head>
 <body>
@@ -539,6 +592,10 @@
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m8-4v8"/></svg>
         Stok
         <span class="badge-nav-alert hidden" id="stok-badge-sidebar">0</span>
+      </a>
+      <a class="nav-item" data-page="rekap-saya" onclick="navigateTo('rekap-saya')">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        Rekap Saya
       </a>
       <div class="nav-section" style="margin-top:8px;" id="owner-section">Owner</div>
       <a class="nav-item owner-only" data-page="rekap" onclick="navigateTo('rekap')">
@@ -1053,6 +1110,128 @@
       </div>
     </div>
  
+    <!-- ====== REKAP SAYA ====== -->
+    <div class="page" id="page-rekap-saya">
+      <div class="page-header flex justify-between" style="align-items:flex-start;">
+        <div>
+          <div class="page-title">📋 Rekap Saya</div>
+          <div class="page-subtitle" id="rekap-saya-subtitle">Aktivitas saya hari ini</div>
+        </div>
+        <span class="badge badge-green" id="rekap-saya-nama-badge" style="font-size:12px;padding:5px 10px;">-</span>
+      </div>
+
+      <!-- Filter Periode -->
+      <div class="card card-body" style="margin-bottom:16px;">
+        <div class="rekap-saya-filter" id="rekap-saya-filter-btns">
+          <button class="rekap-filter-btn active" onclick="setRekapSayaFilter('hari_ini',this)">Hari Ini</button>
+          <button class="rekap-filter-btn" onclick="setRekapSayaFilter('kemarin',this)">Kemarin</button>
+          <button class="rekap-filter-btn" onclick="setRekapSayaFilter('7hari',this)">7 Hari Terakhir</button>
+          <button class="rekap-filter-btn" onclick="setRekapSayaFilter('bulan_ini',this)">Bulan Ini</button>
+          <button class="rekap-filter-btn" onclick="setRekapSayaFilter('custom',this)">📅 Pilih Tanggal</button>
+        </div>
+        <div id="rekap-saya-custom-range" style="display:none;margin-top:10px;">
+          <div class="grid-2">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Dari Tanggal</label>
+              <input type="date" class="form-control" id="rekap-saya-dari" onchange="loadRekapSaya()" />
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Sampai Tanggal</label>
+              <input type="date" class="form-control" id="rekap-saya-sampai" onchange="loadRekapSaya()" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Kartu Ringkasan -->
+      <div class="stats-grid" style="margin-bottom:20px;" id="rekap-saya-stats">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#E8F7F1;">💰</div>
+          <div class="stat-label">Kas Diterima</div>
+          <div class="stat-value text-green" id="rs-kas">Rp 0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#DBEAFE;">🛒</div>
+          <div class="stat-label">Transaksi Dibuat</div>
+          <div class="stat-value" id="rs-trx">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#FEE2E2;">💸</div>
+          <div class="stat-label">Total Pengeluaran</div>
+          <div class="stat-value text-red" id="rs-keluar">Rp 0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#FEF3C7;">💵</div>
+          <div class="stat-label">Saldo Bersih</div>
+          <div class="stat-value" id="rs-saldo">Rp 0</div>
+        </div>
+      </div>
+
+      <!-- Section: Pembayaran Diterima -->
+      <div class="rekap-section">
+        <div class="rekap-section-header">
+          <div class="rekap-section-title">💵 Pembayaran Diterima</div>
+          <span class="badge badge-gray" id="rs-bayar-count">0</span>
+        </div>
+        <div class="card">
+          <div id="rs-bayar-list">
+            <div class="rekap-empty"><div class="empty-icon">💵</div>Belum ada pembayaran</div>
+          </div>
+          <div id="rs-bayar-total" style="padding:12px 16px;border-top:1px solid var(--border);font-weight:700;display:none;"></div>
+        </div>
+      </div>
+
+      <!-- Section: Transaksi Dibuat -->
+      <div class="rekap-section">
+        <div class="rekap-section-header">
+          <div class="rekap-section-title">🛒 Transaksi Dibuat</div>
+          <span class="badge badge-gray" id="rs-trx-count">0</span>
+        </div>
+        <div class="card">
+          <div id="rs-trx-list">
+            <div class="rekap-empty"><div class="empty-icon">🛒</div>Belum ada transaksi</div>
+          </div>
+          <div id="rs-trx-total" style="padding:12px 16px;border-top:1px solid var(--border);font-weight:700;display:none;"></div>
+        </div>
+      </div>
+
+      <!-- Section: Pengeluaran -->
+      <div class="rekap-section">
+        <div class="rekap-section-header">
+          <div class="rekap-section-title">💸 Pengeluaran</div>
+          <button class="btn btn-primary btn-sm" onclick="openModalPengeluaran()">+ Catat</button>
+        </div>
+        <div class="card">
+          <div id="rs-keluar-list">
+            <div class="rekap-empty"><div class="empty-icon">💸</div>Belum ada pengeluaran</div>
+          </div>
+          <div id="rs-keluar-total" style="padding:12px 16px;border-top:1px solid var(--border);font-weight:700;display:none;"></div>
+        </div>
+      </div>
+
+      <!-- Saldo Harian Box -->
+      <div class="saldo-box" id="rs-saldo-box" style="margin-bottom:24px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text-muted);margin-bottom:10px;">📊 RINGKASAN</div>
+        <div class="saldo-row"><span>Kas Diterima</span><span id="sb-kas">Rp 0</span></div>
+        <div class="saldo-row"><span>Pengeluaran</span><span class="text-red" id="sb-keluar">Rp 0</span></div>
+        <div class="saldo-row total">
+          <span>Saldo Bersih</span>
+          <span id="sb-saldo">Rp 0</span>
+        </div>
+      </div>
+
+      <!-- Tombol Export -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:32px;">
+        <button class="btn btn-primary" onclick="exportRekapSayaTxt()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          Copy ke WA
+        </button>
+        <button class="btn btn-secondary" onclick="downloadRekapSayaTxt()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Download .txt
+        </button>
+      </div>
+    </div>
 
   </main>
 
@@ -1084,6 +1263,10 @@
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m8-4v8"/></svg>
         Stok
       </button> 
+      <button class="bnav-item" onclick="navigateTo('rekap-saya')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        Rekap
+      </button>
     </div>
   </div>
 
@@ -1421,6 +1604,51 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-tambah-produk')">Batal</button>
       <button class="btn btn-primary" id="btn-save-produk" onclick="saveProduk()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Modal Catat / Edit Pengeluaran -->
+<div class="modal-backdrop" id="modal-pengeluaran" onclick="handleBackdropClick(event,'modal-pengeluaran')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-pengeluaran-title">Catat Pengeluaran</div>
+      <button class="modal-close" onclick="closeModal('modal-pengeluaran')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-pengeluaran-id" />
+      <div class="form-group">
+        <label class="form-label">Kategori</label>
+        <div class="kategori-chip-grid">
+          <button class="kategori-chip" data-kat="bensin" onclick="selectKategori('bensin',this)">⛽ Bensin</button>
+          <button class="kategori-chip" data-kat="makan" onclick="selectKategori('makan',this)">🍽️ Makan</button>
+          <button class="kategori-chip" data-kat="becak" onclick="selectKategori('becak',this)">🛺 Becak</button>
+          <button class="kategori-chip" data-kat="lainnya" onclick="selectKategori('lainnya',this)">📝 Lainnya</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nominal (Rp) <span style="color:var(--red-text);">*</span></label>
+        <input type="number" class="form-control" id="inp-pengeluaran-nominal" placeholder="Contoh: 50000" min="0" oninput="updateNominalPengeluaranPreview()" />
+        <div id="preview-nominal-pengeluaran" style="font-size:12px;color:var(--primary);margin-top:4px;font-weight:600;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Keterangan <span id="keterangan-wajib" style="color:var(--red-text);display:none;">*</span> <span id="keterangan-opsional" style="color:var(--text-muted);font-weight:400;">(opsional)</span></label>
+        <input type="text" class="form-control" id="inp-pengeluaran-keterangan" placeholder="Keterangan pengeluaran..." />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tanggal</label>
+        <input type="date" class="form-control" id="inp-pengeluaran-tanggal" />
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn btn-danger" id="btn-hapus-pengeluaran" onclick="hapusPengeluaran()" style="display:none;">🗑️ Hapus</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" onclick="closeModal('modal-pengeluaran')">Batal</button>
+        <button class="btn btn-primary" id="btn-simpan-pengeluaran" onclick="simpanPengeluaran()">Simpan</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3608,6 +3836,495 @@ window.loadMoreRiwayatStok = function() {
 };
 
 window.loadStok = loadStok;
+
+// ============================================================
+// PATCH B — REKAP KARYAWAN + PENGELUARAN
+// ============================================================
+
+// ---- STATE REKAP SAYA ----
+let rekapSayaMode = 'hari_ini';
+let rekapSayaRange = { dari: null, sampai: null };
+let rekapSayaBayarData = [];
+let rekapSayaTrxData = [];
+let rekapSayaKeluarData = [];
+
+// Mapping kategori → ikon
+const KATEGORI_ICON = { bensin:'⛽', makan:'🍽️', becak:'🛺', lainnya:'📝' };
+
+// ---- NAVIGASI: tambahkan 'rekap-saya' ke pageTitles ----
+// (update object pageTitles yang sudah ada — cari dan tambahkan baris ini):
+// pageTitles['rekap-saya'] = 'Rekap Saya';
+// Karena object pageTitles sudah di-define sebelumnya, kita patch di sini:
+if (typeof pageTitles !== 'undefined') pageTitles['rekap-saya'] = 'Rekap Saya';
+
+// ---- PATCH navigateTo UNTUK REKAP SAYA ----
+// Simpan referensi fungsi navigateTo lama dan extend
+const _navigateToOrig = window.navigateTo;
+window.navigateTo = function(page) {
+  _navigateToOrig(page);
+  if (page === 'rekap-saya') {
+    // Set nama badge
+    const nm = currentUserData?.nama || currentUser?.email || '-';
+    const badge = document.getElementById('rekap-saya-nama-badge');
+    if (badge) badge.textContent = nm;
+    // Default filter: hari ini
+    loadRekapSaya();
+  }
+};
+
+// ---- FILTER PERIODE ----
+window.setRekapSayaFilter = function(mode, el) {
+  rekapSayaMode = mode;
+  document.querySelectorAll('.rekap-filter-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  const customEl = document.getElementById('rekap-saya-custom-range');
+  if (mode === 'custom') {
+    customEl.style.display = 'block';
+    // Set default range
+    const today = new Date().toISOString().split('T')[0];
+    if (!document.getElementById('rekap-saya-dari').value) {
+      document.getElementById('rekap-saya-dari').value = today;
+      document.getElementById('rekap-saya-sampai').value = today;
+    }
+    return; // loadRekapSaya dipanggil saat tanggal diubah
+  } else {
+    customEl.style.display = 'none';
+  }
+  loadRekapSaya();
+};
+
+function getRekapSayaRange() {
+  const now = new Date();
+  let dari, sampai;
+
+  if (rekapSayaMode === 'hari_ini') {
+    dari = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    sampai = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  } else if (rekapSayaMode === 'kemarin') {
+    const kem = new Date(now); kem.setDate(now.getDate() - 1);
+    dari = new Date(kem.getFullYear(), kem.getMonth(), kem.getDate(), 0, 0, 0);
+    sampai = new Date(kem.getFullYear(), kem.getMonth(), kem.getDate(), 23, 59, 59, 999);
+  } else if (rekapSayaMode === '7hari') {
+    dari = new Date(now); dari.setDate(now.getDate() - 6); dari.setHours(0,0,0,0);
+    sampai = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  } else if (rekapSayaMode === 'bulan_ini') {
+    dari = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+    sampai = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  } else if (rekapSayaMode === 'custom') {
+    const dariVal = document.getElementById('rekap-saya-dari').value;
+    const sampaiVal = document.getElementById('rekap-saya-sampai').value;
+    if (!dariVal || !sampaiVal) return null;
+    dari = new Date(dariVal); dari.setHours(0,0,0,0);
+    sampai = new Date(sampaiVal); sampai.setHours(23,59,59,999);
+  }
+
+  // Update subtitle
+  const subEl = document.getElementById('rekap-saya-subtitle');
+  if (subEl) {
+    if (dari && sampai) {
+      const fmt = d => d.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'});
+      subEl.textContent = dari.toDateString() === sampai.toDateString()
+        ? fmt(dari)
+        : `${fmt(dari)} — ${fmt(sampai)}`;
+    }
+  }
+
+  return { dari, sampai };
+}
+
+// ---- LOAD DATA REKAP SAYA ----
+window.loadRekapSaya = async function() {
+  const range = getRekapSayaRange();
+  if (!range) return;
+  const { dari, sampai } = range;
+
+  // Loading state
+  ['rs-bayar-list','rs-trx-list','rs-keluar-list'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);">⏳ Memuat...</div>';
+  });
+
+  try {
+    const uid = currentUser.uid;
+    const tsFrom = Timestamp.fromDate(dari);
+    const tsTo = Timestamp.fromDate(sampai);
+
+    // Parallel fetch
+    const [bayarSnap, trxSnap, keluarSnap] = await Promise.all([
+      // Query 1 field saja, filter sisanya di JS
+      getDocs(query(collection(db, 'pembayaran'),
+        where('dicatat_oleh', '==', uid)
+      )),
+      getDocs(query(collection(db, 'transaksi'),
+        where('created_by', '==', uid)
+      )),
+      getDocs(query(collection(db, 'pengeluaran'),
+        where('dicatat_oleh', '==', uid)
+      ))
+    ]);
+
+    // Filter tanggal & is_deleted di client-side — tidak butuh composite index
+    const fromMs  = dari.getTime();
+    const toMs    = sampai.getTime();
+
+    rekapSayaBayarData = bayarSnap.docs
+      .map(d => ({ id:d.id, ...d.data() }))
+      .filter(b => {
+        const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date(b.tanggal);
+        return tgl.getTime() >= fromMs && tgl.getTime() <= toMs;
+      });
+
+    rekapSayaTrxData = trxSnap.docs
+      .map(d => ({ id:d.id, ...d.data() }))
+      .filter(t => {
+        const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+        return tgl.getTime() >= fromMs && tgl.getTime() <= toMs;
+      });
+
+    rekapSayaKeluarData = keluarSnap.docs
+      .map(d => ({ id:d.id, ...d.data() }))
+      .filter(k => {
+        if (k.is_deleted) return false;
+        const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date(k.tanggal);
+        return tgl.getTime() >= fromMs && tgl.getTime() <= toMs;
+      });
+    
+
+    renderRekapSaya();
+  } catch(e) {
+    console.error('loadRekapSaya error:', e);
+    showToast('Gagal memuat rekap: ' + e.message, 'error');
+  }
+};
+
+function renderRekapSaya() {
+  // Hitung total
+  const totalKas    = rekapSayaBayarData.reduce((s,b) => s+(b.nominal||0), 0);
+  const totalTrxVal = rekapSayaTrxData.reduce((s,t) => s+(t.total_tagihan||0), 0);
+  const totalKeluar = rekapSayaKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
+  const saldo       = totalKas - totalKeluar;
+
+  // Update kartu
+  document.getElementById('rs-kas').textContent    = formatRupiah(totalKas);
+  document.getElementById('rs-trx').textContent    = rekapSayaTrxData.length;
+  document.getElementById('rs-keluar').textContent = formatRupiah(totalKeluar);
+  const saldoEl = document.getElementById('rs-saldo');
+  saldoEl.textContent  = formatRupiah(saldo);
+  saldoEl.className = 'stat-value ' + (saldo >= 0 ? 'text-green' : 'text-red');
+
+  // Update count badges
+  document.getElementById('rs-bayar-count').textContent = rekapSayaBayarData.length;
+  document.getElementById('rs-trx-count').textContent   = rekapSayaTrxData.length;
+
+  // Saldo box
+  document.getElementById('sb-kas').textContent    = formatRupiah(totalKas);
+  document.getElementById('sb-keluar').textContent = formatRupiah(totalKeluar);
+  const sbSaldo = document.getElementById('sb-saldo');
+  sbSaldo.textContent = formatRupiah(saldo);
+  sbSaldo.className   = saldo >= 0 ? 'saldo-positif' : 'saldo-negatif';
+
+  // ---- List Pembayaran ----
+  const bayarEl = document.getElementById('rs-bayar-list');
+  if (rekapSayaBayarData.length === 0) {
+    bayarEl.innerHTML = '<div class="rekap-empty"><div class="empty-icon">💵</div>Belum ada pembayaran yang kamu catat</div>';
+    document.getElementById('rs-bayar-total').style.display = 'none';
+  } else {
+    const sorted = [...rekapSayaBayarData].sort((a,b) => (b.tanggal?.seconds||0)-(a.tanggal?.seconds||0));
+    bayarEl.innerHTML = sorted.map(b => {
+      const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date(b.tanggal);
+      const tglStr = tgl.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      const metodeBadge = b.metode === 'transfer'
+        ? '<span class="badge badge-blue">Transfer</span>'
+        : '<span class="badge badge-gray">Tunai</span>';
+      return `<div class="pengeluaran-item">
+        <div style="font-size:22px;margin-right:12px;">💵</div>
+        <div class="pengeluaran-info">
+          <div class="pengeluaran-kategori">${b.pelanggan_nama || '-'}</div>
+          <div class="pengeluaran-keterangan">${tglStr} ${metodeBadge}</div>
+        </div>
+        <div class="pengeluaran-nominal" style="color:#16A34A;">${formatRupiah(b.nominal)}</div>
+      </div>`;
+    }).join('');
+    const totalEl = document.getElementById('rs-bayar-total');
+    totalEl.style.display = 'flex';
+    totalEl.innerHTML = `<span>Total Kas Diterima</span><span style="color:#16A34A;">${formatRupiah(totalKas)}</span>`;
+    totalEl.style.justifyContent = 'space-between';
+  }
+
+  // ---- List Transaksi ----
+  const trxEl = document.getElementById('rs-trx-list');
+  if (rekapSayaTrxData.length === 0) {
+    trxEl.innerHTML = '<div class="rekap-empty"><div class="empty-icon">🛒</div>Belum ada transaksi yang kamu buat</div>';
+    document.getElementById('rs-trx-total').style.display = 'none';
+  } else {
+    const sorted = [...rekapSayaTrxData].sort((a,b) => (b.created_at?.seconds||0)-(a.created_at?.seconds||0));
+    trxEl.innerHTML = sorted.map(t => {
+      const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date();
+      const tglStr = tgl.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      const produkStr = (t.items||[]).map(i=>`${i.produk_nama} ${i.jumlah_kodi}k`).join(', ');
+      const jenisBadge = t.jenis_bayar === 'kontan'
+        ? '<span class="badge badge-green">Kontan</span>'
+        : t.jenis_bayar === 'tahunan'
+        ? '<span class="badge badge-blue">Tahunan</span>'
+        : '<span class="badge badge-amber">Cicilan</span>';
+      const pasarStr = t.pasar === 'tegal_gubug' ? 'Tegal Gubug' : 'Jatibarang';
+      return `<div class="pengeluaran-item">
+        <div style="font-size:22px;margin-right:12px;">🛒</div>
+        <div class="pengeluaran-info">
+          <div class="pengeluaran-kategori">${t.pelanggan_nama}</div>
+          <div class="pengeluaran-keterangan" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${produkStr}</div>
+          <div class="pengeluaran-keterangan">${tglStr} · ${pasarStr} ${jenisBadge}</div>
+        </div>
+        <div class="pengeluaran-nominal" style="color:var(--primary);">${formatRupiah(t.total_tagihan)}</div>
+      </div>`;
+    }).join('');
+    const totalEl = document.getElementById('rs-trx-total');
+    totalEl.style.display = 'flex';
+    totalEl.innerHTML = `<span>Total Nilai Transaksi</span><span style="color:var(--primary);">${formatRupiah(totalTrxVal)}</span>`;
+    totalEl.style.justifyContent = 'space-between';
+  }
+
+  // ---- List Pengeluaran ----
+  renderKeluarList();
+}
+
+function renderKeluarList() {
+  const keluarEl = document.getElementById('rs-keluar-list');
+  const totalKeluar = rekapSayaKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
+
+  if (rekapSayaKeluarData.length === 0) {
+    keluarEl.innerHTML = '<div class="rekap-empty"><div class="empty-icon">💸</div>Belum ada pengeluaran dicatat</div>';
+    document.getElementById('rs-keluar-total').style.display = 'none';
+    return;
+  }
+
+  const sorted = [...rekapSayaKeluarData].sort((a,b) => (b.tanggal?.seconds||0)-(a.tanggal?.seconds||0));
+  keluarEl.innerHTML = sorted.map(k => {
+    const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date(k.tanggal);
+    const tglStr = tgl.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const ikon = KATEGORI_ICON[k.kategori] || '📝';
+    const katLabel = (k.kategori||'lainnya').charAt(0).toUpperCase() + (k.kategori||'lainnya').slice(1);
+    return `<div class="pengeluaran-item">
+      <div class="pengeluaran-icon">${ikon}</div>
+      <div class="pengeluaran-info">
+        <div class="pengeluaran-kategori">${katLabel}</div>
+        <div class="pengeluaran-keterangan">${k.keterangan||'-'} · ${tglStr}</div>
+      </div>
+      <div class="pengeluaran-actions">
+        <div class="pengeluaran-nominal">${formatRupiah(k.nominal)}</div>
+        <button class="btn btn-sm btn-secondary" style="padding:4px 8px;" onclick="openEditPengeluaran('${k.id}')">✏️</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const totalEl = document.getElementById('rs-keluar-total');
+  totalEl.style.display = 'flex';
+  totalEl.innerHTML = `<span>Total Pengeluaran</span><span style="color:#DC2626;">${formatRupiah(totalKeluar)}</span>`;
+  totalEl.style.justifyContent = 'space-between';
+}
+
+// ---- MODAL PENGELUARAN ----
+let _selectedKategori = '';
+
+window.openModalPengeluaran = function() {
+  _selectedKategori = '';
+  document.getElementById('modal-pengeluaran-title').textContent = 'Catat Pengeluaran';
+  document.getElementById('edit-pengeluaran-id').value = '';
+  document.getElementById('inp-pengeluaran-nominal').value = '';
+  document.getElementById('inp-pengeluaran-keterangan').value = '';
+  document.getElementById('preview-nominal-pengeluaran').textContent = '';
+  document.getElementById('btn-hapus-pengeluaran').style.display = 'none';
+  document.querySelectorAll('.kategori-chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('keterangan-wajib').style.display = 'none';
+  document.getElementById('keterangan-opsional').style.display = '';
+  // Set tanggal hari ini
+  document.getElementById('inp-pengeluaran-tanggal').value = new Date().toISOString().split('T')[0];
+  openModal('modal-pengeluaran');
+};
+
+window.openEditPengeluaran = function(id) {
+  const k = rekapSayaKeluarData.find(x => x.id === id);
+  if (!k) return;
+  _selectedKategori = k.kategori;
+  document.getElementById('modal-pengeluaran-title').textContent = 'Edit Pengeluaran';
+  document.getElementById('edit-pengeluaran-id').value = id;
+  document.getElementById('inp-pengeluaran-nominal').value = k.nominal;
+  document.getElementById('inp-pengeluaran-keterangan').value = k.keterangan || '';
+  document.getElementById('preview-nominal-pengeluaran').textContent = formatRupiah(k.nominal);
+  document.getElementById('btn-hapus-pengeluaran').style.display = '';
+  // Set chip
+  document.querySelectorAll('.kategori-chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.kat === k.kategori);
+  });
+  // Tanggal
+  const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date(k.tanggal);
+  document.getElementById('inp-pengeluaran-tanggal').value = tgl.toISOString().split('T')[0];
+  // Keterangan wajib jika lainnya
+  const isLainnya = k.kategori === 'lainnya';
+  document.getElementById('keterangan-wajib').style.display = isLainnya ? '' : 'none';
+  document.getElementById('keterangan-opsional').style.display = isLainnya ? 'none' : '';
+  openModal('modal-pengeluaran');
+};
+
+window.selectKategori = function(kat, el) {
+  _selectedKategori = kat;
+  document.querySelectorAll('.kategori-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  // Keterangan wajib hanya jika 'lainnya'
+  document.getElementById('keterangan-wajib').style.display = kat === 'lainnya' ? '' : 'none';
+  document.getElementById('keterangan-opsional').style.display = kat === 'lainnya' ? 'none' : '';
+};
+
+window.updateNominalPengeluaranPreview = function() {
+  const val = parseFloat(document.getElementById('inp-pengeluaran-nominal').value) || 0;
+  document.getElementById('preview-nominal-pengeluaran').textContent = val > 0 ? formatRupiah(val) : '';
+};
+
+window.simpanPengeluaran = async function() {
+  const id        = document.getElementById('edit-pengeluaran-id').value;
+  const nominal   = parseFloat(document.getElementById('inp-pengeluaran-nominal').value);
+  const keterangan = document.getElementById('inp-pengeluaran-keterangan').value.trim();
+  const tanggalVal = document.getElementById('inp-pengeluaran-tanggal').value;
+
+  if (!_selectedKategori) { showToast('Pilih kategori pengeluaran', 'error'); return; }
+  if (!nominal || nominal <= 0) { showToast('Masukkan nominal yang valid', 'error'); return; }
+  if (_selectedKategori === 'lainnya' && !keterangan) {
+    showToast('Keterangan wajib diisi untuk kategori Lainnya', 'error'); return;
+  }
+  if (!tanggalVal) { showToast('Pilih tanggal', 'error'); return; }
+
+  const btn = document.getElementById('btn-simpan-pengeluaran');
+  btn.innerHTML = '<span class="loading-spinner"></span>'; btn.disabled = true;
+
+  try {
+    const tgl = Timestamp.fromDate(new Date(tanggalVal));
+    const payload = {
+      nominal,
+      kategori: _selectedKategori,
+      keterangan,
+      tanggal: tgl,
+      dicatat_oleh: currentUser.uid,
+      dicatat_oleh_nama: currentUserData?.nama || currentUser.email,
+      is_deleted: false,
+      updated_at: serverTimestamp()
+    };
+
+    if (id) {
+      // Edit
+      await updateDoc(doc(db, 'pengeluaran', id), payload);
+      showToast('Pengeluaran berhasil diperbarui ✅', 'success');
+    } else {
+      // Tambah baru
+      payload.created_at = serverTimestamp();
+      await addDoc(collection(db, 'pengeluaran'), payload);
+      showToast('Pengeluaran berhasil dicatat ✅', 'success');
+    }
+
+    closeModal('modal-pengeluaran');
+    loadRekapSaya();
+  } catch(e) {
+    console.error(e);
+    showToast('Gagal menyimpan: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = 'Simpan'; btn.disabled = false;
+  }
+};
+
+window.hapusPengeluaran = async function() {
+  const id = document.getElementById('edit-pengeluaran-id').value;
+  if (!id) return;
+  const konfirm = confirm('Yakin ingin menghapus pengeluaran ini?');
+  if (!konfirm) return;
+
+  try {
+    await updateDoc(doc(db, 'pengeluaran', id), { is_deleted: true, updated_at: serverTimestamp() });
+    showToast('Pengeluaran dihapus', 'success');
+    closeModal('modal-pengeluaran');
+    loadRekapSaya();
+  } catch(e) {
+    showToast('Gagal menghapus: ' + e.message, 'error');
+  }
+};
+
+// ---- EXPORT REKAP SAYA ----
+function buildRekapSayaText() {
+  const totalKas    = rekapSayaBayarData.reduce((s,b) => s+(b.nominal||0), 0);
+  const totalKeluar = rekapSayaKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
+  const saldo       = totalKas - totalKeluar;
+  const nm          = currentUserData?.nama || currentUser?.email || '-';
+  const range       = document.getElementById('rekap-saya-subtitle')?.textContent || '-';
+
+  let txt = `📋 REKAP KARYAWAN — BATIK AN\n`;
+  txt += `Karyawan : ${nm}\n`;
+  txt += `Periode  : ${range}\n`;
+  txt += `═══════════════════════\n`;
+  txt += `💰 RINGKASAN\n`;
+  txt += `Kas Diterima : ${formatRupiah(totalKas)}\n`;
+  txt += `Pengeluaran  : ${formatRupiah(totalKeluar)}\n`;
+  txt += `Saldo Bersih : ${formatRupiah(saldo)} ${saldo >= 0 ? '✅' : '❌'}\n`;
+
+  if (rekapSayaBayarData.length > 0) {
+    txt += `\n═══════════════════════\n💵 PEMBAYARAN DITERIMA\n`;
+    rekapSayaBayarData.forEach(b => {
+      const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date();
+      txt += `• ${b.pelanggan_nama}: ${formatRupiah(b.nominal)} (${b.metode})\n`;
+    });
+  }
+
+  if (rekapSayaTrxData.length > 0) {
+    txt += `\n═══════════════════════\n🛒 TRANSAKSI DIBUAT\n`;
+    rekapSayaTrxData.forEach(t => {
+      const produkStr = (t.items||[]).map(i=>`${i.produk_nama} ${i.jumlah_kodi}k`).join('+');
+      txt += `• ${t.pelanggan_nama}: ${produkStr} = ${formatRupiah(t.total_tagihan)}\n`;
+    });
+  }
+
+  if (rekapSayaKeluarData.length > 0) {
+    txt += `\n═══════════════════════\n💸 PENGELUARAN\n`;
+    rekapSayaKeluarData.forEach(k => {
+      const ikon = KATEGORI_ICON[k.kategori] || '📝';
+      txt += `${ikon} ${k.kategori}: ${formatRupiah(k.nominal)}${k.keterangan ? ' — '+k.keterangan : ''}\n`;
+    });
+  }
+
+  txt += `\n═══════════════════════\n`;
+  txt += `Dicetak: ${new Date().toLocaleString('id-ID')}\n`;
+  return txt;
+}
+
+window.exportRekapSayaTxt = function() {
+  const txt = buildRekapSayaText();
+  navigator.clipboard.writeText(txt)
+    .then(() => showToast('Rekap berhasil di-copy! 📋', 'success'))
+    .catch(() => showToast('Gagal copy, coba download', 'error'));
+};
+
+window.downloadRekapSayaTxt = function() {
+  const txt = buildRekapSayaText();
+  const nm  = (currentUserData?.nama || 'karyawan').replace(/\s+/g,'-').toLowerCase();
+  const tgl = new Date().toISOString().split('T')[0];
+  const blob = new Blob([txt], { type:'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `rekap-${nm}-${tgl}.txt`; a.click();
+  URL.revokeObjectURL(url);
+};
+
+// Expose semua fungsi baru
+window.loadRekapSaya         = loadRekapSaya;
+window.openModalPengeluaran  = openModalPengeluaran;
+window.openEditPengeluaran   = openEditPengeluaran;
+window.simpanPengeluaran     = simpanPengeluaran;
+window.hapusPengeluaran      = hapusPengeluaran;
+window.exportRekapSayaTxt    = exportRekapSayaTxt;
+window.downloadRekapSayaTxt  = downloadRekapSayaTxt;
+window.setRekapSayaFilter    = setRekapSayaFilter;
+window.selectKategori        = selectKategori;
+window.updateNominalPengeluaranPreview = updateNominalPengeluaranPreview;
+// ============================================================
+// END PATCH B
+// ============================================================
 // Expose functions globally
 window.loadDashboard = loadDashboard;
 window.loadPelanggan = loadPelanggan;
