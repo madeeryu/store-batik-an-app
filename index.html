@@ -42,10 +42,27 @@
     /* ===== LAYOUT ===== */
     #app { display: flex; min-height: 100vh; overflow-x: hidden; }
     #sidebar {
-      width: var(--sidebar-w); min-height: 100vh; background: var(--white);
-      border-right: 1px solid var(--border); position: fixed; top: 0; left: 0;
-      display: flex; flex-direction: column; z-index: 100;
-    }
+  width: var(--sidebar-w); min-height: 100vh; background: var(--white);
+  border-right: 1px solid var(--border); position: fixed; top: 0; left: 0;
+  display: flex; flex-direction: column; z-index: 100;
+}
+
+@media (max-width: 768px) {
+  #sidebar {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    left: -999px !important;
+  }
+  #main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  #app {
+    display: block !important;
+  }
+}
     .sidebar-logo {
       padding: 20px 20px 16px; border-bottom: 1px solid var(--border);
     }
@@ -375,8 +392,7 @@
 
     /* ===== RESPONSIVE ===== */
     @media (max-width: 768px) {
-      #sidebar { display: none !important; width: 0 !important; min-width: 0 !important; }
-      #main-content { margin-left: 0 !important; padding-bottom: 70px; width: 100% !important; }
+      #main-content { margin-left: 0; padding-bottom: 70px; }
       #topbar-mobile { display: flex; }
       #bottom-nav { display: block; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -2787,75 +2803,5 @@ window.loadPelanggan = loadPelanggan;
 window.loadProduk = loadProduk;
 
 </script>
-
-<!--
-╔══════════════════════════════════════════════════════════════╗
-║       TUTORIAL SETUP FIREBASE — BATIK AN GROSIR             ║
-╚══════════════════════════════════════════════════════════════╝
-
-LANGKAH 1 — BUAT PROJECT FIREBASE
-1. Buka https://console.firebase.google.com
-2. Klik "Add project" → beri nama misal "batik-an-grosir"
-3. Matikan Google Analytics (opsional) → klik Continue
-4. Tunggu project dibuat → klik Continue
-
-LANGKAH 2 — AKTIFKAN AUTHENTICATION
-1. Di sidebar kiri klik "Authentication" → "Get started"
-2. Pilih tab "Sign-in method"
-3. Klik "Email/Password" → Enable → Save
-
-LANGKAH 3 — BUAT AKUN OWNER PERTAMA
-1. Masih di Authentication → tab "Users"
-2. Klik "Add user" → isi email & password owner
-3. Copy UID-nya (akan dipakai di Langkah 5)
-
-LANGKAH 4 — AKTIFKAN FIRESTORE
-1. Di sidebar kiri klik "Firestore Database" → "Create database"
-2. Pilih "Start in production mode" → Next
-3. Pilih region terdekat (asia-southeast1 untuk Indonesia) → Enable
-
-LANGKAH 5 — BUAT DATA USER OWNER DI FIRESTORE
-1. Di Firestore → klik "Start collection"
-2. Collection ID: users
-3. Document ID: [paste UID dari Langkah 3]
-4. Tambah field:
-   - nama       (string)  : [nama owner]
-   - role       (string)  : owner
-   - aktif      (boolean) : true
-   - createdAt  (timestamp): [pilih tanggal sekarang]
-
-LANGKAH 6 — ATUR FIRESTORE RULES
-1. Di Firestore → tab "Rules"
-2. Ganti semua isi dengan rules berikut:
-
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
-    }
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-
-3. Klik Publish
-
-LANGKAH 7 — AMBIL FIREBASE CONFIG
-1. Di sidebar klik ikon ⚙️ (Project Settings)
-2. Scroll ke bawah ke bagian "Your apps"
-3. Klik ikon </> (Web) 
-4. Beri nama app → Register app
-5. Copy nilai dari firebaseConfig yang muncul
-6. Paste ke bagian firebaseConfig di file HTML ini
-   (cari komentar "🔧 KONFIGURASI FIREBASE" di atas)
-
-SELESAI! Buka file HTML di browser dan login dengan akun owner.
-══════════════════════════════════════════════════════════════
--->
-
 </body>
 </html>
