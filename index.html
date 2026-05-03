@@ -9,8 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏷️</text></svg>" />
   <!-- PWA Manifest inline -->
-  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Batik AN Grosir&quot;,&quot;short_name&quot;:&quot;BatikAN&quot;,&quot;theme_color&quot;:&quot;#1D9E75&quot;,&quot;background_color&quot;:&quot;#F5F6FA&quot;,&quot;display&quot;:&quot;standalone&quot;}" />
+   <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22Batik%20AN%20Grosir%22%2C%22short_name%22%3A%22BatikAN%22%2C%22theme_color%22%3A%22%231D9E75%22%2C%22background_color%22%3A%22%23F5F6FA%22%2C%22display%22%3A%22standalone%22%7D" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -374,7 +375,7 @@
 
     /* ===== RESPONSIVE ===== */
     @media (max-width: 768px) {
-      #sidebar { display: none; }
+      #sidebar { display: none !important; }
       #main-content { margin-left: 0; padding-bottom: 70px; }
       #topbar-mobile { display: flex; }
       #bottom-nav { display: block; }
