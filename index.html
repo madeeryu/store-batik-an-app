@@ -4025,27 +4025,138 @@ function renderRekapSaya() {
   sbSaldo.className   = saldo >= 0 ? 'saldo-positif' : 'saldo-negatif';
 
   // ---- List Pembayaran ----
+  // ---- List Pembayaran ----
+  // Buat lookup transaksi dari rekapSayaTrxData untuk cross-reference
+  // (hanya transaksi milik karyawan ini di periode ini)
+  // Untuk pembayaran dari catat-bayar piutang, kita fetch transaksi referensinya secara lazy
   const bayarEl = document.getElementById('rs-bayar-list');
   if (rekapSayaBayarData.length === 0) {
     bayarEl.innerHTML = '<div class="rekap-empty"><div class="empty-icon">💵</div>Belum ada pembayaran yang kamu catat</div>';
     document.getElementById('rs-bayar-total').style.display = 'none';
   } else {
+    // Kumpulkan semua transaksi_id yang direferensikan oleh pembayaran
+    const trxIdSet = [...new Set(rekapSayaBayarData.map(b => b.transaksi_id).filter(Boolean))];
+
+    // Fetch detail transaksi yang belum ada di rekapSayaTrxData
+    const trxDetailMap = {};
+    // Isi dari data yang sudah ada terlebih dahulu
+    rekapSayaTrxData.forEach(t => { trxDetailMap[t.id] = t; });
+
+    // Fetch transaksi yang tidak ada di periode ini (misal bayar untuk transaksi lama)
+    const missingIds = trxIdSet.filter(id => !trxDetailMap[id]);
+    if (missingIds.length > 0) {
+      try {
+        // Firestore tidak support 'in' lebih dari 30 item, batch per 10
+        const chunks = [];
+        for (let i = 0; i < missingIds.length; i += 10) {
+          chunks.push(missingIds.slice(i, i + 10));
+        }
+        for (const chunk of chunks) {
+          const snap = await getDocs(query(
+            collection(db, 'transaksi'),
+            where('__name__', 'in', chunk.map(id => id))
+          ));
+          snap.forEach(d => { trxDetailMap[d.id] = { id: d.id, ...d.data() }; });
+        }
+      } catch(e) {
+        console.warn('Gagal fetch detail transaksi referensi:', e.message);
+      }
+    }
+
     const sorted = [...rekapSayaBayarData].sort((a,b) => (b.tanggal?.seconds||0)-(a.tanggal?.seconds||0));
     bayarEl.innerHTML = sorted.map(b => {
       const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date(b.tanggal);
-      const tglStr = tgl.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      const tglStr = tgl.toLocaleString('id-ID', {
+        weekday: 'short', day: '2-digit', month: 'short',
+        year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+
       const metodeBadge = b.metode === 'transfer'
         ? '<span class="badge badge-blue">Transfer</span>'
         : '<span class="badge badge-gray">Tunai</span>';
-      return `<div class="pengeluaran-item">
-        <div style="font-size:22px;margin-right:12px;">💵</div>
-        <div class="pengeluaran-info">
-          <div class="pengeluaran-kategori">${b.pelanggan_nama || '-'}</div>
-          <div class="pengeluaran-keterangan">${tglStr} ${metodeBadge}</div>
-        </div>
-        <div class="pengeluaran-nominal" style="color:#16A34A;">${formatRupiah(b.nominal)}</div>
-      </div>`;
+
+      // Cari data transaksi yang terkait
+      const trx = b.transaksi_id ? trxDetailMap[b.transaksi_id] : null;
+
+      // Bangun baris detail transaksi
+      let trxDetail = '';
+      if (trx) {
+        const pasarLabel = trx.pasar === 'tegal_gubug' ? '📍 Tegal Gubug' : '📍 Jatibarang';
+        const jenisBadge = trx.jenis_bayar === 'kontan'
+          ? '<span class="badge badge-green" style="font-size:10px;">Kontan</span>'
+          : trx.jenis_bayar === 'tahunan'
+          ? '<span class="badge badge-amber" style="font-size:10px;">Tahunan</span>'
+          : '<span class="badge badge-amber" style="font-size:10px;">Cicilan</span>';
+
+        const produkList = (trx.items || [])
+          .map(i => `${i.produk_nama} <strong>${i.jumlah_kodi} kodi</strong>`)
+          .join(', ');
+
+        const tglTrx = trx.tanggal?.toDate ? trx.tanggal.toDate() : new Date(trx.tanggal || 0);
+        const tglTrxStr = tglTrx.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+
+        const sisaSetelah = Math.max(0, (trx.sisa_hutang || 0));
+
+        trxDetail = `
+          <div style="
+            background:#F0FDF8;border:1px solid #BBF7D0;border-radius:8px;
+            padding:8px 10px;margin-top:6px;font-size:12px;
+          ">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-weight:700;color:#065F46;">📦 Detail Transaksi</span>
+              ${jenisBadge}
+            </div>
+            <div style="color:#374151;margin-bottom:3px;">${produkList || '—'}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;color:var(--text-muted);margin-top:2px;">
+              <span>${pasarLabel}</span>
+              <span>📅 Tgl Trx: ${tglTrxStr}</span>
+              <span>🧾 Total: <strong style="color:#111;">${formatRupiah(trx.total_tagihan || 0)}</strong></span>
+              <span>💳 Sisa hutang: <strong style="color:#DC2626;">${formatRupiah(sisaSetelah)}</strong></span>
+            </div>
+          </div>`;
+      } else {
+        // Tidak ada data transaksi (pembayaran kontan langsung / data lama)
+        trxDetail = `
+          <div style="
+            background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;
+            padding:6px 10px;margin-top:6px;font-size:11px;color:var(--text-muted);
+          ">
+            ℹ️ Detail transaksi tidak ditemukan
+          </div>`;
+      }
+
+      // Tombol lihat histori pelanggan
+      const pelangganId = b.pelanggan_id || '';
+      const tombolHistori = pelangganId
+        ? `<button
+            onclick="bukaHistori('${pelangganId}','rekap-saya')"
+            style="
+              margin-top:8px;width:100%;padding:6px;border-radius:7px;
+              border:1px solid var(--border);background:#fff;
+              font-size:12px;font-weight:600;cursor:pointer;color:var(--primary);
+            ">
+            🔍 Lihat Semua Histori ${b.pelanggan_nama || ''}
+          </button>`
+        : '';
+
+      return `
+        <div style="border-bottom:1px solid var(--border);padding:14px 16px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:14px;font-weight:700;">${b.pelanggan_nama || '-'}</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
+                ${tglStr} &nbsp;${metodeBadge}
+              </div>
+            </div>
+            <div style="font-size:16px;font-weight:800;color:#16A34A;white-space:nowrap;margin-left:12px;">
+              ${formatRupiah(b.nominal)}
+            </div>
+          </div>
+          ${trxDetail}
+          ${tombolHistori}
+        </div>`;
     }).join('');
+
     const totalEl = document.getElementById('rs-bayar-total');
     totalEl.style.display = 'flex';
     totalEl.innerHTML = `<span>Total Kas Diterima</span><span style="color:#16A34A;">${formatRupiah(totalKas)}</span>`;
