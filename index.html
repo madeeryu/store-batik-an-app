@@ -3122,8 +3122,9 @@ async function loadStok() {
 
   try {
     // Load semua produk aktif
-    const produkSnap = await getDocs(query(collection(db, 'produk'), where('aktif', '==', true), orderBy('nama')));
-    const produkList = produkSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const produkSnap = await getDocs(query(collection(db, 'produk'), where('aktif', '==', true)));
+    const produkList = produkSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+  .sort((a, b) => a.nama.localeCompare(b.nama));
 
     // Load semua stok
     const stokSnap = await getDocs(collection(db, 'stok'));
@@ -3603,6 +3604,74 @@ window.openEditModalHarga = window.openEditModalHarga;
 
 </script>
 
+<!--
+╔══════════════════════════════════════════════════════════════╗
+║       TUTORIAL SETUP FIREBASE — BATIK AN GROSIR             ║
+╚══════════════════════════════════════════════════════════════╝
+
+LANGKAH 1 — BUAT PROJECT FIREBASE
+1. Buka https://console.firebase.google.com
+2. Klik "Add project" → beri nama misal "batik-an-grosir"
+3. Matikan Google Analytics (opsional) → klik Continue
+4. Tunggu project dibuat → klik Continue
+
+LANGKAH 2 — AKTIFKAN AUTHENTICATION
+1. Di sidebar kiri klik "Authentication" → "Get started"
+2. Pilih tab "Sign-in method"
+3. Klik "Email/Password" → Enable → Save
+
+LANGKAH 3 — BUAT AKUN OWNER PERTAMA
+1. Masih di Authentication → tab "Users"
+2. Klik "Add user" → isi email & password owner
+3. Copy UID-nya (akan dipakai di Langkah 5)
+
+LANGKAH 4 — AKTIFKAN FIRESTORE
+1. Di sidebar kiri klik "Firestore Database" → "Create database"
+2. Pilih "Start in production mode" → Next
+3. Pilih region terdekat (asia-southeast1 untuk Indonesia) → Enable
+
+LANGKAH 5 — BUAT DATA USER OWNER DI FIRESTORE
+1. Di Firestore → klik "Start collection"
+2. Collection ID: users
+3. Document ID: [paste UID dari Langkah 3]
+4. Tambah field:
+   - nama       (string)  : [nama owner]
+   - role       (string)  : owner
+   - aktif      (boolean) : true
+   - createdAt  (timestamp): [pilih tanggal sekarang]
+
+LANGKAH 6 — ATUR FIRESTORE RULES
+1. Di Firestore → tab "Rules"
+2. Ganti semua isi dengan rules berikut:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+    }
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+3. Klik Publish
+
+LANGKAH 7 — AMBIL FIREBASE CONFIG
+1. Di sidebar klik ikon ⚙️ (Project Settings)
+2. Scroll ke bawah ke bagian "Your apps"
+3. Klik ikon </> (Web) 
+4. Beri nama app → Register app
+5. Copy nilai dari firebaseConfig yang muncul
+6. Paste ke bagian firebaseConfig di file HTML ini
+   (cari komentar "🔧 KONFIGURASI FIREBASE" di atas)
+
+SELESAI! Buka file HTML di browser dan login dengan akun owner.
+══════════════════════════════════════════════════════════════
+-->
 
 </body>
 </html>
