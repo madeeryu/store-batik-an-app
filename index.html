@@ -223,6 +223,7 @@
     #login-page {
       min-height: 100vh; background: linear-gradient(135deg, #0f4c35 0%, #1D9E75 50%, #2dd4a3 100%);
       display: flex; align-items: center; justify-content: center; padding: 20px;
+      position: fixed; inset: 0; z-index: 9999;
     }
     .login-card {
       background: var(--white); border-radius: 20px; padding: 40px;
@@ -454,6 +455,18 @@
       border: 2px solid white;
     }
 
+    /* More menu items dalam bottom nav */
+    #bottom-nav { position: fixed; }
+    .bnav-more-item {
+      display: flex; align-items: center; gap: 12px;
+      width: 100%; padding: 12px 20px;
+      background: none; border: none; cursor: pointer;
+      font-size: 14px; font-weight: 600; color: var(--text-primary);
+      font-family: inherit; transition: background 0.12s;
+    }
+    .bnav-more-item:hover { background: var(--bg); }
+    .bnav-more-item svg { flex-shrink: 0; color: var(--text-secondary); }
+
     /* ===== REKAP ADMIN ===== */
 .rekap-admin-tab {
   padding: 8px 18px;
@@ -512,6 +525,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: fixed;
 }
 .rekap-admin-table th {
   background: #E8F7F1;
@@ -523,14 +537,34 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .rekap-admin-table td {
   padding: 10px 10px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 0;
+}
+.rekap-admin-table td.wrap-cell {
+  white-space: normal;
+  word-break: break-word;
 }
 .rekap-admin-table tr:last-child td { border-bottom: none; }
 .rekap-admin-table tr:hover td { background: #FAFBFC; }
+
+/* Kolom width per tabel rekap */
+/* Tabel Transaksi: #, Pelanggan, Produk, Total, Jenis, Pasar, Oleh */
+#ra-trx-tbody tr td:nth-child(1), #ra-trx-tbody tr + tr td:nth-child(1) { width: 4%; }
+.rekap-admin-table table thead tr th:nth-child(1) { width: 4%; }
+
+/* Tabel Pembayaran: #, Pelanggan, Nominal, Metode, Dicatat Oleh, Waktu */
+/* Tabel Pengeluaran: #, Karyawan, Kategori, Keterangan, Nominal, Waktu */
+/* Tabel Karyawan: Karyawan, Trx, Kas Masuk, Pengeluaran, Saldo */
 .rekap-accordion-detail {
   display: none;
   background: #F9FAFB;
@@ -1188,6 +1222,13 @@
       <div class="card-header"><div class="card-title">👥 Rekap Per Karyawan</div></div>
       <div class="table-wrap">
         <table>
+          <colgroup>
+            <col style="width:30%">
+            <col style="width:10%">
+            <col style="width:20%">
+            <col style="width:20%">
+            <col style="width:20%">
+          </colgroup>
           <thead>
             <tr>
               <th>Karyawan</th>
@@ -1207,6 +1248,15 @@
       <div class="card-header"><div class="card-title">🛒 Transaksi Baru</div></div>
       <div class="table-wrap">
         <table>
+          <colgroup>
+            <col style="width:4%">
+            <col style="width:20%">
+            <col style="width:28%">
+            <col style="width:15%">
+            <col style="width:11%">
+            <col style="width:12%">
+            <col style="width:10%">
+          </colgroup>
           <thead>
             <tr>
               <th>#</th>
@@ -1231,6 +1281,14 @@
       <div class="card-header"><div class="card-title">💵 Pembayaran Masuk</div></div>
       <div class="table-wrap">
         <table>
+          <colgroup>
+            <col style="width:4%">
+            <col style="width:28%">
+            <col style="width:18%">
+            <col style="width:14%">
+            <col style="width:20%">
+            <col style="width:16%">
+          </colgroup>
           <thead>
             <tr>
               <th>#</th>
@@ -1254,6 +1312,14 @@
       <div class="card-header"><div class="card-title">💸 Pengeluaran (Semua Karyawan)</div></div>
       <div class="table-wrap">
         <table>
+          <colgroup>
+            <col style="width:4%">
+            <col style="width:18%">
+            <col style="width:13%">
+            <col style="width:30%">
+            <col style="width:16%">
+            <col style="width:19%">
+          </colgroup>
           <thead>
             <tr>
               <th>#</th>
@@ -1277,6 +1343,13 @@
       <div class="card-header"><div class="card-title">🏆 Produk Terlaris</div></div>
       <div class="table-wrap">
         <table>
+          <colgroup>
+            <col style="width:28%">
+            <col style="width:18%">
+            <col style="width:18%">
+            <col style="width:18%">
+            <col style="width:18%">
+          </colgroup>
           <thead>
             <tr>
               <th>Produk</th>
@@ -1521,22 +1594,41 @@
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
         Piutang
       </button>
-      <button class="bnav-item" onclick="navigateTo('pelanggan')">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        Pelanggan
-      </button>
-      <button class="bnav-item" onclick="navigateTo('produk')">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-        Produk
-      </button>
-      <button class="bnav-item bnav-badge" onclick="navigateTo('stok')" id="bnav-stok">
+      <button class="bnav-item" onclick="navigateTo('stok')" id="bnav-stok" style="position:relative;">
         <span class="bnav-badge-dot hidden" id="stok-badge-bnav"></span>
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m8-4v8"/></svg>
         Stok
-      </button> 
+      </button>
       <button class="bnav-item" onclick="navigateTo('rekap-saya')">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
         Rekap
+      </button>
+      <button class="bnav-item bnav-more-btn" onclick="toggleMoreMenu()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        Lainnya
+      </button>
+    </div>
+    <!-- More menu popup -->
+    <div id="more-menu" style="
+      display:none; position:absolute; bottom:100%; left:0; right:0;
+      background:var(--white); border-top:1px solid var(--border);
+      box-shadow:0 -4px 20px rgba(0,0,0,0.1); padding:8px 0;
+    ">
+      <button class="bnav-more-item" onclick="navigateTo('pelanggan');toggleMoreMenu()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Pelanggan
+      </button>
+      <button class="bnav-more-item" onclick="navigateTo('produk');toggleMoreMenu()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        Produk
+      </button>
+      <button class="bnav-more-item owner-only" onclick="navigateTo('rekap');toggleMoreMenu()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Rekap Admin
+      </button>
+      <button class="bnav-more-item owner-only" onclick="navigateTo('pengaturan');toggleMoreMenu()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Pengaturan
       </button>
     </div>
   </div>
@@ -2930,6 +3022,8 @@ onAuthStateChanged(auth, async (user) => {
 function showLogin() {
   document.getElementById('login-page').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
+  const bnav = document.getElementById('bottom-nav');
+  if (bnav) bnav.style.display = 'none';
   document.getElementById('btn-login').innerHTML = 'Masuk';
   document.getElementById('btn-login').disabled = false;
 }
@@ -2946,7 +3040,7 @@ function showApp() {
   document.getElementById('settings-username').textContent = nm;
   document.getElementById('settings-role').textContent = role === 'owner' ? '👑 Owner' : '👤 Karyawan';
   document.getElementById('settings-avatar').textContent = nm[0]?.toUpperCase() || 'U';
-  // Show/hide owner elements
+  // Show/hide owner elements (sidebar + more menu)
   document.querySelectorAll('.owner-only').forEach(el => {
     el.style.display = role === 'owner' ? '' : 'none';
   });
@@ -3927,8 +4021,25 @@ window.handleBackdropClick = function(e, id) {
   if (e.target === document.getElementById(id)) closeModal(id);
 };
 
-// Close dropdown on outside click
+// ============================================================
+// MORE MENU (mobile bottom nav)
+// ============================================================
+window.toggleMoreMenu = function() {
+  const menu = document.getElementById('more-menu');
+  if (!menu) return;
+  const isOpen = menu.style.display === 'block';
+  menu.style.display = isOpen ? 'none' : 'block';
+};
+
+// Tutup more menu saat klik di luar
 document.addEventListener('click', (e) => {
+  const menu = document.getElementById('more-menu');
+  const moreBtn = document.querySelector('.bnav-more-btn');
+  if (menu && menu.style.display === 'block') {
+    if (!menu.contains(e.target) && e.target !== moreBtn && !moreBtn?.contains(e.target)) {
+      menu.style.display = 'none';
+    }
+  }
   if (!e.target.closest('.dropdown-search')) {
     document.querySelectorAll('.dropdown-list').forEach(d => d.classList.remove('open'));
   }
@@ -5995,6 +6106,75 @@ window.exportRekapAdminPdf    = exportRekapAdminPdf;
 // ============================================================
 
 </script>
+
+<!--
+╔══════════════════════════════════════════════════════════════╗
+║       TUTORIAL SETUP FIREBASE — BATIK AN GROSIR             ║
+╚══════════════════════════════════════════════════════════════╝
+
+LANGKAH 1 — BUAT PROJECT FIREBASE
+1. Buka https://console.firebase.google.com
+2. Klik "Add project" → beri nama misal "batik-an-grosir"
+3. Matikan Google Analytics (opsional) → klik Continue
+4. Tunggu project dibuat → klik Continue
+
+LANGKAH 2 — AKTIFKAN AUTHENTICATION
+1. Di sidebar kiri klik "Authentication" → "Get started"
+2. Pilih tab "Sign-in method"
+3. Klik "Email/Password" → Enable → Save
+
+LANGKAH 3 — BUAT AKUN OWNER PERTAMA
+1. Masih di Authentication → tab "Users"
+2. Klik "Add user" → isi email & password owner
+3. Copy UID-nya (akan dipakai di Langkah 5)
+
+LANGKAH 4 — AKTIFKAN FIRESTORE
+1. Di sidebar kiri klik "Firestore Database" → "Create database"
+2. Pilih "Start in production mode" → Next
+3. Pilih region terdekat (asia-southeast1 untuk Indonesia) → Enable
+
+LANGKAH 5 — BUAT DATA USER OWNER DI FIRESTORE
+1. Di Firestore → klik "Start collection"
+2. Collection ID: users
+3. Document ID: [paste UID dari Langkah 3]
+4. Tambah field:
+   - nama       (string)  : [nama owner]
+   - role       (string)  : owner
+   - aktif      (boolean) : true
+   - createdAt  (timestamp): [pilih tanggal sekarang]
+
+LANGKAH 6 — ATUR FIRESTORE RULES
+1. Di Firestore → tab "Rules"
+2. Ganti semua isi dengan rules berikut:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+    }
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+3. Klik Publish
+
+LANGKAH 7 — AMBIL FIREBASE CONFIG
+1. Di sidebar klik ikon ⚙️ (Project Settings)
+2. Scroll ke bawah ke bagian "Your apps"
+3. Klik ikon </> (Web) 
+4. Beri nama app → Register app
+5. Copy nilai dari firebaseConfig yang muncul
+6. Paste ke bagian firebaseConfig di file HTML ini
+   (cari komentar "🔧 KONFIGURASI FIREBASE" di atas)
+
+SELESAI! Buka file HTML di browser dan login dengan akun owner.
+══════════════════════════════════════════════════════════════
+-->
 
 </body>
 </html>
