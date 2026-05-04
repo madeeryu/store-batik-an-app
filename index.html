@@ -505,6 +505,55 @@
   height: 200px;
   margin-bottom: 8px;
 }
+
+.rekap-grafik-baru-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (max-width: 640px) {
+  .rekap-grafik-baru-grid { grid-template-columns: 1fr; }
+}
+.rekap-grafik-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.rekap-grafik-card-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.rekap-grafik-card-body {
+  padding: 12px 16px;
+  position: relative;
+  height: 220px;
+}
+@media (max-width: 640px) {
+  .rekap-grafik-card-body { height: 180px; }
+}
+.rekap-grafik-full {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.rekap-grafik-full-body {
+  padding: 12px 16px;
+  position: relative;
+  height: 220px;
+}
+@media (max-width: 640px) {
+  .rekap-grafik-full-body { height: 180px; }
+}
+
 @media (max-width: 600px) {
   .rekap-admin-chart-wrap { height: 160px; }
 }
@@ -1271,6 +1320,40 @@
         <span>Total Pengeluaran</span><span class="text-red" id="ra-keluar-total">Rp 0</span>
       </div>
     </div>
+
+    <!-- SECTION 8: GRAFIK BARU — Produk, Pelanggan, Pengeluaran Kategori -->
+<div id="ra-grafik-baru-wrap">
+
+  <!-- Baris 1: Produk + Pelanggan berdampingan -->
+  <div class="rekap-grafik-baru-grid">
+
+    <!-- Grafik Produk Terlaris/Tersedikit -->
+    <div class="rekap-grafik-card">
+      <div class="rekap-grafik-card-header">📦 Produk: Terlaris vs Tersedikit</div>
+      <div class="rekap-grafik-card-body">
+        <canvas id="ra-chart-produk"></canvas>
+      </div>
+    </div>
+
+    <!-- Grafik Pelanggan Aktif -->
+    <div class="rekap-grafik-card">
+      <div class="rekap-grafik-card-header">🧑‍🤝‍🧑 Pelanggan Paling Aktif</div>
+      <div class="rekap-grafik-card-body">
+        <canvas id="ra-chart-pelanggan"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Baris 2: Pengeluaran per Kategori (full width) -->
+  <div class="rekap-grafik-full">
+    <div class="card-header"><div class="card-title">💸 Tren Pengeluaran per Kategori</div></div>
+    <div class="rekap-grafik-full-body">
+      <canvas id="ra-chart-kategori"></canvas>
+    </div>
+  </div>
+
+</div>
 
     <!-- SECTION 7: PRODUK TERLARIS (mingguan & bulanan) -->
     <div class="card rekap-admin-table" id="ra-produk-wrap" style="display:none;margin-bottom:24px;">
@@ -5097,6 +5180,9 @@ let raTab = 'harian';
 let raHariMode = 'hari_ini';
 let raMingguOffset = 0;   // 0 = minggu ini, -1 = minggu lalu, dst
 let raChartInstance = null;
+let raChartProduk    = null;
+let raChartPelanggan = null;
+let raChartKategori  = null;
 
 // Data hasil fetch
 let raTrxData = [];
@@ -5362,6 +5448,11 @@ function renderRekapAdmin(dari, sampai) {
   const showProduk = raTab !== 'harian';
   document.getElementById('ra-produk-wrap').style.display = showProduk ? '' : 'none';
   if (showProduk) renderProdukTable();
+
+  // Section 8: Grafik baru (semua tab)
+  renderGrafikProduk();
+  renderGrafikPelanggan();
+  renderGrafikKategori(dari, sampai);
 }
 
 // ---- SECTION 2: GRAFIK ----
@@ -5681,6 +5772,257 @@ function renderKeluarTable() {
       <td style="font-size:12px;">${tglStr}</td>
     </tr>`;
   }).join('');
+}
+
+// ---- SECTION 8A: GRAFIK PRODUK TERLARIS VS TERSEDIKIT ----
+function renderGrafikProduk() {
+  if (raChartProduk) { raChartProduk.destroy(); raChartProduk = null; }
+
+  const produkMap = {};
+  raTrxData.forEach(t => {
+    (t.items || []).forEach(item => {
+      if (!produkMap[item.produk_id]) produkMap[item.produk_id] = { nama: item.produk_nama, kodi: 0 };
+      produkMap[item.produk_id].kodi += item.jumlah_kodi || 0;
+    });
+  });
+
+  const sorted = Object.values(produkMap).sort((a, b) => b.kodi - a.kodi);
+
+  if (sorted.length === 0) return;
+
+  // Ambil max 5 terlaris + 5 tersedikit (hindari duplikat jika < 10 produk)
+  const terlaris  = sorted.slice(0, Math.min(5, sorted.length));
+  const tersedikit = [...sorted].reverse().slice(0, Math.min(5, sorted.length));
+  // Gabungkan unik
+  const gabung = [...terlaris];
+  tersedikit.forEach(p => { if (!gabung.find(x => x.nama === p.nama)) gabung.push(p); });
+  const tampil = gabung.slice(0, 8); // maks 8 agar tidak terlalu padat
+
+  const labels = tampil.map(p => p.nama.length > 15 ? p.nama.slice(0, 15) + '…' : p.nama);
+  const values = tampil.map(p => p.kodi);
+  const max    = Math.max(...values);
+  const colors = values.map(v => {
+    if (v === max) return 'rgba(29,158,117,0.85)';      // terlaris = hijau
+    if (v === Math.min(...values)) return 'rgba(220,38,38,0.7)'; // tersedikit = merah
+    return 'rgba(100,160,255,0.65)';                    // tengah = biru
+  });
+
+  const ctx = document.getElementById('ra-chart-produk').getContext('2d');
+  raChartProduk = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Total Kodi',
+        data: values,
+        backgroundColor: colors,
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.x} kodi`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { callback: v => v + ' kodi' }, grid: { color: '#f0f0f0' } },
+        y: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+
+// ---- SECTION 8B: GRAFIK PELANGGAN PALING AKTIF ----
+function renderGrafikPelanggan() {
+  if (raChartPelanggan) { raChartPelanggan.destroy(); raChartPelanggan = null; }
+
+  // Hitung jumlah transaksi + total nilai per pelanggan
+  const map = {};
+  raTrxData.forEach(t => {
+    const key = t.pelanggan_id || t.pelanggan_nama || 'unknown';
+    const nama = t.pelanggan_nama || 'Tidak Diketahui';
+    if (!map[key]) map[key] = { nama, trx: 0, nilai: 0 };
+    map[key].trx++;
+    map[key].nilai += t.total_tagihan || 0;
+  });
+
+  const sorted = Object.values(map).sort((a, b) => b.trx - a.trx).slice(0, 7);
+
+  if (sorted.length === 0) return;
+
+  const labels = sorted.map(p => p.nama.length > 14 ? p.nama.slice(0, 14) + '…' : p.nama);
+
+  const ctx = document.getElementById('ra-chart-pelanggan').getContext('2d');
+  raChartPelanggan = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Jumlah Transaksi',
+          data: sorted.map(p => p.trx),
+          backgroundColor: 'rgba(29,158,117,0.75)',
+          borderRadius: 5,
+          yAxisID: 'y1'
+        },
+        {
+          label: 'Nilai Pembelian',
+          data: sorted.map(p => p.nilai),
+          backgroundColor: 'rgba(37,99,235,0.55)',
+          borderRadius: 5,
+          yAxisID: 'y2'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.datasetIndex === 0
+              ? ` ${ctx.parsed.y} transaksi`
+              : ` Rp ${ctx.parsed.y.toLocaleString('id-ID')}`
+          }
+        }
+      },
+      scales: {
+        y1: {
+          type: 'linear',
+          position: 'left',
+          ticks: { stepSize: 1, callback: v => v + ' trx', font: { size: 10 } },
+          grid: { color: '#f3f4f6' }
+        },
+        y2: {
+          type: 'linear',
+          position: 'right',
+          ticks: { callback: v => 'Rp ' + (v / 1000).toFixed(0) + 'k', font: { size: 10 } },
+          grid: { drawOnChartArea: false }
+        }
+      }
+    }
+  });
+}
+
+
+// ---- SECTION 8C: GRAFIK TREN PENGELUARAN PER KATEGORI ----
+function renderGrafikKategori(dari, sampai) {
+  if (raChartKategori) { raChartKategori.destroy(); raChartKategori = null; }
+
+  const KATEGORI = ['bensin', 'makan', 'becak', 'lainnya'];
+  const WARNA = {
+    bensin  : 'rgba(251,146,60,0.8)',
+    makan   : 'rgba(52,211,153,0.8)',
+    becak   : 'rgba(96,165,250,0.8)',
+    lainnya : 'rgba(167,139,250,0.8)'
+  };
+  const LABEL = { bensin:'⛽ Bensin', makan:'🍽️ Makan', becak:'🛺 Becak', lainnya:'📝 Lainnya' };
+
+  let labels = [];
+  let datasetsMap = {};
+  KATEGORI.forEach(k => datasetsMap[k] = []);
+
+  if (raTab === 'harian') {
+    // Per jam (0–23, dikelompok per 4 jam)
+    const slots = ['00–03','04–07','08–11','12–15','16–19','20–23'];
+    labels = slots;
+    KATEGORI.forEach(kat => {
+      const buckets = [0, 0, 0, 0, 0, 0];
+      raKeluarData.filter(k => k.kategori === kat).forEach(k => {
+        const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date(k.tanggal || 0);
+        const jam = tgl.getHours();
+        const idx = Math.min(Math.floor(jam / 4), 5);
+        buckets[idx] += k.nominal || 0;
+      });
+      datasetsMap[kat] = buckets;
+    });
+
+  } else if (raTab === 'mingguan') {
+    // Per hari dalam minggu
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(dari);
+      d.setDate(dari.getDate() + i);
+      labels.push(d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' }));
+    }
+    KATEGORI.forEach(kat => {
+      const buckets = new Array(7).fill(0);
+      raKeluarData.filter(k => k.kategori === kat).forEach(k => {
+        const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date(k.tanggal || 0);
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(dari);
+          d.setDate(dari.getDate() + i);
+          if (tgl.toDateString() === d.toDateString()) { buckets[i] += k.nominal || 0; break; }
+        }
+      });
+      datasetsMap[kat] = buckets;
+    });
+
+  } else {
+    // Bulanan: per minggu
+    let w = 0;
+    let cur = new Date(dari);
+    while (cur <= sampai) {
+      const wEnd = new Date(cur);
+      wEnd.setDate(cur.getDate() + 6);
+      if (wEnd > sampai) wEnd.setTime(sampai.getTime());
+      labels.push(`Minggu ${w + 1}`);
+      const wsMs = cur.getTime(), weMs = wEnd.getTime();
+      KATEGORI.forEach(kat => {
+        if (!datasetsMap[kat][w]) datasetsMap[kat][w] = 0;
+        raKeluarData.filter(k => k.kategori === kat).forEach(k => {
+          const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date(k.tanggal || 0);
+          const ms = tgl.getTime();
+          if (ms >= wsMs && ms <= weMs) datasetsMap[kat][w] += k.nominal || 0;
+        });
+      });
+      cur.setDate(cur.getDate() + 7);
+      w++;
+    }
+  }
+
+  const datasets = KATEGORI.map(kat => ({
+    label: LABEL[kat],
+    data: datasetsMap[kat],
+    backgroundColor: WARNA[kat],
+    borderRadius: 4,
+    borderSkipped: false
+  }));
+
+  const ctx = document.getElementById('ra-chart-kategori').getContext('2d');
+  raChartKategori = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: Rp ${ctx.parsed.y.toLocaleString('id-ID')}`
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true },
+        y: {
+          stacked: true,
+          ticks: { callback: v => 'Rp ' + (v / 1000).toFixed(0) + 'k' },
+          grid: { color: '#f0f0f0' }
+        }
+      }
+    }
+  });
 }
 
 // ---- SECTION 7: PRODUK TERLARIS ----
