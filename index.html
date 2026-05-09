@@ -1265,6 +1265,7 @@
               <th>Jenis</th>
               <th>Pasar</th>
               <th>Oleh</th>
+              <th>Aksi</th>
             </tr>
           </thead>
           <tbody id="ra-trx-tbody"></tbody>
@@ -1376,6 +1377,92 @@
   </div><!-- end #ra-content -->
 </div>
  
+<!-- ====== MODAL KONFIRMASI HAPUS TRANSAKSI ====== -->
+<div class="modal-backdrop" id="modal-hapus-trx" onclick="handleBackdropClick(event,'modal-hapus-trx')">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <div class="modal-title">🗑️ Hapus Transaksi</div>
+      <button class="modal-close" onclick="closeModal('modal-hapus-trx')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="warning-box red" style="margin-bottom:16px;">
+        <span>⚠️</span>
+        <div>
+          <strong>Tindakan ini tidak bisa dibatalkan!</strong><br/>
+          Stok, log stok, dan data pembayaran terkait akan ikut disesuaikan.
+        </div>
+      </div>
+      <div id="hapus-trx-info" style="font-size:14px;background:var(--bg);border-radius:10px;padding:14px;">
+        Memuat data...
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-hapus-trx')">Batal</button>
+      <button class="btn btn-danger" id="btn-konfirmasi-hapus-trx" onclick="konfirmasiHapusTrx()">
+        🗑️ Ya, Hapus Transaksi
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== MODAL EDIT TRANSAKSI ====== -->
+<div class="modal-backdrop" id="modal-edit-trx" onclick="handleBackdropClick(event,'modal-edit-trx')">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title">✏️ Edit Transaksi</div>
+      <button class="modal-close" onclick="closeModal('modal-edit-trx')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-trx-id" />
+      <div class="warning-box amber" style="margin-bottom:16px;">
+        <span>ℹ️</span>
+        <div>Edit hanya mengubah <strong>catatan produk, pasar, dan jenis bayar</strong>. Untuk ubah nominal, hapus dan buat transaksi baru.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pelanggan</label>
+        <input type="text" class="form-control" id="edit-trx-pelanggan" readonly style="background:var(--bg);" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Total Tagihan</label>
+        <input type="text" class="form-control" id="edit-trx-total" readonly style="background:var(--bg);" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pasar</label>
+        <select class="form-control" id="edit-trx-pasar">
+          <option value="tegal_gubug">Tegal Gubug</option>
+          <option value="jatibarang">Jatibarang</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Jenis Bayar</label>
+        <select class="form-control" id="edit-trx-jenis">
+          <option value="kontan">Kontan</option>
+          <option value="cicilan">Cicilan</option>
+          <option value="tahunan">Tahunan</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Catatan (opsional)</label>
+        <input type="text" class="form-control" id="edit-trx-catatan" placeholder="Catatan tambahan..." />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-trx')">Batal</button>
+      <button class="btn btn-primary" id="btn-simpan-edit-trx" onclick="simpanEditTrx()">
+        💾 Simpan Perubahan
+      </button>
+    </div>
+  </div>
+</div>
+
     <!-- ====== PENGATURAN (owner only) ====== -->
     <div class="page owner-only" id="page-pengaturan">
       <div class="page-header">
@@ -6075,7 +6162,7 @@ function renderTrxTable() {
 
     const detailHTML = `
       <tr class="rekap-accordion-detail" id="trx-detail-${t.id}">
-        <td colspan="7">
+        <td colspan="8">
           <div class="rekap-accordion-td">
             ${itemsDetailHTML}
             <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;">
@@ -6091,11 +6178,15 @@ function renderTrxTable() {
       <tr onclick="toggleTrxDetail('${t.id}')" style="cursor:pointer;">
         <td>${i+1}</td>
         <td style="font-weight:600;">${t.pelanggan_nama}</td>
-        <td style="max-width:140px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${produkStr}</td>
+        <td style="max-width:120px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${produkStr}</td>
         <td class="text-right font-bold">${formatRupiah(t.total_tagihan)}</td>
         <td>${jenisBadge}</td>
         <td style="font-size:12px;">${pasarStr}</td>
         <td style="font-size:12px;color:var(--text-muted);">${oleh}</td>
+        <td onclick="event.stopPropagation();" style="white-space:nowrap;">
+          <button class="btn btn-sm btn-secondary" style="padding:4px 8px;margin-right:4px;" onclick="openEditTrx('${t.id}')">✏️</button>
+          <button class="btn btn-sm btn-danger" style="padding:4px 8px;" onclick="openHapusTrx('${t.id}')">🗑️</button>
+        </td>
       </tr>
       ${detailHTML}`;
   }).join('');
@@ -6708,6 +6799,199 @@ window.exportRekapAdminPdf = async function() {
   doc.save(filename);
   showToast('PDF berhasil diunduh 📄', 'success');
 };
+
+
+// ============================================================
+// PATCH D — HAPUS & EDIT TRANSAKSI DARI REKAP ADMIN
+// ============================================================
+
+let _trxToHapus = null; // menyimpan data transaksi yang akan dihapus
+
+// ---- BUKA MODAL HAPUS ----
+window.openHapusTrx = async function(trxId) {
+  const trx = raTrxData.find(t => t.id === trxId);
+  if (!trx) { showToast('Data transaksi tidak ditemukan', 'error'); return; }
+  _trxToHapus = trx;
+
+  const pasarStr = trx.pasar === 'tegal_gubug' ? 'Tegal Gubug' : 'Jatibarang';
+  const produkStr = (trx.items || []).map(it => `${it.produk_nama} ${it.jumlah_kodi}k`).join(', ');
+  const tgl = trx.created_at?.toDate ? trx.created_at.toDate() : new Date();
+  const tglStr = tgl.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  document.getElementById('hapus-trx-info').innerHTML = `
+    <div style="margin-bottom:8px;font-weight:700;font-size:15px;">${trx.pelanggan_nama}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${tglStr} · ${pasarStr}</div>
+    <div style="font-size:13px;margin-bottom:6px;">📦 ${produkStr || '-'}</div>
+    <div style="font-size:14px;font-weight:800;color:var(--red-text);">Total: ${formatRupiah(trx.total_tagihan)}</div>
+    <div style="margin-top:8px;font-size:12px;color:var(--text-muted);">
+      Yang akan ikut terhapus/disesuaikan:<br/>
+      ✔ Dokumen transaksi<br/>
+      ✔ Log stok penjualan (stok mobil dikembalikan)<br/>
+      ✔ Pembayaran kontan terkait (jika ada)<br/>
+      ✔ Hutang pelanggan (jika cicilan/tahunan)
+    </div>
+  `;
+  openModal('modal-hapus-trx');
+};
+
+// ---- PROSES HAPUS TRANSAKSI ----
+window.konfirmasiHapusTrx = async function() {
+  if (!_trxToHapus) return;
+  const trx = _trxToHapus;
+  const btn = document.getElementById('btn-konfirmasi-hapus-trx');
+  btn.innerHTML = '<span class="loading-spinner"></span> Menghapus...';
+  btn.disabled = true;
+
+  try {
+    const batch = writeBatch(db);
+
+    // 1. Hapus dokumen transaksi
+    batch.delete(doc(db, 'transaksi', trx.id));
+
+    // 2. Kembalikan stok mobil + hapus stok_log terkait
+    for (const item of (trx.items || [])) {
+      if (!item.produk_id || item.produk_id === 'migrasi') continue;
+
+      // Ambil stok saat ini
+      const stokRef = doc(db, 'stok', item.produk_id);
+      const stokSnap = await getDoc(stokRef);
+      if (stokSnap.exists()) {
+        const stokNow = stokSnap.data().stok_mobil || 0;
+        const stokKembali = stokNow + (item.jumlah_kodi || 0);
+        batch.update(stokRef, {
+          stok_mobil: stokKembali,
+          updated_at: serverTimestamp()
+        });
+
+        // Tambah log pembalikan stok
+        const logRef = doc(collection(db, 'stok_log'));
+        batch.set(logRef, {
+          produk_id: item.produk_id,
+          produk_nama: item.produk_nama,
+          jenis: 'koreksi',
+          jumlah_kodi: item.jumlah_kodi || 0,
+          stok_rumah_sebelum: stokSnap.data().stok_rumah || 0,
+          stok_rumah_sesudah: stokSnap.data().stok_rumah || 0,
+          stok_mobil_sebelum: stokNow,
+          stok_mobil_sesudah: stokKembali,
+          referensi_id: trx.id,
+          catatan: `[HAPUS TRX] Reversal dari transaksi ${trx.pelanggan_nama}`,
+          created_by: currentUser.uid,
+          created_by_nama: currentUserData?.nama || '-',
+          created_at: serverTimestamp()
+        });
+      }
+
+      // Hapus stok_log penjualan original (cari by referensi_id)
+      try {
+        const logSnap = await getDocs(query(
+          collection(db, 'stok_log'),
+          where('referensi_id', '==', trx.id),
+          where('jenis', '==', 'penjualan')
+        ));
+        logSnap.forEach(d => batch.delete(d.ref));
+      } catch(e) {
+        console.warn('Gagal hapus stok_log:', e);
+      }
+    }
+
+    // 3. Hapus pembayaran terkait transaksi ini (kontan)
+    try {
+      const bayarSnap = await getDocs(query(
+        collection(db, 'pembayaran'),
+        where('transaksi_id', '==', trx.id)
+      ));
+      bayarSnap.forEach(d => batch.delete(d.ref));
+    } catch(e) {
+      console.warn('Gagal hapus pembayaran:', e);
+    }
+
+    // 4. Update hutang pelanggan (jika bukan kontan, kurangi hutang)
+    if (trx.jenis_bayar !== 'kontan' && trx.pelanggan_id) {
+      try {
+        const pelSnap = await getDoc(doc(db, 'pelanggan', trx.pelanggan_id));
+        if (pelSnap.exists()) {
+          const hutangSekarang = pelSnap.data().total_hutang_aktif || 0;
+          const sisaHutangTrx = trx.sisa_hutang || 0;
+          const hutangBaru = Math.max(0, hutangSekarang - sisaHutangTrx);
+          batch.update(doc(db, 'pelanggan', trx.pelanggan_id), {
+            total_hutang_aktif: hutangBaru
+          });
+        }
+      } catch(e) {
+        console.warn('Gagal update hutang pelanggan:', e);
+      }
+    }
+
+    await batch.commit();
+
+    // Refresh data
+    _trxToHapus = null;
+    closeModal('modal-hapus-trx');
+    showToast('Transaksi berhasil dihapus & stok disesuaikan ✅', 'success');
+    loadRekapAdmin(); // reload rekap
+
+  } catch(e) {
+    console.error('Hapus transaksi error:', e);
+    showToast('Gagal hapus: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = '🗑️ Ya, Hapus Transaksi';
+    btn.disabled = false;
+  }
+};
+
+// ---- BUKA MODAL EDIT ----
+window.openEditTrx = function(trxId) {
+  const trx = raTrxData.find(t => t.id === trxId);
+  if (!trx) { showToast('Data tidak ditemukan', 'error'); return; }
+
+  document.getElementById('edit-trx-id').value = trx.id;
+  document.getElementById('edit-trx-pelanggan').value = trx.pelanggan_nama;
+  document.getElementById('edit-trx-total').value = formatRupiah(trx.total_tagihan);
+  document.getElementById('edit-trx-pasar').value = trx.pasar || 'tegal_gubug';
+  document.getElementById('edit-trx-jenis').value = trx.jenis_bayar || 'cicilan';
+  document.getElementById('edit-trx-catatan').value = trx.catatan || '';
+
+  openModal('modal-edit-trx');
+};
+
+// ---- SIMPAN EDIT TRANSAKSI ----
+window.simpanEditTrx = async function() {
+  const id = document.getElementById('edit-trx-id').value;
+  if (!id) return;
+
+  const btn = document.getElementById('btn-simpan-edit-trx');
+  btn.innerHTML = '<span class="loading-spinner"></span>';
+  btn.disabled = true;
+
+  try {
+    const pasar = document.getElementById('edit-trx-pasar').value;
+    const jenisBayar = document.getElementById('edit-trx-jenis').value;
+    const catatan = document.getElementById('edit-trx-catatan').value.trim();
+
+    await updateDoc(doc(db, 'transaksi', id), {
+      pasar,
+      jenis_bayar: jenisBayar,
+      catatan,
+      updated_at: serverTimestamp(),
+      updated_by: currentUser.uid
+    });
+
+    closeModal('modal-edit-trx');
+    showToast('Transaksi berhasil diperbarui ✅', 'success');
+    loadRekapAdmin();
+
+  } catch(e) {
+    showToast('Gagal simpan: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = '💾 Simpan Perubahan';
+    btn.disabled = false;
+  }
+};
+
+// ============================================================
+// END PATCH D
+// ============================================================
 
 // Expose
 window.loadRekapAdmin         = loadRekapAdmin;
