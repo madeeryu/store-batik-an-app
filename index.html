@@ -3533,7 +3533,7 @@ function showStep(n) {
   }
 }
 
-window.stepNext = function(from) {
+window.stepNext = async function(from) {
   if (from === 1) {
     const pasar = document.getElementById('trx-pasar').value;
     const tanggal = document.getElementById('trx-tanggal').value;
@@ -3546,15 +3546,18 @@ window.stepNext = function(from) {
     if (trxData.pelanggan.status === 'macet' || trxData.pelanggan.status === 'diblokir') {
       showToast('Pelanggan macet/diblokir tidak bisa bertransaksi', 'error'); return;
     }
-    if (allProduk.length === 0) loadProdukForTrx();
     showStep(3);
+    if (allProduk.length === 0) {
+      showToast('Memuat daftar produk...', 'info');
+      await loadProdukForTrx();
+    }
     if (document.getElementById('trx-items-container').children.length === 0) addItemRow();
   } else if (from === 3) {
     const items = collectItems();
     if (items.length === 0) { showToast('Tambahkan minimal 1 produk', 'error'); return; }
     if (items.some(i => !i.produk_nama || (i.jumlah_kodi <= 0 && i.jumlah_pcs <= 0))) {
-  showToast('Lengkapi semua data produk', 'error'); return;
-}
+      showToast('Lengkapi semua data produk', 'error'); return;
+    }
     trxData.items = items;
     renderSummary();
     showStep(4);
@@ -3702,8 +3705,8 @@ let itemRowCount = 0;
 window.addItemRow = function() {
   itemRowCount++;
   const container = document.getElementById('trx-items-container');
-  const produkOptions = allProduk.filter(p => p.aktif).map(p =>
-    `<option value="${p.id}" data-harga="${p.harga_default}">${p.nama}</option>`
+  const produkOptions = allProduk.filter(p => p.aktif !== false).map(p =>
+    `<option value="${p.id}" data-harga="${p.harga_default || 0}">${p.nama || '-'}</option>`
   ).join('');
 
   const rowId = `item-row-${itemRowCount}`;
