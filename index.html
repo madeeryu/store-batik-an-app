@@ -3873,10 +3873,15 @@ function initTransaksi() {
 
 async function loadProdukForTrx() {
   try {
-    const snap = await getDocs(query(collection(db, 'produk'), where('aktif', '==', true), orderBy('nama')));
+    // FIX: Ambil semua produk tanpa filter 'aktif' di Firestore
+    // agar produk lama yang tidak punya field 'aktif' tetap masuk.
+    // Filter aktif dilakukan di sisi client (addItemRow).
+    const snap = await getDocs(query(collection(db, 'produk'), orderBy('nama')));
     allProduk = [];
     snap.forEach(d => allProduk.push({ id: d.id, ...d.data() }));
-  } catch (e) {}
+  } catch (e) {
+    console.error('loadProdukForTrx error:', e);
+  }
 }
 
 function showStep(n) {
@@ -3909,12 +3914,23 @@ window.stepNext = async function(from) {
     if (trxData.pelanggan.status === 'macet' || trxData.pelanggan.status === 'diblokir') {
       showToast('Pelanggan macet/diblokir tidak bisa bertransaksi', 'error'); return;
     }
+
     showStep(3);
+
+    // FIX: Tampilkan loading indicator dulu sebelum fetch
+    const container = document.getElementById('trx-items-container');
     if (allProduk.length === 0) {
-      showToast('Memuat daftar produk...', 'info');
-      await loadProdukForTrx();
+      container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);">⏳ Memuat daftar produk...</div>';
+      await loadProdukForTrx();  // ← PENTING: tunggu sampai data selesai dimuat
     }
-    if (document.getElementById('trx-items-container').children.length === 0) addItemRow();
+
+    // FIX: Bersihkan loading indicator, baru tampilkan baris input produk
+    if (container.children.length === 0 ||
+        container.innerHTML.includes('Memuat daftar produk')) {
+      container.innerHTML = '';
+      addItemRow();
+    }
+  
   } else if (from === 3) {
     const items = collectItems();
     if (items.length === 0) { showToast('Tambahkan minimal 1 produk', 'error'); return; }
@@ -4068,9 +4084,18 @@ let itemRowCount = 0;
 window.addItemRow = function() {
   itemRowCount++;
   const container = document.getElementById('trx-items-container');
-  const produkOptions = allProduk.filter(p => p.aktif !== false).map(p =>
-    `<option value="${p.id}" data-harga="${p.harga_default || 0}">${p.nama || '-'}</option>`
-  ).join('');
+  // FIX: Cek apakah produk benar-benar kosong, beri pesan yang jelas
+  if (allProduk.length === 0) {
+    showToast('Produk belum ada. Tambah produk dulu di menu Produk.', 'error');
+    return;
+  }
+
+  // FIX: Filter produk yang aktif — p.aktif !== false agar produk lama
+  // yang tidak punya field 'aktif' (undefined) tetap ikut tampil
+  const produkOptions = allProduk
+    .filter(p => p.aktif !== false)
+    .map(p => `<option value="${p.id}" data-harga="${p.harga_default || 0}">${p.nama || '-'}</option>`)
+    .join('');
 
   const rowId = `item-row-${itemRowCount}`;
   const row = document.createElement('div');
