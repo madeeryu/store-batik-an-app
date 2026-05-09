@@ -3934,6 +3934,14 @@ window.toggleAktifProduk = async function(id, aktif) {
 // ============================================================
 // TRANSAKSI BARU
 // ============================================================
+
+function cekStokMobil(produkId) {
+  // Jika cache null (gagal load), kembalikan Infinity
+  // artinya semua produk dianggap cukup stok → tidak ada yang diblokir
+  if (stokMobilCache === null) return Infinity;
+  return stokMobilCache[produkId] ?? Infinity;
+}
+
 function initTransaksi() {
   currentStep = 1;
   trxData = { pasar: '', tanggal: '', pelanggan: null, items: [], jenisBayar: '' };
@@ -3958,16 +3966,28 @@ function initTransaksi() {
   if (allProduk.length === 0) loadProdukForTrx();
 }
 
+let stokMobilCache = {};
+
 async function loadProdukForTrx() {
   try {
-    // FIX: Ambil semua produk tanpa filter 'aktif' di Firestore
-    // agar produk lama yang tidak punya field 'aktif' tetap masuk.
-    // Filter aktif dilakukan di sisi client (addItemRow).
+    // Query produk — TIDAK diubah dari fix asli
     const snap = await getDocs(query(collection(db, 'produk'), orderBy('nama')));
     allProduk = [];
     snap.forEach(d => allProduk.push({ id: d.id, ...d.data() }));
   } catch (e) {
     console.error('loadProdukForTrx error:', e);
+    // (sisa catch yang sudah ada)
+  }
+
+  // Load stok TERPISAH — jika gagal, produk tetap muncul normal
+  // hanya fitur cek stok yang tidak aktif
+  try {
+    stokMobilCache = {};
+    const stokSnap = await getDocs(collection(db, 'stok'));
+    stokSnap.forEach(d => { stokMobilCache[d.id] = d.data().stok_mobil || 0; });
+  } catch (e) {
+    console.warn('Gagal load cache stok, cek stok dinonaktifkan:', e);
+    stokMobilCache = null; // null = tanda "stok tidak tersedia"
   }
 }
 
@@ -4024,6 +4044,29 @@ window.stepNext = async function(from) {
     if (items.some(i => !i.produk_nama || (i.jumlah_kodi <= 0 && i.jumlah_pcs <= 0))) {
       showToast('Lengkapi semua data produk', 'error'); return;
     }
+
+    // ✅ VALIDASI STOK SEBELUM LANJUT
+    const stokError = [];
+    for (const item of items) {
+      if (item.produk_id === 'migrasi') continue; // skip migrasi
+      const stokMobil = cekStokMobil(item.produk_id);
+      if (stokMobil <= 0) {
+        stokError.push(`❌ ${item.produk_nama}: stok HABIS`);
+      } else if (item.jumlah_kodi > stokMobil) {
+        stokError.push(`⚠️ ${item.produk_nama}: diminta ${item.jumlah_kodi} kodi, stok hanya ${stokMobil} kodi`);
+      }
+    }
+
+    if (stokError.length > 0) {
+      showToast(stokError[0], 'error');
+      // Tampilkan semua error jika lebih dari 1
+      if (stokError.length > 1) {
+        setTimeout(() => showToast(stokError[1], 'error'), 800);
+      }
+      return; // ← BLOKIR lanjut ke step berikutnya
+    }
+    // ✅ END VALIDASI STOK
+
     trxData.items = items;
     renderSummary();
     showStep(4);
@@ -4177,11 +4220,15 @@ window.addItemRow = function() {
     return;
   }
 
-  // FIX: Filter produk yang aktif — p.aktif !== false agar produk lama
-  // yang tidak punya field 'aktif' (undefined) tetap ikut tampil
+  // Filter produk aktif + tampilkan info stok, disable jika stok habis
   const produkOptions = allProduk
     .filter(p => p.aktif !== false)
-    .map(p => `<option value="${p.id}" data-harga="${p.harga_default || 0}">${p.nama || '-'}</option>`)
+    .map(p => {
+      const stok = cekStokMobil(p.id);
+      const habis = stok <= 0;
+      const stokLabel = habis ? ' [HABIS]' : ` [Stok: ${stok} kodi]`;
+      return `<option value="${p.id}" data-harga="${p.harga_default || 0}" data-stok="${stok}" ${habis ? 'disabled' : ''}>${p.nama || '-'}${stokLabel}</option>`;
+    })
     .join('');
 
   const rowId = `item-row-${itemRowCount}`;
@@ -4233,7 +4280,14 @@ window.onProdukChange = function(n) {
   const sel = document.getElementById(`item-produk-${n}`);
   const produkId = sel.value;
   const produk = allProduk.find(p => p.id === produkId);
+
+  // Hapus info stok lama jika ada
+  const infoEl = document.getElementById(`item-stok-info-${n}`);
+  if (infoEl) infoEl.remove();
+
   if (!produk) return;
+
+  // Isi harga otomatis
   const satuan = document.getElementById(`item-satuan-${n}`).value;
   if (satuan === 'pcs') {
     const hargaPcs = produk.harga_per_pcs || (produk.harga_default / (produk.pcs_per_kodi || 20));
@@ -4241,12 +4295,51 @@ window.onProdukChange = function(n) {
   } else {
     document.getElementById(`item-harga-${n}`).value = produk.harga_default || 0;
   }
+
+  // Tampilkan info stok mobil
+  const stok = cekStokMobil(produkId);
+  const pcsPerKodi = produk.pcs_per_kodi || 20;
+  const stokPcs = Math.round(stok * pcsPerKodi);
+  const rowEl = document.getElementById(`item-row-${n}`);
+  if (rowEl) {
+    let warna, ikon, teks;
+    if (stok <= 0) {
+      warna = '#DC2626'; ikon = '🚫'; teks = `Stok HABIS`;
+    } else if (stok <= 2) {
+      warna = '#D97706'; ikon = '⚠️'; teks = `Stok kritis: ${stok} kodi (${stokPcs} pcs)`;
+    } else {
+      warna = '#16A34A'; ikon = '✅'; teks = `Stok tersedia: ${stok} kodi (${stokPcs} pcs)`;
+    }
+    const div = document.createElement('div');
+    div.id = `item-stok-info-${n}`;
+    div.style.cssText = `
+      grid-column: 1 / -1;
+      background: ${stok <= 0 ? '#FEE2E2' : stok <= 2 ? '#FEF3C7' : '#DCFCE7'};
+      border: 1px solid ${stok <= 0 ? '#FECACA' : stok <= 2 ? '#FDE68A' : '#BBF7D0'};
+      color: ${warna};
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    `;
+    div.innerHTML = `${ikon} ${teks}`;
+    rowEl.appendChild(div);
+  }
+
   calcSubtotal(n);
 };
 
 window.onSatuanChange = function(n) {
   const satuan = document.getElementById(`item-satuan-${n}`).value;
   const produkId = document.getElementById(`item-produk-${n}`).value;
+
+  // Reset info stok, lalu panggil ulang onProdukChange untuk refresh
+  const infoEl = document.getElementById(`item-stok-info-${n}`);
+  if (infoEl) infoEl.remove();
+
   const produk = allProduk.find(p => p.id === produkId);
   const labelJumlah = document.getElementById(`item-jumlah-label-${n}`);
   const labelHarga = document.getElementById(`item-harga-label-${n}`);
@@ -4269,8 +4362,34 @@ window.onSatuanChange = function(n) {
 window.calcSubtotal = function(n) {
   const jumlah = parseFloat(document.getElementById(`item-kodi-${n}`).value) || 0;
   const harga = parseFloat(document.getElementById(`item-harga-${n}`).value) || 0;
+  const produkId = document.getElementById(`item-produk-${n}`)?.value;
+  const satuanEl = document.getElementById(`item-satuan-${n}`);
+  const satuan = satuanEl ? satuanEl.value : 'kodi';
+  const produk = allProduk.find(p => p.id === produkId);
+  const pcsPerKodi = produk?.pcs_per_kodi || 20;
+
+  // Konversi input ke kodi untuk dibandingkan dengan stok
+  const jumlahKodi = satuan === 'pcs' ? jumlah / pcsPerKodi : jumlah;
+  const stokMobil = cekStokMobil(produkId);
+
+  const inputEl = document.getElementById(`item-kodi-${n}`);
+  const subtotalEl = document.getElementById(`item-subtotal-${n}`);
+
+  // Validasi: jumlah melebihi stok?
+  if (produkId && jumlahKodi > stokMobil && stokMobil > 0) {
+    inputEl.style.borderColor = '#D97706';
+    inputEl.style.boxShadow = '0 0 0 3px rgba(217,119,6,0.15)';
+    showToast(`⚠️ Jumlah melebihi stok! Stok mobil: ${stokMobil} kodi`, 'error');
+  } else if (produkId && stokMobil <= 0) {
+    inputEl.style.borderColor = '#DC2626';
+    inputEl.style.boxShadow = '0 0 0 3px rgba(220,38,38,0.15)';
+  } else {
+    inputEl.style.borderColor = '';
+    inputEl.style.boxShadow = '';
+  }
+
   const sub = jumlah * harga;
-  document.getElementById(`item-subtotal-${n}`).value = formatRupiah(sub);
+  subtotalEl.value = formatRupiah(sub);
 };
 
 function collectItems() {
