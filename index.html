@@ -760,6 +760,11 @@
         Stok
         <span class="badge-nav-alert hidden" id="stok-badge-sidebar">0</span>
       </a>
+      <!-- REKAP STOK SUB-MENU: hanya muncul saat di halaman stok -->
+      <a class="nav-item" id="nav-rekap-stok" data-page="rekap-stok" onclick="navigateTo('rekap-stok')" style="display:none;padding-left:32px;font-size:13px;">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        📊 Rekap Stok
+      </a>
       <a class="nav-item" data-page="rekap-saya" onclick="navigateTo('rekap-saya')">
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
         Rekap Saya
@@ -1550,7 +1555,75 @@
         <div style="padding:40px;text-align:center;color:var(--text-muted);">Memuat data stok...</div>
       </div>
     </div>
- 
+ <!-- ====== REKAP STOK (halaman baru) ====== -->
+    <div class="page" id="page-rekap-stok">
+      <div class="page-header flex justify-between" style="align-items:flex-start;">
+        <div>
+          <div class="page-title">📊 Rekap Stok</div>
+          <div class="page-subtitle" id="rekap-stok-subtitle">Ringkasan keseluruhan stok semua produk</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="navigateTo('stok')">← Kembali ke Stok</button>
+      </div>
+
+      <!-- Kartu ringkasan total -->
+      <div class="stok-summary-grid" style="margin-bottom:20px;" id="rekap-stok-summary-grid">
+        <div class="stok-summary-card">
+          <div class="stok-summary-label">Total Produk</div>
+          <div class="stok-summary-value" id="rs-total-produk">0</div>
+        </div>
+        <div class="stok-summary-card">
+          <div class="stok-summary-label">Total Kodi (Semua)</div>
+          <div class="stok-summary-value text-green" id="rs-total-kodi">0 kodi</div>
+        </div>
+        <div class="stok-summary-card">
+          <div class="stok-summary-label">Total PCS (Semua)</div>
+          <div class="stok-summary-value" id="rs-total-pcs">0 pcs</div>
+        </div>
+      </div>
+
+      <!-- Filter pencarian -->
+      <div class="search-filter" style="margin-bottom:16px;">
+        <div class="search-box flex-1">
+          <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" class="form-control" id="search-rekap-stok" placeholder="Cari produk..." oninput="filterRekapStok()" style="padding-left:38px;" />
+        </div>
+        <select class="form-control" id="filter-rekap-stok-status" onchange="filterRekapStok()" style="max-width:160px;">
+          <option value="semua">Semua Status</option>
+          <option value="aman">✅ Aman</option>
+          <option value="kritis">⚠️ Kritis</option>
+          <option value="habis">🚫 Habis</option>
+        </select>
+      </div>
+
+      <!-- Tabel Rekap -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📦 Rekap Stok Keseluruhan</div>
+          <span class="badge badge-gray" id="rekap-stok-badge-count">0 produk</span>
+        </div>
+        <div class="table-wrap">
+          <table id="tabel-rekap-stok">
+            <thead>
+              <tr>
+                <th style="min-width:160px;">Produk</th>
+                <th class="text-right">Rumah (Kodi)</th>
+                <th class="text-right">Rumah (PCS)</th>
+                <th class="text-right">Mobil (Kodi)</th>
+                <th class="text-right">Mobil (PCS)</th>
+                <th class="text-right">Total (Kodi)</th>
+                <th class="text-right">Total (PCS)</th>
+                <th style="text-align:center;">Status Mobil</th>
+              </tr>
+            </thead>
+            <tbody id="rekap-stok-tbody">
+              <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">Memuat data...</td></tr>
+            </tbody>
+            <tfoot id="rekap-stok-tfoot" style="font-weight:700;background:#E8F7F1;">
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
     <!-- ====== REKAP SAYA ====== -->
     <div class="page" id="page-rekap-saya">
       <div class="page-header flex justify-between" style="align-items:flex-start;">
@@ -3493,7 +3566,7 @@ function showApp() {
 const pageTitles = {
   dashboard: 'Dashboard', transaksi: 'Transaksi Baru', piutang: 'Piutang',
   pelanggan: 'Pelanggan', produk: 'Produk', rekap: 'Rekap', pengaturan: 'Pengaturan',
-  histori: 'Histori Pelanggan', stok: 'Stok'
+  histori: 'Histori Pelanggan', stok: 'Stok',  'rekap-stok': '📊 Rekap Stok'
 };
 
 // navigateTo didefinisikan lengkap di bawah (bagian PATCH), tidak perlu duplikat di sini
@@ -4494,7 +4567,20 @@ window.simpanTransaksi = async function() {
   try {
     const total = trxData.items.reduce((s, i) => s + i.subtotal, 0);
     const isKontan = trxData.jenisBayar === 'kontan';
-    const tanggalTrx = Timestamp.fromDate(new Date(trxData.tanggal));
+    // FIX BUG: Tambahkan waktu aktual (jam:menit:detik sekarang) ke tanggal transaksi
+    // supaya log stok tidak selalu menampilkan 07:00
+    const _tglParts = trxData.tanggal.split('-'); // ["2025","05","10"]
+    const _now = new Date();
+    const tanggalTrx = Timestamp.fromDate(
+      new Date(
+        parseInt(_tglParts[0]),
+        parseInt(_tglParts[1]) - 1,
+        parseInt(_tglParts[2]),
+        _now.getHours(),
+        _now.getMinutes(),
+        _now.getSeconds()
+      )
+    );
     const batch = writeBatch(db);
 
     // 1. Tambah transaksi
@@ -4990,8 +5076,8 @@ window.openKoreksiStok = function(produkId) {
 
 window.simpanKoreksi = async function() {
   const produkId = document.getElementById('koreksi-produk-id').value;
-  const rumahAktual = parseInt(document.getElementById('koreksi-rumah-aktual').value) || 0;
-  const mobilAktual = parseInt(document.getElementById('koreksi-mobil-aktual').value) || 0;
+  const rumahAktual = parseFloat(document.getElementById('koreksi-rumah-aktual').value) || 0;  // FIX: parseInt → parseFloat
+  const mobilAktual = parseFloat(document.getElementById('koreksi-mobil-aktual').value) || 0;  // FIX: parseInt → parseFloat
   const catatan = document.getElementById('koreksi-catatan').value.trim();
   const p = allStok.find(x => x.id === produkId);
   if (!p) return;
@@ -5133,6 +5219,144 @@ window.loadMoreRiwayatStok = function() {
 window.loadStok = loadStok;
 
 // ============================================================
+// REKAP STOK — Tabel ringkasan keseluruhan stok
+// ============================================================
+let _rekapStokData = []; // menyimpan data allStok untuk filter
+
+function renderRekapStok(list) {
+  const tbody = document.getElementById('rekap-stok-tbody');
+  const tfoot = document.getElementById('rekap-stok-tfoot');
+  const badge = document.getElementById('rekap-stok-badge-count');
+  if (!tbody) return;
+
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">Tidak ada data yang cocok</td></tr>';
+    if (tfoot) tfoot.innerHTML = '';
+    if (badge) badge.textContent = '0 produk';
+    return;
+  }
+
+  let totalRumahKodi = 0, totalMobilKodi = 0, totalRumahPcs = 0, totalMobilPcs = 0;
+
+  tbody.innerHTML = list.map(p => {
+    const s = p.stok;
+    const pcsPerKodi = s.pcs_per_kodi || p.pcs_per_kodi || 20;
+    const rumahKodi = s.stok_rumah || 0;
+    const mobilKodi = s.stok_mobil || 0;
+    const rumahPcs  = Math.round(rumahKodi * pcsPerKodi);
+    const mobilPcs  = Math.round(mobilKodi * pcsPerKodi);
+    const totalKodi = rumahKodi + mobilKodi;
+    const totalPcs  = rumahPcs + mobilPcs;
+
+    totalRumahKodi += rumahKodi;
+    totalMobilKodi += mobilKodi;
+    totalRumahPcs  += rumahPcs;
+    totalMobilPcs  += mobilPcs;
+
+    // Status berdasarkan stok mobil
+    let statusBadge;
+    if (mobilKodi <= 0) {
+      statusBadge = '<span class="badge-stok-merah">🚫 Habis</span>';
+    } else if (mobilKodi <= 2) {
+      statusBadge = '<span class="badge-stok-kuning">⚠️ Kritis</span>';
+    } else {
+      statusBadge = '<span class="badge-stok-hijau">✅ Aman</span>';
+    }
+
+    const trStyle = mobilKodi <= 0
+      ? 'background:#FFF5F5;'
+      : mobilKodi <= 2 ? 'background:#FFFBEB;' : '';
+
+    return `
+      <tr style="${trStyle}">
+        <td style="font-weight:600;">${p.nama}</td>
+        <td class="text-right">${rumahKodi % 1 !== 0 ? rumahKodi.toFixed(1) : rumahKodi}</td>
+        <td class="text-right">${rumahPcs}</td>
+        <td class="text-right" style="font-weight:700;">${mobilKodi % 1 !== 0 ? mobilKodi.toFixed(1) : mobilKodi}</td>
+        <td class="text-right">${mobilPcs}</td>
+        <td class="text-right" style="color:var(--green);font-weight:700;">${totalKodi % 1 !== 0 ? totalKodi.toFixed(1) : totalKodi}</td>
+        <td class="text-right">${totalPcs}</td>
+        <td style="text-align:center;">${statusBadge}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // Baris total di footer
+  const totalKodiAll = totalRumahKodi + totalMobilKodi;
+  const totalPcsAll  = totalRumahPcs  + totalMobilPcs;
+  if (tfoot) {
+    tfoot.innerHTML = `
+      <tr style="border-top:2px solid var(--green);">
+        <td style="padding:10px 14px;">🔢 TOTAL</td>
+        <td class="text-right" style="padding:10px 14px;">${totalRumahKodi % 1 !== 0 ? totalRumahKodi.toFixed(1) : totalRumahKodi}</td>
+        <td class="text-right" style="padding:10px 14px;">${totalRumahPcs}</td>
+        <td class="text-right" style="padding:10px 14px;">${totalMobilKodi % 1 !== 0 ? totalMobilKodi.toFixed(1) : totalMobilKodi}</td>
+        <td class="text-right" style="padding:10px 14px;">${totalMobilPcs}</td>
+        <td class="text-right" style="padding:10px 14px;color:var(--green);">${totalKodiAll % 1 !== 0 ? totalKodiAll.toFixed(1) : totalKodiAll}</td>
+        <td class="text-right" style="padding:10px 14px;color:var(--green);">${totalPcsAll}</td>
+        <td></td>
+      </tr>
+    `;
+  }
+
+  if (badge) badge.textContent = `${list.length} produk`;
+
+  // Update kartu ringkasan di atas
+  const elProduk = document.getElementById('rs-total-produk');
+  const elKodi   = document.getElementById('rs-total-kodi');
+  const elPcs    = document.getElementById('rs-total-pcs');
+  if (elProduk) elProduk.textContent = list.length;
+  if (elKodi)   elKodi.textContent   = `${totalKodiAll % 1 !== 0 ? totalKodiAll.toFixed(1) : totalKodiAll} kodi`;
+  if (elPcs)    elPcs.textContent    = `${totalPcsAll} pcs`;
+}
+
+window.filterRekapStok = function() {
+  const q = (document.getElementById('search-rekap-stok')?.value || '').toLowerCase();
+  const statusFilter = document.getElementById('filter-rekap-stok-status')?.value || 'semua';
+
+  let filtered = _rekapStokData;
+
+  if (q) {
+    filtered = filtered.filter(p => p.nama.toLowerCase().includes(q));
+  }
+
+  if (statusFilter !== 'semua') {
+    filtered = filtered.filter(p => {
+      const mobil = p.stok.stok_mobil || 0;
+      if (statusFilter === 'habis')  return mobil <= 0;
+      if (statusFilter === 'kritis') return mobil > 0 && mobil <= 2;
+      if (statusFilter === 'aman')   return mobil > 2;
+      return true;
+    });
+  }
+
+  renderRekapStok(filtered);
+};
+
+function loadRekapStok() {
+  // Gunakan data allStok yang sudah ada (dimuat saat loadStok())
+  // Jika belum ada, minta load dulu
+  if (!allStok || allStok.length === 0) {
+    const tbody = document.getElementById('rekap-stok-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">⏳ Memuat data stok...</td></tr>';
+    loadStok().then(() => {
+      _rekapStokData = [...allStok];
+      renderRekapStok(_rekapStokData);
+    });
+    return;
+  }
+  _rekapStokData = [...allStok];
+  renderRekapStok(_rekapStokData);
+
+  // Update subtitle
+  const sub = document.getElementById('rekap-stok-subtitle');
+  if (sub) sub.textContent = `${allStok.length} produk — diperbarui dari data stok saat ini`;
+}
+// ============================================================
+// END REKAP STOK
+// ============================================================
+
+// ============================================================
 // PATCH B — REKAP KARYAWAN + PENGELUARAN
 // ============================================================
 
@@ -5157,13 +5381,27 @@ if (typeof pageTitles !== 'undefined') pageTitles['rekap-saya'] = 'Rekap Saya';
 const _navigateToOrig = window.navigateTo;
 window.navigateTo = function(page) {
   _navigateToOrig(page);
+
+  // ---- Rekap Saya ----
   if (page === 'rekap-saya') {
-    // Set nama badge
     const nm = currentUserData?.nama || currentUser?.email || '-';
     const badge = document.getElementById('rekap-saya-nama-badge');
     if (badge) badge.textContent = nm;
-    // Default filter: hari ini
     loadRekapSaya();
+  }
+
+  // ---- Rekap Stok: tampilkan sub-menu dan load data ----
+  const navRekapStok = document.getElementById('nav-rekap-stok');
+  if (page === 'stok') {
+    // Saat buka halaman Stok: tampilkan sub-menu rekap stok
+    if (navRekapStok) navRekapStok.style.display = 'flex';
+  } else if (page === 'rekap-stok') {
+    // Saat buka Rekap Stok: load data dan pastikan sub-menu tetap terlihat
+    if (navRekapStok) navRekapStok.style.display = 'flex';
+    loadRekapStok();
+  } else {
+    // Halaman lain: sembunyikan sub-menu
+    if (navRekapStok) navRekapStok.style.display = 'none';
   }
 };
 
