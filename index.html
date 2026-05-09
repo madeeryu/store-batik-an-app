@@ -2106,6 +2106,89 @@
   </div>
 </div>
 
+<!-- MODAL EDIT TRANSAKSI -->
+<div class="modal-backdrop" id="modal-edit-transaksi" onclick="handleBackdropClick(event,'modal-edit-transaksi')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:600px;">
+    <div class="modal-header">
+      <div class="modal-title">✏️ Edit Transaksi</div>
+      <button class="modal-close" onclick="closeModal('modal-edit-transaksi')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-trx-id" />
+      <input type="hidden" id="edit-trx-pelanggan-id" />
+      <input type="hidden" id="edit-trx-total-input" />
+
+      <!-- Info pelanggan (read-only) -->
+      <div style="background:var(--bg);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:14px;">
+        <span style="color:var(--text-muted);">Pelanggan:</span>
+        <span id="edit-trx-pelanggan-nama" style="font-weight:700;margin-left:6px;"></span>
+      </div>
+
+      <!-- Tanggal & Jenis Bayar -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Tanggal Transaksi</label>
+          <input type="date" class="form-control" id="edit-trx-tanggal" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Jenis Bayar</label>
+          <select class="form-control" id="edit-trx-jenis-bayar">
+            <option value="kontan">Kontan</option>
+            <option value="cicilan">Cicilan</option>
+            <option value="tahunan">Hutang Tahunan</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Header kolom item -->
+      <div style="display:grid;grid-template-columns:1fr 70px 110px 32px;gap:8px;
+                  padding:0 4px;margin-bottom:6px;">
+        <span style="font-size:11px;font-weight:700;color:var(--text-muted);">NAMA PRODUK</span>
+        <span style="font-size:11px;font-weight:700;color:var(--text-muted);">KODI</span>
+        <span style="font-size:11px;font-weight:700;color:var(--text-muted);">HARGA/KODI</span>
+        <span></span>
+      </div>
+
+      <!-- Container baris item -->
+      <div id="edit-trx-items-container"></div>
+
+      <!-- Tombol tambah item -->
+      <button onclick="editTrxTambahBaris()"
+        style="width:100%;background:var(--bg);color:var(--green);border:1px dashed var(--green);
+               border-radius:8px;padding:9px;cursor:pointer;font-size:13px;font-weight:600;
+               margin-top:4px;margin-bottom:16px;font-family:inherit;">
+        + Tambah Item
+      </button>
+
+      <!-- Total -->
+      <div style="background:#F0FDF4;border:1px solid #DCFCE7;border-radius:8px;
+                  padding:12px 16px;margin-bottom:16px;
+                  display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:14px;font-weight:600;">Total Tagihan</span>
+        <span id="edit-trx-total-preview" style="font-size:18px;font-weight:800;color:var(--green);">Rp 0</span>
+      </div>
+
+      <!-- Peringatan -->
+      <div class="warning-box amber">
+        ⚠️ Jika transaksi ini sudah ada pembayaran masuk, sisa hutang akan
+        dihitung ulang = <strong>total baru − yang sudah dibayar</strong>.
+        Riwayat pembayaran lama <strong>tidak berubah</strong>.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-transaksi')">Batal</button>
+      <button class="btn btn-primary" id="btn-simpan-edit-trx" onclick="simpanEditTransaksi()">
+        Simpan Perubahan
+      </button>
+    </div>
+  </div>
+</div>
+
+
 <!-- Toast Container -->
 <div id="toast-container"></div>
 
@@ -2347,6 +2430,16 @@ function buildPiutangCard(p) {
         <div style="font-size:11px;color:var(--text-muted);text-align:right;">${pct}% lunas</div>
       </div>
       ${riwayatHTML ? `<div style="margin-top:8px;"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Riwayat bayar:</div>${riwayatHTML}</div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px dashed #e5e7eb;">
+        <button class="btn btn-secondary btn-sm" style="flex:1;"
+          onclick="bukaEditTransaksi('${trx.id}')">
+          ✏️ Edit
+        </button>
+        <button class="btn btn-danger btn-sm" style="flex:1;"
+          onclick="konfirmasiHapusTransaksi('${trx.id}','${p.pelanggan_id}')">
+          🗑️ Hapus
+        </button>
+      </div>
     </div>`;
   }).join('');
  
@@ -2371,6 +2464,279 @@ function buildPiutangCard(p) {
       </button>
     </div>
   </div>`;
+}
+
+// ============================================================
+// EDIT TRANSAKSI
+// ============================================================
+
+window.bukaEditTransaksi = async function(transaksiId) {
+  try {
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    const trxSnap = await getDoc(doc(db, 'transaksi', transaksiId));
+    if (!trxSnap.exists()) { showToast('Transaksi tidak ditemukan.', 'error'); return; }
+    const trx = { id: trxSnap.id, ...trxSnap.data() };
+
+    // Isi field modal
+    document.getElementById('edit-trx-id').value = trx.id;
+    document.getElementById('edit-trx-pelanggan-id').value = trx.pelanggan_id;
+    document.getElementById('edit-trx-pelanggan-nama').textContent = trx.pelanggan_nama;
+    document.getElementById('edit-trx-jenis-bayar').value = trx.jenis_bayar;
+
+    // Konversi tanggal Firestore Timestamp ke format input date (YYYY-MM-DD)
+    const tglDate = trx.tanggal?.toDate ? trx.tanggal.toDate() : new Date(trx.tanggal);
+    document.getElementById('edit-trx-tanggal').value = tglDate.toISOString().split('T')[0];
+
+    // Render baris item
+    const container = document.getElementById('edit-trx-items-container');
+    container.innerHTML = '';
+    (trx.items || []).forEach((item, i) => {
+      container.innerHTML += editTrxBuatBaris(i, item);
+    });
+
+    editTrxHitungTotal();
+    openModal('modal-edit-transaksi');
+  } catch(e) {
+    console.error(e);
+    showToast('Gagal membuka form edit: ' + e.message, 'error');
+  }
+};
+
+// Buat satu baris form item — dipanggil saat buka modal & tombol "+ Tambah Item"
+function editTrxBuatBaris(index, item = {}) {
+  return `
+    <div class="edit-trx-baris" id="edit-trx-baris-${index}"
+      style="display:grid;grid-template-columns:1fr 70px 110px 32px;gap:8px;
+             align-items:center;margin-bottom:8px;">
+      <input type="text" class="form-control edit-item-nama" placeholder="Nama produk"
+        value="${item.produk_nama || ''}" oninput="editTrxHitungTotal()"
+        style="font-size:13px;padding:8px 12px;" />
+      <input type="number" class="form-control edit-item-kodi" placeholder="Kodi"
+        min="0" step="0.5" value="${item.jumlah_kodi || ''}" oninput="editTrxHitungTotal()"
+        style="font-size:13px;padding:8px 10px;" />
+      <input type="number" class="form-control edit-item-harga" placeholder="Harga/kodi"
+        min="0" value="${item.harga_kodi || ''}" oninput="editTrxHitungTotal()"
+        style="font-size:13px;padding:8px 10px;" />
+      <button onclick="editTrxHapusBaris(${index})"
+        style="background:var(--red-bg);color:var(--red-text);border:none;border-radius:8px;
+               width:32px;height:36px;cursor:pointer;font-size:14px;font-weight:700;">✕</button>
+    </div>`;
+}
+
+window.editTrxTambahBaris = function() {
+  const container = document.getElementById('edit-trx-items-container');
+  const barisBestari = container.querySelectorAll('.edit-trx-baris');
+  // Ambil index terakhir + 1 untuk ID unik
+  let nextIndex = 0;
+  if (barisBestari.length > 0) {
+    const lastId = barisBestari[barisBestari.length - 1].id; // "edit-trx-baris-N"
+    nextIndex = parseInt(lastId.split('-').pop()) + 1;
+  }
+  const div = document.createElement('div');
+  div.innerHTML = editTrxBuatBaris(nextIndex);
+  container.appendChild(div.firstElementChild);
+};
+
+window.editTrxHapusBaris = function(index) {
+  const el = document.getElementById(`edit-trx-baris-${index}`);
+  if (el) { el.remove(); editTrxHitungTotal(); }
+};
+
+window.editTrxHitungTotal = function() {
+  let total = 0;
+  document.querySelectorAll('#edit-trx-items-container .edit-trx-baris').forEach(row => {
+    const kodi  = parseFloat(row.querySelector('.edit-item-kodi')?.value)  || 0;
+    const harga = parseFloat(row.querySelector('.edit-item-harga')?.value) || 0;
+    total += kodi * harga;
+  });
+  document.getElementById('edit-trx-total-preview').textContent = formatRupiah(total);
+  document.getElementById('edit-trx-total-input').value = total;
+};
+
+window.simpanEditTransaksi = async function() {
+  const transaksiId  = document.getElementById('edit-trx-id').value;
+  const pelangganId  = document.getElementById('edit-trx-pelanggan-id').value;
+  const tanggalInput = document.getElementById('edit-trx-tanggal').value;
+  const jenisBayar   = document.getElementById('edit-trx-jenis-bayar').value;
+  const totalBaru    = parseFloat(document.getElementById('edit-trx-total-input').value) || 0;
+
+  if (!transaksiId || !pelangganId) return;
+  if (!tanggalInput) { showToast('Pilih tanggal transaksi.', 'error'); return; }
+  if (totalBaru <= 0) { showToast('Total tagihan tidak boleh 0.', 'error'); return; }
+
+  // Kumpulkan item dari baris form
+  const rows = document.querySelectorAll('#edit-trx-items-container .edit-trx-baris');
+  const items = [];
+  let adaError = false;
+  rows.forEach(row => {
+    const nama  = row.querySelector('.edit-item-nama')?.value?.trim();
+    const kodi  = parseFloat(row.querySelector('.edit-item-kodi')?.value)  || 0;
+    const harga = parseFloat(row.querySelector('.edit-item-harga')?.value) || 0;
+    if (!nama || kodi <= 0 || harga <= 0) { adaError = true; return; }
+    items.push({ produk_nama: nama, jumlah_kodi: kodi, harga_kodi: harga, subtotal: kodi * harga });
+  });
+
+  if (adaError || items.length === 0) {
+    showToast('Pastikan semua item terisi: nama, kodi, dan harga harus diisi.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-simpan-edit-trx');
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+
+  try {
+    const {
+      doc, getDoc, getDocs, collection, query, where,
+      writeBatch, Timestamp, serverTimestamp
+    } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    // Ambil data transaksi lama untuk tahu nominal_dibayar
+    const trxRef  = doc(db, 'transaksi', transaksiId);
+    const trxSnap = await getDoc(trxRef);
+    if (!trxSnap.exists()) throw new Error('Transaksi tidak ditemukan di database.');
+    const trxLama = trxSnap.data();
+
+    // Hitung sisa hutang baru: pertahankan yang sudah dibayar
+    const sudahDibayar   = trxLama.nominal_dibayar || 0;
+    const sisaHutangBaru = Math.max(0, totalBaru - sudahDibayar);
+    const statusBaru     = sisaHutangBaru <= 0 ? 'lunas' : 'belum_lunas';
+
+    const batch = writeBatch(db);
+
+    // 1. Update dokumen transaksi
+    const updatePayload = {
+      items,
+      total_tagihan:  totalBaru,
+      jenis_bayar:    jenisBayar,
+      tanggal:        Timestamp.fromDate(new Date(tanggalInput)),
+      sisa_hutang:    sisaHutangBaru,
+      status:         statusBaru,
+      last_edited_at: serverTimestamp(),
+      last_edited_by: currentUser.uid
+    };
+    // Jika diubah jadi tahunan, set ulang jatuh tempo
+    if (jenisBayar === 'tahunan') {
+      updatePayload.jatuh_tempo = Timestamp.fromDate(getNextLebaran());
+    }
+    batch.update(trxRef, updatePayload);
+
+    // 2. Recalculate total_hutang_aktif pelanggan
+    //    Ambil semua transaksi belum_lunas milik pelanggan ini
+    const snapTrx = await getDocs(query(
+      collection(db, 'transaksi'),
+      where('pelanggan_id', '==', pelangganId),
+      where('status', '==', 'belum_lunas')
+    ));
+
+    let totalHutangAktif = 0;
+    snapTrx.forEach(d => {
+      // Untuk transaksi yang sedang diedit, pakai nilai sisa hutang BARU
+      if (d.id === transaksiId) {
+        totalHutangAktif += sisaHutangBaru;
+      } else {
+        totalHutangAktif += (d.data().sisa_hutang || 0);
+      }
+    });
+
+    // Jika transaksi berubah jadi lunas (sisaHutangBaru = 0),
+    // transaksi ini tidak masuk query belum_lunas di atas,
+    // jadi tidak perlu dikurangi manual — sudah benar.
+
+    const pelRef = doc(db, 'pelanggan', pelangganId);
+    const pelUpdate = { total_hutang_aktif: totalHutangAktif };
+    if (totalHutangAktif === 0) pelUpdate.status = 'aktif';
+    batch.update(pelRef, pelUpdate);
+
+    await batch.commit();
+
+    showToast('Transaksi berhasil diperbarui! ✅', 'success');
+    closeModal('modal-edit-transaksi');
+
+    // Refresh halaman yang sedang aktif
+    loadPiutang();
+    loadDashboard();
+
+  } catch(e) {
+    console.error(e);
+    showToast('Gagal menyimpan: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan Perubahan';
+  }
+};
+
+// ============================================================
+// HAPUS TRANSAKSI
+// ============================================================
+
+window.konfirmasiHapusTransaksi = function(transaksiId, pelangganId) {
+  // Simpan ke variabel sementara agar bisa dipakai di fungsi eksekusi
+  window._hapusTrxId = transaksiId;
+  window._hapusTrxPelangganId = pelangganId;
+
+  // Gunakan modal konfirmasi sederhana via confirm browser
+  // (bisa diganti modal custom jika diinginkan)
+  const yakin = confirm(
+    '⚠️ Hapus transaksi ini?\n\n' +
+    '• Data transaksi akan dihapus permanen\n' +
+    '• Hutang pelanggan akan dihitung ulang\n' +
+    '• Riwayat pembayaran terkait TIDAK ikut terhapus\n\n' +
+    'Lanjutkan?'
+  );
+  if (yakin) eksekusiHapusTransaksi();
+};
+
+async function eksekusiHapusTransaksi() {
+  const transaksiId = window._hapusTrxId;
+  const pelangganId = window._hapusTrxPelangganId;
+  if (!transaksiId || !pelangganId) return;
+
+  try {
+    const {
+      doc, getDocs, collection, query, where, writeBatch
+    } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    const batch = writeBatch(db);
+
+    // 1. Hapus dokumen transaksi
+    batch.delete(doc(db, 'transaksi', transaksiId));
+
+    // 2. Recalculate total_hutang_aktif pelanggan (exclude transaksi yang dihapus)
+    const snapTrx = await getDocs(query(
+      collection(db, 'transaksi'),
+      where('pelanggan_id', '==', pelangganId),
+      where('status', '==', 'belum_lunas')
+    ));
+
+    let totalHutangAktif = 0;
+    snapTrx.forEach(d => {
+      if (d.id !== transaksiId) { // skip transaksi yang akan dihapus
+        totalHutangAktif += (d.data().sisa_hutang || 0);
+      }
+    });
+
+    const pelRef = doc(db, 'pelanggan', pelangganId);
+    const pelUpdate = { total_hutang_aktif: totalHutangAktif };
+    if (totalHutangAktif === 0) pelUpdate.status = 'aktif';
+    batch.update(pelRef, pelUpdate);
+
+    await batch.commit();
+
+    showToast('Transaksi berhasil dihapus.', 'success');
+
+    // Refresh tampilan
+    loadPiutang();
+    loadDashboard();
+
+  } catch(e) {
+    console.error(e);
+    showToast('Gagal menghapus: ' + e.message, 'error');
+  } finally {
+    window._hapusTrxId = null;
+    window._hapusTrxPelangganId = null;
+  }
 }
  
 // ============================================================
@@ -2553,10 +2919,7 @@ window.bukaHistori = async function(pelangganId, fromPage = 'piutang') {
       ...t, riwayat_bayar: allBayar.filter(b => b.transaksi_id === t.id)
         .sort((a,b) => (b.tanggal?.seconds||0) - (a.tanggal?.seconds||0))
     })), total_hutang: aktifTrx.reduce((s,t) => s+(t.sisa_hutang||0), 0), status: pel.status };
-    aktifEl.innerHTML = buildPiutangCard(fakeGroup).replace(
-      '+ Catat Bayar',
-      `+ Catat Bayar`
-    );
+      aktifEl.innerHTML = buildPiutangCard(fakeGroup);
   }
  
   // Tab lunas
