@@ -50,11 +50,31 @@
 }
 
 @media (max-width: 768px) {
+  /* Sidebar disembunyikan secara default di HP */
   #sidebar {
-    display: none !important;
-    visibility: hidden !important;
-    width: 0 !important;
-    left: -999px !important;
+    display: flex !important;
+    visibility: visible !important;
+    width: var(--sidebar-w) !important;
+    left: calc(-1 * var(--sidebar-w)) !important;
+    transition: left 0.28s cubic-bezier(0.4,0,0.2,1) !important;
+    z-index: 300 !important;
+    box-shadow: none;
+  }
+  /* Saat sidebar dibuka (class .mobile-open ditambahkan via JS) */
+  #sidebar.mobile-open {
+    left: 0 !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.18) !important;
+  }
+  /* Overlay gelap di belakang sidebar */
+  #sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 299;
+  }
+  #sidebar-overlay.open {
+    display: block;
   }
   #main-content {
     margin-left: 0 !important;
@@ -726,6 +746,9 @@
 <!-- ==================== MAIN APP ==================== -->
 <div id="app" style="display:none;">
 
+  <!-- Overlay untuk menutup sidebar mobile saat klik di luar -->
+  <div id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
   <!-- SIDEBAR -->
   <aside id="sidebar">
     <div class="sidebar-logo">
@@ -793,7 +816,9 @@
 
   <!-- TOPBAR MOBILE -->
   <div id="topbar-mobile">
-    <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    <<button onclick="toggleMobileSidebar()" style="background:none;border:none;color:white;cursor:pointer;padding:2px;display:flex;align-items:center;">
+      <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
     <div class="topbar-title" id="mobile-page-title">Dashboard</div>
     <button style="background:none;border:none;color:white;cursor:pointer;" onclick="doLogout()">
       <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -1605,14 +1630,11 @@
           <table id="tabel-rekap-stok">
             <thead>
               <tr>
-                <th style="min-width:160px;">Produk</th>
-                <th class="text-right">Rumah (Kodi)</th>
-                <th class="text-right">Rumah (PCS)</th>
-                <th class="text-right">Mobil (Kodi)</th>
-                <th class="text-right">Mobil (PCS)</th>
-                <th class="text-right">Total (Kodi)</th>
-                <th class="text-right">Total (PCS)</th>
-                <th style="text-align:center;">Status Mobil</th>
+                <th style="min-width:140px;">Produk</th>
+                <th class="text-right">🏠 Stok Rumah</th>
+                <th class="text-right">🚗 Stok Mobil</th>
+                <th class="text-right">📦 Total</th>
+                <th style="text-align:center;">Status</th>
               </tr>
             </thead>
             <tbody id="rekap-stok-tbody">
@@ -3350,6 +3372,7 @@ window.simpanKaryawan = async function() {
 // PATCH navigateTo — tambahkan piutang, rekap, pengaturan, histori
 // ============================================================
 window.navigateTo = function(page) {
+  closeMobileSidebar(); // ← TAMBAHKAN BARIS INI
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
@@ -3383,6 +3406,33 @@ window.navigateTo = function(page) {
   }
   if (page === 'stok') loadStok();
 };
+
+// ============================================================
+// SIDEBAR MOBILE DRAWER
+// ============================================================
+window.toggleMobileSidebar = function() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (!sidebar || !overlay) return;
+  const isOpen = sidebar.classList.contains('mobile-open');
+  if (isOpen) {
+    sidebar.classList.remove('mobile-open');
+    overlay.classList.remove('open');
+  } else {
+    sidebar.classList.add('mobile-open');
+    overlay.classList.add('open');
+  }
+};
+
+window.closeMobileSidebar = function() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar) sidebar.classList.remove('mobile-open');
+  if (overlay) overlay.classList.remove('open');
+};
+// ============================================================
+// END SIDEBAR MOBILE DRAWER
+// ============================================================
  
 // Expose
 window.loadPiutang = loadPiutang;
@@ -5267,15 +5317,22 @@ function renderRekapStok(list) {
       ? 'background:#FFF5F5;'
       : mobilKodi <= 2 ? 'background:#FFFBEB;' : '';
 
+    const fmtKodi = n => n % 1 !== 0 ? n.toFixed(1) : n;
     return `
       <tr style="${trStyle}">
         <td style="font-weight:600;">${p.nama}</td>
-        <td class="text-right">${rumahKodi % 1 !== 0 ? rumahKodi.toFixed(1) : rumahKodi}</td>
-        <td class="text-right">${rumahPcs}</td>
-        <td class="text-right" style="font-weight:700;">${mobilKodi % 1 !== 0 ? mobilKodi.toFixed(1) : mobilKodi}</td>
-        <td class="text-right">${mobilPcs}</td>
-        <td class="text-right" style="color:var(--green);font-weight:700;">${totalKodi % 1 !== 0 ? totalKodi.toFixed(1) : totalKodi}</td>
-        <td class="text-right">${totalPcs}</td>
+        <td class="text-right">
+          <span style="font-weight:700;">${fmtKodi(rumahKodi)} kodi</span>
+          <br/><span style="font-size:11px;color:var(--text-muted);">${rumahPcs} pcs</span>
+        </td>
+        <td class="text-right">
+          <span style="font-weight:700;">${fmtKodi(mobilKodi)} kodi</span>
+          <br/><span style="font-size:11px;color:var(--text-muted);">${mobilPcs} pcs</span>
+        </td>
+        <td class="text-right">
+          <span style="font-weight:700;color:var(--green);">${fmtKodi(totalKodi)} kodi</span>
+          <br/><span style="font-size:11px;color:var(--text-muted);">${totalPcs} pcs</span>
+        </td>
         <td style="text-align:center;">${statusBadge}</td>
       </tr>
     `;
@@ -5285,15 +5342,22 @@ function renderRekapStok(list) {
   const totalKodiAll = totalRumahKodi + totalMobilKodi;
   const totalPcsAll  = totalRumahPcs  + totalMobilPcs;
   if (tfoot) {
+    const fK = n => n % 1 !== 0 ? n.toFixed(1) : n;
     tfoot.innerHTML = `
       <tr style="border-top:2px solid var(--green);">
-        <td style="padding:10px 14px;">🔢 TOTAL</td>
-        <td class="text-right" style="padding:10px 14px;">${totalRumahKodi % 1 !== 0 ? totalRumahKodi.toFixed(1) : totalRumahKodi}</td>
-        <td class="text-right" style="padding:10px 14px;">${totalRumahPcs}</td>
-        <td class="text-right" style="padding:10px 14px;">${totalMobilKodi % 1 !== 0 ? totalMobilKodi.toFixed(1) : totalMobilKodi}</td>
-        <td class="text-right" style="padding:10px 14px;">${totalMobilPcs}</td>
-        <td class="text-right" style="padding:10px 14px;color:var(--green);">${totalKodiAll % 1 !== 0 ? totalKodiAll.toFixed(1) : totalKodiAll}</td>
-        <td class="text-right" style="padding:10px 14px;color:var(--green);">${totalPcsAll}</td>
+        <td style="padding:10px 14px;font-weight:700;">🔢 TOTAL</td>
+        <td class="text-right" style="padding:10px 14px;">
+          <span style="font-weight:700;">${fK(totalRumahKodi)} kodi</span>
+          <br/><span style="font-size:11px;color:#555;">${totalRumahPcs} pcs</span>
+        </td>
+        <td class="text-right" style="padding:10px 14px;">
+          <span style="font-weight:700;">${fK(totalMobilKodi)} kodi</span>
+          <br/><span style="font-size:11px;color:#555;">${totalMobilPcs} pcs</span>
+        </td>
+        <td class="text-right" style="padding:10px 14px;">
+          <span style="font-weight:700;color:var(--green);">${fK(totalKodiAll)} kodi</span>
+          <br/><span style="font-size:11px;color:#555;">${totalPcsAll} pcs</span>
+        </td>
         <td></td>
       </tr>
     `;
