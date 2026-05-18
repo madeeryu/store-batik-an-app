@@ -2370,6 +2370,96 @@
   </div>
 </div>
 
+<!-- ============================================================ -->
+<!-- Modal Retur Batik (FITUR BARU) -->
+<!-- ============================================================ -->
+<div class="modal-backdrop" id="modal-retur" onclick="handleBackdropClick(event,'modal-retur')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:640px;">
+    <div class="modal-header">
+      <div class="modal-title">↩️ Retur Batik</div>
+      <button class="modal-close" onclick="closeModal('modal-retur')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="retur-pelanggan-id" />
+      <input type="hidden" id="retur-pelanggan-nama" />
+
+      <!-- Info pelanggan -->
+      <div style="background:var(--bg);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:14px;">
+        <span style="color:var(--text-muted);">Pelanggan:</span>
+        <span id="retur-display-nama" style="font-weight:700;margin-left:6px;"></span>
+      </div>
+
+      <!-- Pilih transaksi -->
+      <div class="form-group">
+        <label class="form-label">Pilih Transaksi (untuk dikurangi hutangnya)</label>
+        <select class="form-control" id="retur-transaksi-select" onchange="updateReturSisaInfo()"></select>
+        <div id="retur-sisa-info" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></div>
+      </div>
+
+      <!-- Tanggal -->
+      <div class="form-group">
+        <label class="form-label">Tanggal Retur</label>
+        <input type="date" class="form-control" id="retur-tanggal" />
+      </div>
+
+      <!-- Header item -->
+      <div style="display:grid;grid-template-columns:1fr 70px 110px 32px;gap:8px;
+                  padding:0 4px;margin-bottom:6px;margin-top:8px;">
+        <span style="font-size:11px;font-weight:700;color:var(--text-muted);">PRODUK</span>
+        <span style="font-size:11px;font-weight:700;color:var(--text-muted);">KODI</span>
+        <span style="font-size:11px;font-weight:700;color:var(--text-muted);">HARGA/KODI</span>
+        <span></span>
+      </div>
+
+      <!-- Container item retur -->
+      <div id="retur-items-container"></div>
+
+      <!-- Tombol tambah item -->
+      <button onclick="returTambahBaris()"
+        style="width:100%;background:var(--bg);color:var(--green);border:1px dashed var(--green);
+               border-radius:8px;padding:9px;cursor:pointer;font-size:13px;font-weight:600;
+               margin-top:4px;margin-bottom:16px;font-family:inherit;">
+        + Tambah Produk Retur
+      </button>
+
+      <!-- Total retur -->
+      <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;
+                  padding:12px 16px;margin-bottom:12px;
+                  display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:14px;font-weight:600;">Total Nilai Retur</span>
+        <span id="retur-total-preview" style="font-size:18px;font-weight:800;color:#D97706;">Rp 0</span>
+      </div>
+
+      <!-- Catatan -->
+      <div class="form-group">
+        <label class="form-label">Catatan (opsional)</label>
+        <input type="text" class="form-control" id="retur-catatan"
+               placeholder="Contoh: rusak, tidak laku, dll." />
+      </div>
+
+      <!-- Warning -->
+      <div class="warning-box amber" style="margin-top:8px;">
+        ℹ️ Retur akan: <br/>
+        ✔ <strong>Mengurangi sisa hutang</strong> transaksi terpilih sebesar nilai retur. <br/>
+        ✔ <strong>Mengembalikan stok mobil</strong> sesuai kodi yang diretur. <br/>
+        ✔ Tercatat di riwayat pembayaran dengan label <strong>Retur</strong>.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-retur')"
+              style="background:#f3f4f6;color:#374151;border:1px solid var(--border);">
+        Batal
+      </button>
+      <button class="btn btn-primary" id="btn-simpan-retur" onclick="simpanRetur()">
+        Simpan Retur
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- Toast Container -->
 <div id="toast-container"></div>
@@ -2573,10 +2663,13 @@ function buildPiutangCard(p) {
     ).join('');
     const riwayatHTML = (trx.riwayat_bayar || []).slice(0, 5).map(b => {
       const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date(b.tanggal);
+      const metodeLabel = b.metode === 'retur'
+        ? '<span style="color:#D97706;font-weight:600;">↩️ retur</span>'
+        : `<span style="color:#6B7280;">(${b.metode})</span>`;
       return `<div class="piutang-riwayat-item">
         <span>• ${tgl.toLocaleDateString('id-ID',{day:'2-digit',month:'short'})}</span>
         <span>${formatRupiah(b.nominal)}</span>
-        <span style="color:#6B7280;">(${b.metode})</span>
+        ${metodeLabel}
       </div>`;
     }).join('');
  
@@ -2639,10 +2732,14 @@ function buildPiutangCard(p) {
       </div>
     </div>
     ${trxHTML}
-    <div style="padding:12px 16px;">
-      <button class="btn btn-primary" style="width:100%;"
+    <div style="padding:12px 16px;display:flex;gap:8px;">
+      <button class="btn btn-primary" style="flex:1;"
         onclick="openCatatBayar('${p.pelanggan_id}','${p.pelanggan_nama.replace(/'/g,"\\'")}')">
         + Catat Bayar
+      </button>
+      <button class="btn btn-secondary" style="flex:1;background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;"
+        onclick="openModalRetur('${p.pelanggan_id}','${p.pelanggan_nama.replace(/'/g,"\\'")}')">
+        ↩️ Retur
       </button>
     </div>
   </div>`;
@@ -2687,10 +2784,13 @@ window.bukaEditTransaksi = async function(transaksiId) {
 
 // Buat satu baris form item — dipanggil saat buka modal & tombol "+ Tambah Item"
 function editTrxBuatBaris(index, item = {}) {
+  // FIX BUG: simpan produk_id sebagai hidden input agar stok bisa di-update saat edit
   return `
     <div class="edit-trx-baris" id="edit-trx-baris-${index}"
       style="display:grid;grid-template-columns:1fr 70px 110px 32px;gap:8px;
              align-items:center;margin-bottom:8px;">
+      <input type="hidden" class="edit-item-produk-id" value="${item.produk_id || ''}" />
+      <input type="hidden" class="edit-item-kodi-lama" value="${item.jumlah_kodi || 0}" />
       <input type="text" class="form-control edit-item-nama" placeholder="Nama produk"
         value="${item.produk_nama || ''}" oninput="editTrxHitungTotal()"
         style="font-size:13px;padding:8px 12px;" />
@@ -2747,16 +2847,30 @@ window.simpanEditTransaksi = async function() {
   if (!tanggalInput) { showToast('Pilih tanggal transaksi.', 'error'); return; }
   if (totalBaru <= 0) { showToast('Total tagihan tidak boleh 0.', 'error'); return; }
 
-  // Kumpulkan item dari baris form
+  // Kumpulkan item dari baris form (termasuk produk_id & kodi lama)
   const rows = document.querySelectorAll('#edit-trx-items-container .edit-trx-baris');
   const items = [];
+  const stokDiff = {}; // produk_id => selisih kodi (positif = stok kurang, negatif = stok balik)
   let adaError = false;
   rows.forEach(row => {
-    const nama  = row.querySelector('.edit-item-nama')?.value?.trim();
-    const kodi  = parseFloat(row.querySelector('.edit-item-kodi')?.value)  || 0;
-    const harga = parseFloat(row.querySelector('.edit-item-harga')?.value) || 0;
+    const produkId   = row.querySelector('.edit-item-produk-id')?.value || '';
+    const kodiLama   = parseFloat(row.querySelector('.edit-item-kodi-lama')?.value) || 0;
+    const nama       = row.querySelector('.edit-item-nama')?.value?.trim();
+    const kodi       = parseFloat(row.querySelector('.edit-item-kodi')?.value)  || 0;
+    const harga      = parseFloat(row.querySelector('.edit-item-harga')?.value) || 0;
     if (!nama || kodi <= 0 || harga <= 0) { adaError = true; return; }
-    items.push({ produk_nama: nama, jumlah_kodi: kodi, harga_kodi: harga, subtotal: kodi * harga });
+    items.push({
+      produk_id: produkId || null,
+      produk_nama: nama,
+      jumlah_kodi: kodi,
+      harga_kodi: harga,
+      subtotal: kodi * harga
+    });
+    // Hitung selisih untuk update stok (positif = stok mobil berkurang lebih banyak,
+    // negatif = stok mobil dikembalikan)
+    if (produkId && produkId !== 'migrasi') {
+      stokDiff[produkId] = (stokDiff[produkId] || 0) + (kodi - kodiLama);
+    }
   });
 
   if (adaError || items.length === 0) {
@@ -2774,11 +2888,22 @@ window.simpanEditTransaksi = async function() {
       writeBatch, Timestamp, serverTimestamp
     } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
-    // Ambil data transaksi lama untuk tahu nominal_dibayar
+    // Ambil data transaksi lama untuk tahu nominal_dibayar & items lama
     const trxRef  = doc(db, 'transaksi', transaksiId);
     const trxSnap = await getDoc(trxRef);
     if (!trxSnap.exists()) throw new Error('Transaksi tidak ditemukan di database.');
     const trxLama = trxSnap.data();
+
+    // Tambahkan item lama yang TIDAK ada di items baru ke stokDiff (sebagai pengembalian)
+    // Contoh: kalau di-edit & item dihapus, stoknya harus dikembalikan
+    const produkIdBaruSet = new Set(items.map(i => i.produk_id).filter(Boolean));
+    (trxLama.items || []).forEach(itemLama => {
+      if (!itemLama.produk_id || itemLama.produk_id === 'migrasi') return;
+      if (!produkIdBaruSet.has(itemLama.produk_id)) {
+        // Item ini dihapus dari edit → kembalikan stok
+        stokDiff[itemLama.produk_id] = (stokDiff[itemLama.produk_id] || 0) - (itemLama.jumlah_kodi || 0);
+      }
+    });
 
     // Hitung sisa hutang baru: pertahankan yang sudah dibayar
     const sudahDibayar   = trxLama.nominal_dibayar || 0;
@@ -2798,14 +2923,12 @@ window.simpanEditTransaksi = async function() {
       last_edited_at: serverTimestamp(),
       last_edited_by: currentUser.uid
     };
-    // Jika diubah jadi tahunan, set ulang jatuh tempo
     if (jenisBayar === 'tahunan') {
       updatePayload.jatuh_tempo = Timestamp.fromDate(getNextLebaran());
     }
     batch.update(trxRef, updatePayload);
 
     // 2. Recalculate total_hutang_aktif pelanggan
-    //    Ambil semua transaksi belum_lunas milik pelanggan ini
     const snapTrx = await getDocs(query(
       collection(db, 'transaksi'),
       where('pelanggan_id', '==', pelangganId),
@@ -2814,7 +2937,6 @@ window.simpanEditTransaksi = async function() {
 
     let totalHutangAktif = 0;
     snapTrx.forEach(d => {
-      // Untuk transaksi yang sedang diedit, pakai nilai sisa hutang BARU
       if (d.id === transaksiId) {
         totalHutangAktif += sisaHutangBaru;
       } else {
@@ -2822,21 +2944,51 @@ window.simpanEditTransaksi = async function() {
       }
     });
 
-    // Jika transaksi berubah jadi lunas (sisaHutangBaru = 0),
-    // transaksi ini tidak masuk query belum_lunas di atas,
-    // jadi tidak perlu dikurangi manual — sudah benar.
-
     const pelRef = doc(db, 'pelanggan', pelangganId);
     const pelUpdate = { total_hutang_aktif: totalHutangAktif };
     if (totalHutangAktif === 0) pelUpdate.status = 'aktif';
     batch.update(pelRef, pelUpdate);
 
+    // 3. Update STOK MOBIL berdasarkan selisih (BUG FIX UTAMA)
+    for (const produkId of Object.keys(stokDiff)) {
+      const diff = stokDiff[produkId];
+      if (diff === 0) continue;
+      const stokRef = doc(db, 'stok', produkId);
+      const stokSnap = await getDoc(stokRef);
+      if (!stokSnap.exists()) continue;
+      const stokData = stokSnap.data();
+      const stokMobilBefore = stokData.stok_mobil || 0;
+      const stokMobilAfter  = stokMobilBefore - diff; // diff positif = kurangi, negatif = tambah
+      batch.update(stokRef, {
+        stok_mobil: stokMobilAfter,
+        updated_at: serverTimestamp()
+      });
+      // Log perubahan stok
+      const logRef = doc(collection(db, 'stok_log'));
+      batch.set(logRef, {
+        produk_id: produkId,
+        produk_nama: (items.find(i => i.produk_id === produkId)?.produk_nama)
+                     || (trxLama.items?.find(i => i.produk_id === produkId)?.produk_nama)
+                     || '-',
+        jenis: 'koreksi',
+        jumlah_kodi: -diff,
+        stok_rumah_sebelum: stokData.stok_rumah || 0,
+        stok_rumah_sesudah: stokData.stok_rumah || 0,
+        stok_mobil_sebelum: stokMobilBefore,
+        stok_mobil_sesudah: stokMobilAfter,
+        referensi_id: transaksiId,
+        catatan: `[EDIT TRX] Penyesuaian stok karena edit transaksi (${diff > 0 ? '+' : ''}${diff} kodi)`,
+        created_by: currentUser.uid,
+        created_by_nama: currentUserData?.nama || '-',
+        created_at: serverTimestamp()
+      });
+    }
+
     await batch.commit();
 
-    showToast('Transaksi berhasil diperbarui! ✅', 'success');
+    showToast('Transaksi berhasil diperbarui & stok disesuaikan ✅', 'success');
     closeModal('modal-edit-transaksi');
 
-    // Refresh halaman yang sedang aktif
     loadPiutang();
     loadDashboard();
 
@@ -2877,15 +3029,79 @@ async function eksekusiHapusTransaksi() {
 
   try {
     const {
-      doc, getDocs, collection, query, where, writeBatch
+      doc, getDoc, getDocs, collection, query, where, writeBatch, serverTimestamp
     } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    // FIX BUG: ambil data transaksi lama dulu untuk tahu items-nya (untuk kembalikan stok)
+    const trxRef = doc(db, 'transaksi', transaksiId);
+    const trxSnap = await getDoc(trxRef);
+    if (!trxSnap.exists()) {
+      showToast('Transaksi tidak ditemukan.', 'error');
+      return;
+    }
+    const trxLama = trxSnap.data();
 
     const batch = writeBatch(db);
 
     // 1. Hapus dokumen transaksi
-    batch.delete(doc(db, 'transaksi', transaksiId));
+    batch.delete(trxRef);
 
-    // 2. Recalculate total_hutang_aktif pelanggan (exclude transaksi yang dihapus)
+    // 2. Kembalikan STOK MOBIL untuk setiap item
+    for (const item of (trxLama.items || [])) {
+      if (!item.produk_id || item.produk_id === 'migrasi') continue;
+      const stokRef = doc(db, 'stok', item.produk_id);
+      const stokSnap = await getDoc(stokRef);
+      if (!stokSnap.exists()) continue;
+      const stokData = stokSnap.data();
+      const stokNow = stokData.stok_mobil || 0;
+      const stokKembali = stokNow + (item.jumlah_kodi || 0);
+      batch.update(stokRef, {
+        stok_mobil: stokKembali,
+        updated_at: serverTimestamp()
+      });
+      // Log pembalikan stok
+      const logRef = doc(collection(db, 'stok_log'));
+      batch.set(logRef, {
+        produk_id: item.produk_id,
+        produk_nama: item.produk_nama,
+        jenis: 'koreksi',
+        jumlah_kodi: item.jumlah_kodi || 0,
+        stok_rumah_sebelum: stokData.stok_rumah || 0,
+        stok_rumah_sesudah: stokData.stok_rumah || 0,
+        stok_mobil_sebelum: stokNow,
+        stok_mobil_sesudah: stokKembali,
+        referensi_id: transaksiId,
+        catatan: `[HAPUS TRX] Reversal stok dari transaksi ${trxLama.pelanggan_nama}`,
+        created_by: currentUser.uid,
+        created_by_nama: currentUserData?.nama || '-',
+        created_at: serverTimestamp()
+      });
+    }
+
+    // 3. Hapus stok_log penjualan original
+    try {
+      const logSnap = await getDocs(query(
+        collection(db, 'stok_log'),
+        where('referensi_id', '==', transaksiId),
+        where('jenis', '==', 'penjualan')
+      ));
+      logSnap.forEach(d => batch.delete(d.ref));
+    } catch(e) {
+      console.warn('Gagal hapus stok_log penjualan:', e);
+    }
+
+    // 4. Hapus pembayaran terkait
+    try {
+      const bayarSnap = await getDocs(query(
+        collection(db, 'pembayaran'),
+        where('transaksi_id', '==', transaksiId)
+      ));
+      bayarSnap.forEach(d => batch.delete(d.ref));
+    } catch(e) {
+      console.warn('Gagal hapus pembayaran:', e);
+    }
+
+    // 5. Recalculate total_hutang_aktif pelanggan
     const snapTrx = await getDocs(query(
       collection(db, 'transaksi'),
       where('pelanggan_id', '==', pelangganId),
@@ -2894,7 +3110,7 @@ async function eksekusiHapusTransaksi() {
 
     let totalHutangAktif = 0;
     snapTrx.forEach(d => {
-      if (d.id !== transaksiId) { // skip transaksi yang akan dihapus
+      if (d.id !== transaksiId) {
         totalHutangAktif += (d.data().sisa_hutang || 0);
       }
     });
@@ -2906,9 +3122,8 @@ async function eksekusiHapusTransaksi() {
 
     await batch.commit();
 
-    showToast('Transaksi berhasil dihapus.', 'success');
+    showToast('Transaksi berhasil dihapus & stok dikembalikan ✅', 'success');
 
-    // Refresh tampilan
     loadPiutang();
     loadDashboard();
 
@@ -3043,7 +3258,282 @@ window.simpanPembayaran = async function() {
     btn.textContent = 'Simpan Pembayaran';
   }
 };
- 
+
+// ============================================================
+// FITUR RETUR BATIK
+// ============================================================
+window.openModalRetur = async function(pelangganId, pelangganNama) {
+  document.getElementById('retur-pelanggan-id').value = pelangganId;
+  document.getElementById('retur-pelanggan-nama').value = pelangganNama;
+  document.getElementById('retur-display-nama').textContent = pelangganNama;
+  document.getElementById('retur-catatan').value = '';
+  document.getElementById('retur-total-preview').textContent = 'Rp 0';
+
+  // Tanggal hari ini
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('retur-tanggal').value = today;
+
+  // Reset container item
+  document.getElementById('retur-items-container').innerHTML = '';
+  returTambahBaris(); // tambah 1 baris kosong
+
+  // Load transaksi belum lunas
+  const { collection, query, where, getDocs } =
+    await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+  const snap = await getDocs(query(collection(db, 'transaksi'),
+    where('pelanggan_id', '==', pelangganId),
+    where('status', '==', 'belum_lunas')));
+
+  const trxList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const sel = document.getElementById('retur-transaksi-select');
+
+  if (trxList.length === 0) {
+    sel.innerHTML = '<option value="">— Tidak ada transaksi belum lunas —</option>';
+    showToast('Pelanggan ini tidak punya hutang aktif untuk dikurangi.', 'error');
+  } else {
+    sel.innerHTML = trxList.map(t => {
+      const tgl = t.tanggal?.toDate ? t.tanggal.toDate() : new Date(t.tanggal);
+      return `<option value="${t.id}" data-sisa="${t.sisa_hutang}">
+        ${formatTanggal(tgl)} — Sisa: ${formatRupiah(t.sisa_hutang)}
+      </option>`;
+    }).join('');
+  }
+  updateReturSisaInfo();
+  openModal('modal-retur');
+};
+
+window.updateReturSisaInfo = function() {
+  const sel = document.getElementById('retur-transaksi-select');
+  const opt = sel.options[sel.selectedIndex];
+  if (opt && opt.dataset.sisa) {
+    const sisa = parseFloat(opt.dataset.sisa || 0);
+    document.getElementById('retur-sisa-info').textContent =
+      `Sisa hutang transaksi ini: ${formatRupiah(sisa)}`;
+  } else {
+    document.getElementById('retur-sisa-info').textContent = '';
+  }
+};
+
+function returBuatBaris(index) {
+  // Buat opsi produk dari allProduk (yang aktif)
+  const opsiProduk = (allProduk || [])
+    .filter(p => p.aktif !== false)
+    .map(p => `<option value="${p.id}" data-nama="${p.nama}" data-harga="${p.harga_default||0}">${p.nama}</option>`)
+    .join('');
+
+  return `
+    <div class="retur-baris" id="retur-baris-${index}"
+      style="display:grid;grid-template-columns:1fr 70px 110px 32px;gap:8px;
+             align-items:center;margin-bottom:8px;">
+      <select class="form-control retur-item-produk" onchange="returProdukChange(${index})"
+              style="font-size:13px;padding:8px 10px;">
+        <option value="">— Pilih produk —</option>
+        ${opsiProduk}
+      </select>
+      <input type="number" class="form-control retur-item-kodi" placeholder="Kodi"
+        min="0" step="0.5" oninput="returHitungTotal()"
+        style="font-size:13px;padding:8px 10px;" />
+      <input type="number" class="form-control retur-item-harga" placeholder="Harga/kodi"
+        min="0" oninput="returHitungTotal()"
+        style="font-size:13px;padding:8px 10px;" />
+      <button onclick="returHapusBaris(${index})"
+        style="background:#FEE2E2;color:#DC2626;border:none;border-radius:8px;
+               width:32px;height:36px;cursor:pointer;font-size:14px;font-weight:700;">✕</button>
+    </div>`;
+}
+
+window.returTambahBaris = function() {
+  const container = document.getElementById('retur-items-container');
+  const baris = container.querySelectorAll('.retur-baris');
+  let nextIndex = 0;
+  if (baris.length > 0) {
+    const lastId = baris[baris.length - 1].id;
+    nextIndex = parseInt(lastId.split('-').pop()) + 1;
+  }
+  // Pastikan allProduk sudah terisi (load kalau perlu)
+  if (!allProduk || allProduk.length === 0) {
+    loadProdukForTrx().then(() => {
+      const div = document.createElement('div');
+      div.innerHTML = returBuatBaris(nextIndex);
+      container.appendChild(div.firstElementChild);
+    });
+  } else {
+    const div = document.createElement('div');
+    div.innerHTML = returBuatBaris(nextIndex);
+    container.appendChild(div.firstElementChild);
+  }
+};
+
+window.returHapusBaris = function(index) {
+  const el = document.getElementById(`retur-baris-${index}`);
+  if (el) { el.remove(); returHitungTotal(); }
+};
+
+// Saat produk dipilih, auto-isi harga default (bisa diubah manual)
+window.returProdukChange = function(index) {
+  const row = document.getElementById(`retur-baris-${index}`);
+  if (!row) return;
+  const sel = row.querySelector('.retur-item-produk');
+  const opt = sel.options[sel.selectedIndex];
+  const hargaInput = row.querySelector('.retur-item-harga');
+  if (opt && opt.dataset.harga && !hargaInput.value) {
+    hargaInput.value = opt.dataset.harga;
+  }
+  returHitungTotal();
+};
+
+window.returHitungTotal = function() {
+  let total = 0;
+  document.querySelectorAll('#retur-items-container .retur-baris').forEach(row => {
+    const kodi  = parseFloat(row.querySelector('.retur-item-kodi')?.value)  || 0;
+    const harga = parseFloat(row.querySelector('.retur-item-harga')?.value) || 0;
+    total += kodi * harga;
+  });
+  document.getElementById('retur-total-preview').textContent = formatRupiah(total);
+};
+
+window.simpanRetur = async function() {
+  const pelangganId   = document.getElementById('retur-pelanggan-id').value;
+  const pelangganNama = document.getElementById('retur-pelanggan-nama').value;
+  const transaksiId   = document.getElementById('retur-transaksi-select').value;
+  const tanggalVal    = document.getElementById('retur-tanggal').value;
+  const catatan       = document.getElementById('retur-catatan').value.trim();
+
+  if (!transaksiId) { showToast('Pilih transaksi yang akan dikurangi hutangnya.', 'error'); return; }
+  if (!tanggalVal)  { showToast('Pilih tanggal retur.', 'error'); return; }
+
+  // Kumpulkan item retur
+  const rows = document.querySelectorAll('#retur-items-container .retur-baris');
+  const items = [];
+  let totalRetur = 0;
+  let adaError = false;
+  rows.forEach(row => {
+    const sel = row.querySelector('.retur-item-produk');
+    const opt = sel.options[sel.selectedIndex];
+    const produkId = sel.value;
+    const produkNama = opt?.dataset?.nama || '';
+    const kodi  = parseFloat(row.querySelector('.retur-item-kodi')?.value)  || 0;
+    const harga = parseFloat(row.querySelector('.retur-item-harga')?.value) || 0;
+    if (!produkId || kodi <= 0 || harga <= 0) { adaError = true; return; }
+    const subtotal = kodi * harga;
+    items.push({ produk_id: produkId, produk_nama: produkNama, jumlah_kodi: kodi, harga_kodi: harga, subtotal });
+    totalRetur += subtotal;
+  });
+
+  if (adaError || items.length === 0) {
+    showToast('Lengkapi minimal 1 item retur (produk, kodi, harga).', 'error');
+    return;
+  }
+  if (totalRetur <= 0) {
+    showToast('Total retur tidak boleh 0.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-simpan-retur');
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+
+  try {
+    const {
+      doc, getDoc, getDocs, collection, query, where,
+      writeBatch, Timestamp, serverTimestamp
+    } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    // Ambil transaksi target
+    const trxRef = doc(db, 'transaksi', transaksiId);
+    const trxSnap = await getDoc(trxRef);
+    if (!trxSnap.exists()) throw new Error('Transaksi tidak ditemukan.');
+    const trxData = trxSnap.data();
+
+    // Hitung sisa hutang baru
+    const sisaBaru = Math.max(0, (trxData.sisa_hutang || 0) - totalRetur);
+    const nominalDibayarBaru = (trxData.nominal_dibayar || 0) + totalRetur;
+    const statusBaru = sisaBaru <= 0 ? 'lunas' : 'belum_lunas';
+
+    const batch = writeBatch(db);
+
+    // 1. Buat dokumen pembayaran baru dengan metode 'retur'
+    const bayarRef = doc(collection(db, 'pembayaran'));
+    batch.set(bayarRef, {
+      transaksi_id: transaksiId,
+      pelanggan_id: pelangganId,
+      pelanggan_nama: pelangganNama,
+      nominal: totalRetur,
+      tanggal: Timestamp.fromDate(new Date(tanggalVal)),
+      metode: 'retur',
+      is_retur: true,
+      retur_items: items,
+      catatan: catatan,
+      dicatat_oleh: currentUser.uid,
+      dicatat_oleh_nama: currentUserData?.nama || currentUser.email,
+      created_at: serverTimestamp()
+    });
+
+    // 2. Update transaksi: kurangi sisa hutang
+    batch.update(trxRef, {
+      sisa_hutang: sisaBaru,
+      nominal_dibayar: nominalDibayarBaru,
+      status: statusBaru
+    });
+
+    // 3. Kembalikan stok mobil
+    for (const item of items) {
+      const stokRef = doc(db, 'stok', item.produk_id);
+      const stokSnap = await getDoc(stokRef);
+      if (!stokSnap.exists()) continue;
+      const stokData = stokSnap.data();
+      const stokMobilBefore = stokData.stok_mobil || 0;
+      const stokMobilAfter  = stokMobilBefore + item.jumlah_kodi;
+      batch.update(stokRef, {
+        stok_mobil: stokMobilAfter,
+        updated_at: serverTimestamp()
+      });
+      const logRef = doc(collection(db, 'stok_log'));
+      batch.set(logRef, {
+        produk_id: item.produk_id,
+        produk_nama: item.produk_nama,
+        jenis: 'koreksi',
+        jumlah_kodi: item.jumlah_kodi,
+        stok_rumah_sebelum: stokData.stok_rumah || 0,
+        stok_rumah_sesudah: stokData.stok_rumah || 0,
+        stok_mobil_sebelum: stokMobilBefore,
+        stok_mobil_sesudah: stokMobilAfter,
+        referensi_id: bayarRef.id,
+        catatan: `[RETUR] ${pelangganNama} — ${catatan || 'retur batik'}`,
+        created_by: currentUser.uid,
+        created_by_nama: currentUserData?.nama || '-',
+        created_at: serverTimestamp()
+      });
+    }
+
+    await batch.commit();
+
+    // 4. Recalculate total_hutang_aktif pelanggan
+    const remainSnap = await getDocs(query(collection(db, 'transaksi'),
+      where('pelanggan_id', '==', pelangganId), where('status', '==', 'belum_lunas')));
+    const totalHutang = remainSnap.docs.reduce((s, d) => s + (d.data().sisa_hutang || 0), 0);
+    await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
+      .then(({ updateDoc, doc: docFn }) => {
+        const pelUpdate = { total_hutang_aktif: totalHutang };
+        if (totalHutang === 0) pelUpdate.status = 'aktif';
+        else pelUpdate.status = 'aktif';
+        return updateDoc(docFn(db, 'pelanggan', pelangganId), pelUpdate);
+      });
+
+    showToast('Retur berhasil disimpan! ↩️', 'success');
+    closeModal('modal-retur');
+    loadPiutang();
+    loadDashboard();
+
+  } catch(e) {
+    console.error(e);
+    showToast('Gagal menyimpan retur: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan Retur';
+  }
+};
+
 // ============================================================
 // HISTORI PELANGGAN
 // ============================================================
@@ -3201,7 +3691,11 @@ window.loadRekap = async function() {
   if (rekapTrxData.length === 0) {
     trxBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada transaksi</td></tr>';
   } else {
-    trxBody.innerHTML = rekapTrxData.map(t => {
+    // FIX: sort terbaru di atas
+    const trxSorted = [...rekapTrxData].sort((a,b) =>
+      (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0)
+    );
+    trxBody.innerHTML = trxSorted.map(t => {
       const produkStr = (t.items||[]).map(i => `${i.produk_nama} ${i.jumlah_kodi}k`).join(', ');
       const jenisBadge = t.jenis_bayar === 'kontan' ? '<span class="badge badge-green">Kontan</span>'
         : t.jenis_bayar === 'tahunan' ? '<span class="badge badge-amber">Tahunan</span>'
@@ -3220,8 +3714,15 @@ window.loadRekap = async function() {
   if (rekapBayarData.length === 0) {
     bayarBody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada pembayaran</td></tr>';
   } else {
-    bayarBody.innerHTML = rekapBayarData.map(b => {
-      const metodeBadge = b.metode === 'transfer' ? '<span class="badge badge-green">Transfer</span>' : 'Tunai';
+    const bayarSorted = [...rekapBayarData].sort((a,b) =>
+      (b.tanggal?.seconds || 0) - (a.tanggal?.seconds || 0)
+    );
+    bayarBody.innerHTML = bayarSorted.map(b => {
+      const metodeBadge = b.metode === 'retur'
+        ? '<span class="badge badge-amber">↩️ Retur</span>'
+        : b.metode === 'transfer'
+        ? '<span class="badge badge-green">Transfer</span>'
+        : 'Tunai';
       return `<tr class="rekap-row">
         <td>${b.dicatat_oleh_nama || '-'}</td>
         <td style="text-align:right;font-weight:600;">${formatRupiah(b.nominal)}</td>
@@ -5205,17 +5706,14 @@ window.openRiwayatStok = async function(produkId, produkNama) {
 
 async function fetchRiwayatStok(produkId, limitNum) {
   try {
+    // FIX: gunakan orderBy di query agar urutan tanggal terbaru pasti benar
     const snap = await getDocs(query(
-  collection(db, 'stok_log'),
-  where('produk_id', '==', produkId),
-  limit(limitNum * 3)
-));
-snap.docs.sort((a, b) => {
-  const ta = a.data().created_at?.seconds || 0;
-  const tb = b.data().created_at?.seconds || 0;
-  return tb - ta;
-});
-const logs = snap.docs.map(d => ({ id: d.id, ...d.data() })).slice(0, limitNum);
+      collection(db, 'stok_log'),
+      where('produk_id', '==', produkId),
+      orderBy('created_at', 'desc'),
+      limit(limitNum)
+    ));
+    const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     document.getElementById('riwayat-stok-subtitle').textContent = `${logs.length} entri terakhir`;
 
     const jenisLabel = {
@@ -6422,6 +6920,8 @@ function renderGrafik(dari, sampai) {
     const weeks = [];
     const omzetPerMinggu = [];
     const keluarPerMinggu = [];
+    const hutangBaruPerMinggu = [];   // FITUR BARU
+    const bayarHutangPerMinggu = [];  // FITUR BARU
 
     let weekStart = new Date(dari);
     let w = 1;
@@ -6444,6 +6944,19 @@ function renderGrafik(dari, sampai) {
         return tgl.getTime() >= wsMs && tgl.getTime() <= weMs;
       }).reduce((s,k) => s+(k.nominal||0), 0));
 
+      // FITUR BARU: hutang baru per minggu
+      hutangBaruPerMinggu.push(raTrxData.filter(t => {
+        const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+        return tgl.getTime() >= wsMs && tgl.getTime() <= weMs &&
+               t.jenis_bayar !== 'kontan';
+      }).reduce((s,t) => s+(t.total_tagihan||0), 0));
+
+      // FITUR BARU: pembayaran masuk per minggu
+      bayarHutangPerMinggu.push(raBayarData.filter(b => {
+        const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date(b.tanggal||0);
+        return tgl.getTime() >= wsMs && tgl.getTime() <= weMs;
+      }).reduce((s,b) => s+(b.nominal||0), 0));
+
       weekStart.setDate(weekStart.getDate() + 7);
       w++;
     }
@@ -6454,7 +6967,10 @@ function renderGrafik(dari, sampai) {
         labels: weeks,
         datasets: [
           { label:'Omzet', data:omzetPerMinggu, backgroundColor:'rgba(29,158,117,0.7)' },
-          { label:'Pengeluaran', data:keluarPerMinggu, backgroundColor:'rgba(220,38,38,0.6)' }
+          { label:'Pengeluaran', data:keluarPerMinggu, backgroundColor:'rgba(220,38,38,0.6)' },
+          // FITUR BARU: bar hutang vs bayar
+          { label:'Hutang Baru', data:hutangBaruPerMinggu, backgroundColor:'rgba(217,119,6,0.7)' },
+          { label:'Bayar Hutang', data:bayarHutangPerMinggu, backgroundColor:'rgba(124,58,237,0.7)' }
         ]
       },
       options: {
