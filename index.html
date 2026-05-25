@@ -1404,6 +1404,39 @@
         </table>
       </div>
     </div>
+  <!-- SECTION ECER: Rekap dari App Eceran -->
+    <div class="card rekap-admin-table" id="ra-ecer-wrap" style="display:none;margin-bottom:16px;">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="card-title">🛍️ Rekap Eceran (dari App Ecer)</div>
+        <span style="font-size:12px;color:var(--text-muted)">Dikirim manual dari app ecer</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Mitra</th>
+              <th>Tanggal</th>
+              <th class="text-right">Total Pcs</th>
+              <th class="text-right">Total Omzet</th>
+              <th>Dikirim Oleh</th>
+            </tr>
+          </thead>
+          <tbody id="ra-ecer-tbody"></tbody>
+        </table>
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-weight:700;">
+        <span>Total Omzet Ecer</span>
+        <span style="color:#7C3AED;" id="ra-ecer-total">Rp 0</span>
+      </div>
+    </div>
+
+    <!-- GRAND TOTAL GABUNGAN -->
+    <div id="ra-grand-total-wrap" style="display:none;margin-bottom:24px;padding:16px;background:var(--bg);border-radius:12px;border:2px solid var(--primary);text-align:center;">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">💰 Total Omzet Gabungan (Grosir + Ecer)</div>
+      <div style="font-size:22px;font-weight:800;color:var(--primary);" id="ra-grand-total">Rp 0</div>
+    </div>
+
   </div><!-- end #ra-content -->
 </div>
  
@@ -6850,6 +6883,71 @@ function renderRekapAdmin(dari, sampai) {
   renderGrafikProduk();
   renderGrafikPelanggan();
   renderGrafikKategori(dari, sampai);
+
+  // Muat rekap ecer secara async (tidak blokir render utama)
+  loadRekapEcer(dari, sampai);
+}
+
+// ---- SECTION ECER: Rekap dari App Eceran ----
+async function loadRekapEcer(dari, sampai) {
+  const wrap  = document.getElementById('ra-ecer-wrap');
+  const tbody = document.getElementById('ra-ecer-tbody');
+  const totalEl = document.getElementById('ra-ecer-total');
+  const grandWrap = document.getElementById('ra-grand-total-wrap');
+  const grandEl   = document.getElementById('ra-grand-total');
+  if (!wrap || !tbody) return;
+
+  try {
+    const { collection, query, where, getDocs } =
+      await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    // Query berdasarkan tanggal_str (format YYYY-MM-DD)
+    const dariStr   = dari.toISOString().split('T')[0];
+    const sampaiStr = sampai.toISOString().split('T')[0];
+
+    const snap = await getDocs(query(
+      collection(db, 'rekap_ecer_harian'),
+      where('tanggal_str', '>=', dariStr),
+      where('tanggal_str', '<=', sampaiStr)
+    ));
+
+    if (snap.empty) {
+      wrap.style.display = 'none';
+      if (grandWrap) grandWrap.style.display = 'none';
+      return;
+    }
+
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => a.tanggal_str.localeCompare(b.tanggal_str));
+
+    let totalEcer = 0;
+    let no = 1;
+    tbody.innerHTML = docs.map(e => {
+      totalEcer += e.total_nominal || 0;
+      return `<tr>
+        <td>${no++}</td>
+        <td style="font-weight:600">${e.mitra_nama}</td>
+        <td style="white-space:nowrap">${e.tanggal_str}</td>
+        <td class="text-right">${e.total_pcs || 0} pcs</td>
+        <td class="text-right" style="font-weight:700;color:#7C3AED">${formatRupiah(e.total_nominal)}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${e.dikirim_oleh_nama || '-'}</td>
+      </tr>`;
+    }).join('');
+
+    totalEl.textContent = formatRupiah(totalEcer);
+    wrap.style.display = '';
+
+    // Grand total: omzet grosir + ecer
+    const omzetGrosir = raTrxData.reduce((s, t) => s + (t.total_tagihan || 0), 0);
+    if (grandEl && grandWrap) {
+      grandEl.textContent = formatRupiah(omzetGrosir + totalEcer);
+      grandWrap.style.display = '';
+    }
+
+  } catch(err) {
+    console.error('loadRekapEcer error:', err);
+    wrap.style.display = 'none';
+  }
 }
 
 // ---- SECTION 2: GRAFIK ----
