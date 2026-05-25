@@ -6937,12 +6937,30 @@ async function loadRekapEcer(dari, sampai) {
     totalEl.textContent = formatRupiah(totalEcer);
     wrap.style.display = '';
 
-    // Grand total: omzet grosir + ecer
-    const omzetGrosir = raTrxData.reduce((s, t) => s + (t.total_tagihan || 0), 0);
-    if (grandEl && grandWrap) {
-      grandEl.textContent = formatRupiah(omzetGrosir + totalEcer);
-      grandWrap.style.display = '';
-    }
+    // Tambahkan total ecer ke Kas Masuk
+    const kasMasukGrosir = raBayarData.reduce((s, b) => s + (b.nominal || 0), 0);
+    const kasMasukGabung = kasMasukGrosir + totalEcer;
+    document.getElementById('ra-kas').textContent = formatRupiah(kasMasukGabung);
+
+    // Recalculate Laba Kotor dan Laba Bersih dengan kas ecer masuk
+    const omzetGrosir   = raTrxData.reduce((s, t) => s + (t.total_tagihan || 0), 0);
+    let hpp = 0;
+    raTrxData.forEach(t => {
+      (t.items || []).forEach(item => {
+        hpp += (item.jumlah_kodi || 0) * (raStokMap[item.produk_id] || 0);
+      });
+    });
+    const pengeluaran  = raKeluarData.reduce((s, k) => s + (k.nominal || 0), 0);
+    const labaKotor    = omzetGrosir - hpp + totalEcer;
+    const labaBersih   = labaKotor - pengeluaran;
+
+    document.getElementById('ra-laba-kotor').textContent = formatRupiah(labaKotor);
+    const labaBersihEl = document.getElementById('ra-laba-bersih');
+    labaBersihEl.textContent = formatRupiah(labaBersih);
+    labaBersihEl.className   = 'rekap-finansial-value ' + (labaBersih >= 0 ? 'text-green' : 'text-red');
+
+    // Sembunyikan grand total gabungan (sudah masuk ke kartu masing-masing)
+    if (grandWrap) grandWrap.style.display = 'none';
 
   } catch(err) {
     console.error('loadRekapEcer error:', err);
