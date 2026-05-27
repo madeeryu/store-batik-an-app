@@ -7718,21 +7718,24 @@ function renderGrafikPie() {
 function renderGrafikHutangBayar() {
   if (raChartHutangBayar) { raChartHutangBayar.destroy(); raChartHutangBayar = null; }
 
-  // Kumpulkan hutang baru per pelanggan (transaksi non-kontan)
+  // Kumpulkan hutang baru per pelanggan — HANYA transaksi non-kontan
   const hutangMap = {};
   raTrxData.filter(t => t.jenis_bayar !== 'kontan').forEach(t => {
-    const key   = t.pelanggan_id || t.pelanggan_nama || 'unknown';
-    const nama  = t.pelanggan_nama || 'Tidak Diketahui';
+    const key  = t.pelanggan_id || t.pelanggan_nama || 'unknown';
+    const nama = t.pelanggan_nama || 'Tidak Diketahui';
     if (!hutangMap[key]) hutangMap[key] = { nama, hutang: 0, bayar: 0 };
     hutangMap[key].hutang += t.total_tagihan || 0;
   });
 
-  // Kumpulkan pembayaran per pelanggan
+  // Kumpulkan pembayaran — HANYA untuk pelanggan yang sudah ada hutang di periode ini
+  // (hindari pelanggan kontan-only masuk chart & inflasi angka bayar)
   raBayarData.filter(b => !b.is_retur).forEach(b => {
-    const key  = b.pelanggan_id || b.pelanggan_nama || 'unknown';
-    const nama = b.pelanggan_nama || 'Tidak Diketahui';
-    if (!hutangMap[key]) hutangMap[key] = { nama, hutang: 0, bayar: 0 };
-    hutangMap[key].bayar += b.nominal || 0;
+    const key = b.pelanggan_id || b.pelanggan_nama || 'unknown';
+    if (hutangMap[key]) {
+      // Cap bayar pada nilai hutang agar tidak minus — kelebihan = pelunasan hutang lama
+      hutangMap[key].bayar     += b.nominal || 0;
+      hutangMap[key].bayarReal  = (hutangMap[key].bayarReal || 0) + (b.nominal || 0);
+    }
   });
 
   // Jika tidak ada data sama sekali, sembunyikan wrap
@@ -7743,24 +7746,28 @@ function renderGrafikHutangBayar() {
   }
   if (wrapEl) wrapEl.style.display = '';
 
-  // Urutkan: yang hutang terbesar di atas
+  // Urutkan: hutang terbesar di atas
   const sorted = Object.values(hutangMap).sort((a,b) => b.hutang - a.hutang);
 
-  // Tinggi dinamis agar tidak terlalu padat
+  // Tinggi dinamis
   const wrapEl2 = document.getElementById('ra-chart-hutang-wrap');
   if (wrapEl2) wrapEl2.style.height = Math.max(220, sorted.length * 44 + 60) + 'px';
 
   const labels = sorted.map(p => p.nama.length > 18 ? p.nama.slice(0,18)+'…' : p.nama);
 
-  // Hitung rasio bayar untuk menentukan warna
+  // Warna bayar — rasio di-cap 1.0 agar tidak error warna
   const bayarColors = sorted.map(p => {
-    if (p.hutang === 0) return 'rgba(29,158,117,0.75)';
-    const ratio = p.bayar / p.hutang;
-    if (ratio >= 0.8) return 'rgba(22,163,74,0.85)';      // lunas ≥80% → hijau gelap
-    if (ratio >= 0.5) return 'rgba(29,158,117,0.75)';     // ≥50% → hijau
-    if (ratio >= 0.25) return 'rgba(217,119,6,0.8)';      // ≥25% → amber
-    return 'rgba(220,38,38,0.75)';                         // <25% → merah
+    if (p.hutang === 0) return 'rgba(22,163,74,0.85)';
+    const ratio = Math.min(p.bayar / p.hutang, 1);
+    if (ratio >= 0.8) return 'rgba(22,163,74,0.85)';    // ≥80% → hijau tua
+    if (ratio >= 0.5) return 'rgba(29,158,117,0.75)';   // ≥50% → hijau
+    if (ratio >= 0.25) return 'rgba(217,119,6,0.8)';    // ≥25% → amber
+    return 'rgba(220,38,38,0.75)';                       // <25% → merah
   });
+
+  // Nilai bar bayar: di-cap pada hutang agar bar tidak melebihi hutang bar
+  // (kelebihan tetap tampil di tooltip sebagai info)
+  const bayarDisplay = sorted.map(p => Math.min(p.bayar, p.hutang));
 
   const ctx = document.getElementById('ra-chart-hutang-bayar').getContext('2d');
   raChartHutangBayar = new Chart(ctx, {
@@ -7778,7 +7785,7 @@ function renderGrafikHutangBayar() {
         },
         {
           label: 'Total Sudah Dibayar',
-          data: sorted.map(p => p.bayar),
+          data: bayarDisplay,
           backgroundColor: bayarColors,
           borderRadius: 4
         }
@@ -7793,18 +7800,33 @@ function renderGrafikHutangBayar() {
         tooltip: {
           callbacks: {
             afterBody: (items) => {
-              if (items[0]) {
-                const idx = items[0].dataIndex;
-                const p   = sorted[idx];
-                const sisa = p.hutang - p.bayar;
-                const pct  = p.hutang > 0 ? ((p.bayar / p.hutang) * 100).toFixed(1) : '100';
-                return [`Sisa hutang: ${formatRupiah(sisa)}`, `Lunas: ${pct}%`];
+              if (!items[0]) return [];
+              const idx      = items[0].dataIndex;
+              const p        = sorted[idx];
+              const bayarReal = p.bayarReal || p.bayar;
+              const sisa      = p.hutang - bayarReal;
+              const pct       = p.hutang > 0
+                ? Math.min((bayarReal / p.hutang) * 100, 100).toFixed(1)
+                : '100';
+              if (sisa <= 0) {
+                const lebih = Math.abs(sisa);
+                return [
+                  `✅ Sudah Lunas (${pct}%)`,
+                  lebih > 0 ? `Kelebihan: ${formatRupiah(lebih)} (pelunasan hutang lama / pembelian kontan)` : ''
+                ].filter(Boolean);
               }
-              return [];
+              return [
+                `Sisa hutang: ${formatRupiah(sisa)}`,
+                `Terbayar: ${pct}%`
+              ];
             },
             label: ctx => {
-              const val = ctx.parsed.x;
-              return ` ${ctx.dataset.label}: ${formatRupiah(val)}`;
+              if (ctx.datasetIndex === 1) {
+                // Tampilkan nilai real (sebelum di-cap) di tooltip
+                const p = sorted[ctx.dataIndex];
+                return ` ${ctx.dataset.label}: ${formatRupiah(p.bayarReal || p.bayar)}`;
+              }
+              return ` ${ctx.dataset.label}: ${formatRupiah(ctx.parsed.x)}`;
             }
           }
         }
@@ -8179,24 +8201,41 @@ window.exportRekapAdminPdf = async function() {
   addChartLegend(keluarPerKat, `Total pengeluaran: ${formatRupiah(pengeluaran)}`);
 
   if (raTab === 'bulanan' && raChartHutangBayar) {
+    // Gunakan logika yang sama dengan renderGrafikHutangBayar (hanya pelanggan hutang)
     const hutangPelMap = {};
-    raTrxData.filter(t=>t.jenis_bayar!=='kontan').forEach(t=>{ const k=t.pelanggan_id||t.pelanggan_nama||'?'; if(!hutangPelMap[k]) hutangPelMap[k]={nama:t.pelanggan_nama||'?',hutang:0,bayar:0}; hutangPelMap[k].hutang+=t.total_tagihan||0; });
-    raBayarData.filter(b=>!b.is_retur).forEach(b=>{ const k=b.pelanggan_id||b.pelanggan_nama||'?'; if(!hutangPelMap[k]) hutangPelMap[k]={nama:b.pelanggan_nama||'?',hutang:0,bayar:0}; hutangPelMap[k].bayar+=b.nominal||0; });
+    raTrxData.filter(t=>t.jenis_bayar!=='kontan').forEach(t=>{
+      const k=t.pelanggan_id||t.pelanggan_nama||'?';
+      if(!hutangPelMap[k]) hutangPelMap[k]={nama:t.pelanggan_nama||'?',hutang:0,bayar:0};
+      hutangPelMap[k].hutang+=t.total_tagihan||0;
+    });
+    raBayarData.filter(b=>!b.is_retur).forEach(b=>{
+      const k=b.pelanggan_id||b.pelanggan_nama||'?';
+      if(hutangPelMap[k]) hutangPelMap[k].bayar+=b.nominal||0; // hanya pelanggan hutang
+    });
     const nPel = Object.keys(hutangPelMap).length;
     sectionTitle('HUTANG VS PEMBAYARAN PER PELANGGAN');
     addChartImage('ra-chart-hutang-bayar', Math.min(Math.max(nPel * 10 + 20, 50), 100));
-    // Cari yang paling lancar & paling tertunggak
-    const sorted = Object.values(hutangPelMap).filter(p=>p.hutang>0).sort((a,b)=>(b.bayar/b.hutang)-(a.bayar/a.hutang));
-    const topBayar  = sorted[0];
-    const botBayar  = sorted[sorted.length-1];
+
+    // Urutkan by rasio bayar (cap 1.0 agar tidak distorsi oleh kelebihan bayar)
+    const sortedPel = Object.values(hutangPelMap)
+      .filter(p => p.hutang > 0)
+      .sort((a,b) => Math.min(b.bayar/b.hutang,1) - Math.min(a.bayar/a.hutang,1));
+    const topBayar = sortedPel[0];
+    const botBayar = sortedPel[sortedPel.length-1];
+
+    const totalHutangPel  = Object.values(hutangPelMap).reduce((s,p)=>s+p.hutang,0);
+    const totalBayarPel   = Object.values(hutangPelMap).reduce((s,p)=>s+Math.min(p.bayar,p.hutang),0);
+    const totalSisaHutang = totalHutangPel - totalBayarPel;
+
     addChartLegend(
       [
-        { color:'#D97706', label:'Total Hutang Masuk', value: formatRupiah(Object.values(hutangPelMap).reduce((s,p)=>s+p.hutang,0)) },
-        { color:'#1D9E75', label:'Total Sudah Dibayar', value: formatRupiah(Object.values(hutangPelMap).reduce((s,p)=>s+p.bayar,0)) }
+        { color:'#D97706', label:'Total Hutang Masuk', value: formatRupiah(totalHutangPel) },
+        { color:'#1D9E75', label:'Total Sudah Dibayar', value: formatRupiah(totalBayarPel) },
+        { color:'#DC2626', label:'Total Sisa Hutang', value: formatRupiah(Math.max(totalSisaHutang,0)) }
       ],
-      topBayar && botBayar
-        ? `Pembayaran paling lancar: ${topBayar.nama} (${((topBayar.bayar/topBayar.hutang)*100).toFixed(0)}%)  ·  Paling tertunggak: ${botBayar.nama} (${((botBayar.bayar/botBayar.hutang)*100).toFixed(0)}%)`
-        : ''
+      topBayar && botBayar && topBayar !== botBayar
+        ? `Paling lancar: ${topBayar.nama} (${Math.min((topBayar.bayar/topBayar.hutang)*100,100).toFixed(0)}%)  ·  Paling tertunggak: ${botBayar.nama} (${Math.min((botBayar.bayar/botBayar.hutang)*100,100).toFixed(0)}%)`
+        : topBayar ? `Pelanggan hutang: ${topBayar.nama} (${Math.min((topBayar.bayar/topBayar.hutang)*100,100).toFixed(0)}%)` : ''
     );
   }
 
