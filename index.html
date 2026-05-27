@@ -241,7 +241,11 @@
 
     /* ===== LOGIN PAGE ===== */
     #login-page {
-      min-height: 100vh; background: linear-gradient(135deg, #0f4c35 0%, #1D9E75 50%, #2dd4a3 100%);
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      overflow-y: auto;
+      background: linear-gradient(135deg, #0f4c35 0%, #1D9E75 50%, #2dd4a3 100%);
       display: flex; align-items: center; justify-content: center; padding: 20px;
     }
     .login-card {
@@ -3505,8 +3509,9 @@ window.simpanRetur = async function() {
     const trxData = trxSnap.data();
 
     // Hitung sisa hutang baru
+    // Catatan: nominal_dibayar TIDAK diubah saat retur karena retur bukan penerimaan uang tunai.
+    // Hanya sisa_hutang yang dikurangi senilai barang yang diretur.
     const sisaBaru = Math.max(0, (trxData.sisa_hutang || 0) - totalRetur);
-    const nominalDibayarBaru = (trxData.nominal_dibayar || 0) + totalRetur;
     const statusBaru = sisaBaru <= 0 ? 'lunas' : 'belum_lunas';
 
     const batch = writeBatch(db);
@@ -3528,10 +3533,9 @@ window.simpanRetur = async function() {
       created_at: serverTimestamp()
     });
 
-    // 2. Update transaksi: kurangi sisa hutang
+    // 2. Update transaksi: kurangi sisa hutang (tanpa ubah nominal_dibayar — retur bukan kas masuk)
     batch.update(trxRef, {
       sisa_hutang: sisaBaru,
-      nominal_dibayar: nominalDibayarBaru,
       status: statusBaru
     });
 
@@ -3737,7 +3741,7 @@ window.loadRekap = async function() {
  
   // Hitung ringkasan
   const totalPenjualan = rekapTrxData.reduce((s, t) => s + (t.total_tagihan || 0), 0);
-  const totalKas = rekapBayarData.reduce((s, b) => s + (b.nominal || 0), 0);
+  const totalKas = rekapBayarData.filter(b => !b.is_retur).reduce((s, b) => s + (b.nominal || 0), 0);
   const totalPiutangBaru = rekapTrxData.filter(t => t.jenis_bayar !== 'kontan').reduce((s, t) => s + (t.total_tagihan || 0), 0);
  
   document.getElementById('rekap-count').textContent = rekapTrxData.length;
@@ -3834,7 +3838,7 @@ function buildRekapText() {
     text += `\n`;
   }
   const totalPenjualan = rekapTrxData.reduce((s, t) => s + (t.total_tagihan || 0), 0);
-  const totalKas = rekapBayarData.reduce((s, b) => s + (b.nominal || 0), 0);
+  const totalKas = rekapBayarData.filter(b => !b.is_retur).reduce((s, b) => s + (b.nominal || 0), 0);
   const piutangBaru = rekapTrxData.filter(t => t.jenis_bayar !== 'kontan').reduce((s, t) => s + (t.total_tagihan || 0), 0);
   text += `─────────────────────\n`;
   text += `Total Penjualan : ${formatRupiah(totalPenjualan)}\n`;
@@ -4228,7 +4232,7 @@ async function loadDashboard() {
     trxSnap.forEach(d => { totalPiutang += (d.data().sisa_hutang || 0); });
 
     let kasHariIni = 0;
-    bayarSnap.forEach(d => { kasHariIni += (d.data().nominal || 0); });
+    bayarSnap.forEach(d => { if (!d.data().is_retur) kasHariIni += (d.data().nominal || 0); });
 
     let berhutang = 0, macet = 0;
     pelSnap.forEach(d => {
@@ -6154,7 +6158,7 @@ window.loadRekapSaya = async function() {
 
 async function renderRekapSaya() {
   // Hitung total
-  const totalKas    = rekapSayaBayarData.reduce((s,b) => s+(b.nominal||0), 0);
+  const totalKas    = rekapSayaBayarData.filter(b => !b.is_retur).reduce((s,b) => s+(b.nominal||0), 0);
   const totalTrxVal = rekapSayaTrxData.reduce((s,t) => s+(t.total_tagihan||0), 0);
   const totalKeluar = rekapSayaKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
   const saldo       = totalKas - totalKeluar;
@@ -6533,7 +6537,7 @@ window.hapusPengeluaran = async function() {
 
 // ---- EXPORT REKAP SAYA ----
 function buildRekapSayaText() {
-  const totalKas    = rekapSayaBayarData.reduce((s,b) => s+(b.nominal||0), 0);
+  const totalKas    = rekapSayaBayarData.filter(b => !b.is_retur).reduce((s,b) => s+(b.nominal||0), 0);
   const totalKeluar = rekapSayaKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
   const saldo       = totalKas - totalKeluar;
   const nm          = currentUserData?.nama || currentUser?.email || '-';
@@ -6865,7 +6869,7 @@ function renderRekapAdmin(dari, sampai) {
   });
 
   const omzet     = raTrxData.reduce((s,t) => s + (t.total_tagihan||0), 0);
-  const kasMasuk  = raBayarData.reduce((s,b) => s + (b.nominal||0), 0);
+  const kasMasuk  = raBayarData.filter(b => !b.is_retur).reduce((s,b) => s + (b.nominal||0), 0);
   const labaKotor = omzet - hpp;
   const pengeluaran = raKeluarData.reduce((s,k) => s + (k.nominal||0), 0);
   const labaBersih  = labaKotor - pengeluaran;
@@ -6965,7 +6969,7 @@ async function loadRekapEcer(dari, sampai) {
     wrap.style.display = '';
 
     // Tambahkan total ecer ke Kas Masuk
-    const kasMasukGrosir = raBayarData.reduce((s, b) => s + (b.nominal || 0), 0);
+    const kasMasukGrosir = raBayarData.filter(b => !b.is_retur).reduce((s, b) => s + (b.nominal || 0), 0);
     const kasMasukGabung = kasMasukGrosir + totalEcer;
     document.getElementById('ra-kas').textContent = formatRupiah(kasMasukGabung);
 
@@ -7661,7 +7665,7 @@ function renderProdukTable() {
 // ---- EXPORT .TXT ----
 window.downloadRekapAdminTxt = function() {
   const omzet       = raTrxData.reduce((s,t) => s+(t.total_tagihan||0), 0);
-  const kasMasuk    = raBayarData.reduce((s,b) => s+(b.nominal||0), 0);
+  const kasMasuk    = raBayarData.filter(b => !b.is_retur).reduce((s,b) => s+(b.nominal||0), 0);
   const pengeluaran = raKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
   let hpp = 0;
   raTrxData.forEach(t => (t.items||[]).forEach(it => {
@@ -7756,7 +7760,7 @@ window.exportRekapAdminPdf = async function() {
   let y = margin;
 
   const omzet       = raTrxData.reduce((s,t) => s+(t.total_tagihan||0), 0);
-  const kasMasuk    = raBayarData.reduce((s,b) => s+(b.nominal||0), 0);
+  const kasMasuk    = raBayarData.filter(b => !b.is_retur).reduce((s,b) => s+(b.nominal||0), 0);
   const pengeluaran = raKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
   let hpp = 0;
   raTrxData.forEach(t => (t.items||[]).forEach(it => {
