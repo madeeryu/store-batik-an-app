@@ -1266,6 +1266,59 @@
       </div>
     </div>
 
+    <!-- SECTION 2B: GRAFIK PIE — Ringkasan Keuangan Total Bulan -->
+    <div class="rekap-grafik-full" id="ra-grafik-pie-wrap" style="margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">📊 Ringkasan Keuangan Periode Ini</div></div>
+      <div style="display:flex;gap:0;flex-wrap:wrap;">
+        <div style="flex:1;min-width:220px;position:relative;height:240px;padding:12px 16px;">
+          <canvas id="ra-chart-pie"></canvas>
+        </div>
+        <div id="ra-pie-legend" style="flex:1;min-width:200px;padding:16px 20px;display:flex;flex-direction:column;justify-content:center;gap:10px;"></div>
+      </div>
+    </div>
+
+    <!-- SECTION 8: GRAFIK BARU — Produk, Pelanggan, Pengeluaran Kategori -->
+    <div id="ra-grafik-baru-wrap">
+
+      <!-- Baris 1: Produk + Pelanggan berdampingan -->
+      <div class="rekap-grafik-baru-grid">
+
+        <!-- Grafik Produk Terlaris/Tersedikit -->
+        <div class="rekap-grafik-card">
+          <div class="rekap-grafik-card-header">📦 Produk: Terlaris vs Tersedikit</div>
+          <div class="rekap-grafik-card-body">
+            <canvas id="ra-chart-produk"></canvas>
+          </div>
+        </div>
+
+        <!-- Grafik Pelanggan Aktif -->
+        <div class="rekap-grafik-card">
+          <div class="rekap-grafik-card-header">🧑‍🤝‍🧑 Pelanggan Paling Aktif</div>
+          <div class="rekap-grafik-card-body">
+            <canvas id="ra-chart-pelanggan"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Baris 2: Pengeluaran per Kategori (full width) -->
+      <div class="rekap-grafik-full" style="margin-bottom:16px;">
+        <div class="card-header"><div class="card-title">💸 Tren Pengeluaran per Kategori</div></div>
+        <div class="rekap-grafik-full-body">
+          <canvas id="ra-chart-kategori"></canvas>
+        </div>
+      </div>
+
+      <!-- Baris 3: Hutang vs Bayar per Pelanggan (full width) -->
+      <div class="rekap-grafik-full" style="margin-bottom:16px;">
+        <div class="card-header"><div class="card-title">🔄 Hutang vs Pembayaran per Pelanggan</div></div>
+        <div style="position:relative;height:260px;padding:12px 16px;" id="ra-chart-hutang-wrap">
+          <canvas id="ra-chart-hutang-bayar"></canvas>
+        </div>
+      </div>
+
+    </div>
+
     <!-- SECTION 3: REKAP PER KARYAWAN -->
     <div class="card rekap-admin-table" style="margin-bottom:16px;">
       <div class="card-header"><div class="card-title">👥 Rekap Per Karyawan</div></div>
@@ -1355,40 +1408,6 @@
         <span>Total Pengeluaran</span><span class="text-red" id="ra-keluar-total">Rp 0</span>
       </div>
     </div>
-
-    <!-- SECTION 8: GRAFIK BARU — Produk, Pelanggan, Pengeluaran Kategori -->
-<div id="ra-grafik-baru-wrap">
-
-  <!-- Baris 1: Produk + Pelanggan berdampingan -->
-  <div class="rekap-grafik-baru-grid">
-
-    <!-- Grafik Produk Terlaris/Tersedikit -->
-    <div class="rekap-grafik-card">
-      <div class="rekap-grafik-card-header">📦 Produk: Terlaris vs Tersedikit</div>
-      <div class="rekap-grafik-card-body">
-        <canvas id="ra-chart-produk"></canvas>
-      </div>
-    </div>
-
-    <!-- Grafik Pelanggan Aktif -->
-    <div class="rekap-grafik-card">
-      <div class="rekap-grafik-card-header">🧑‍🤝‍🧑 Pelanggan Paling Aktif</div>
-      <div class="rekap-grafik-card-body">
-        <canvas id="ra-chart-pelanggan"></canvas>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Baris 2: Pengeluaran per Kategori (full width) -->
-  <div class="rekap-grafik-full">
-    <div class="card-header"><div class="card-title">💸 Tren Pengeluaran per Kategori</div></div>
-    <div class="rekap-grafik-full-body">
-      <canvas id="ra-chart-kategori"></canvas>
-    </div>
-  </div>
-
-</div>
 
     <!-- SECTION 7: PRODUK TERLARIS (mingguan & bulanan) -->
     <div class="card rekap-admin-table" id="ra-produk-wrap" style="display:none;margin-bottom:24px;">
@@ -6639,10 +6658,12 @@ window.openEditModalHarga = window.openEditModalHarga;
 let raTab = 'harian';
 let raHariMode = 'hari_ini';
 let raMingguOffset = 0;   // 0 = minggu ini, -1 = minggu lalu, dst
-let raChartInstance = null;
-let raChartProduk    = null;
-let raChartPelanggan = null;
-let raChartKategori  = null;
+let raChartInstance   = null;
+let raChartProduk     = null;
+let raChartPelanggan  = null;
+let raChartKategori   = null;
+let raChartPie        = null;
+let raChartHutangBayar = null;
 
 // Data hasil fetch
 let raTrxData = [];
@@ -6909,10 +6930,14 @@ function renderRekapAdmin(dari, sampai) {
   document.getElementById('ra-produk-wrap').style.display = showProduk ? '' : 'none';
   if (showProduk) renderProdukTable();
 
+  // Section 2B: Pie ringkasan keuangan
+  renderGrafikPie();
+
   // Section 8: Grafik baru (semua tab)
   renderGrafikProduk();
   renderGrafikPelanggan();
   renderGrafikKategori(dari, sampai);
+  renderGrafikHutangBayar();
 
   // Muat rekap ecer secara async (tidak blokir render utama)
   loadRekapEcer(dari, sampai);
@@ -7041,7 +7066,8 @@ function renderGrafik(dari, sampai) {
     const labels = [];
     const omzetPerHari = [];
     const kasPerHari = [];
-    const keluarPerHari = [];
+    const hutangBaruPerHari = [];
+    const bayarHutangPerHari = [];
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(dari);
@@ -7062,14 +7088,15 @@ function renderGrafik(dari, sampai) {
         return tgl.getTime() >= dsMs && tgl.getTime() <= deMs;
       }).reduce((s,b) => s+(b.nominal||0), 0);
 
-      const keluarHari = raKeluarData.filter(k => {
-        const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date(k.tanggal||0);
-        return tgl.getTime() >= dsMs && tgl.getTime() <= deMs;
-      }).reduce((s,k) => s+(k.nominal||0), 0);
+      const hutangHari = raTrxData.filter(t => {
+        const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+        return tgl.getTime() >= dsMs && tgl.getTime() <= deMs && t.jenis_bayar !== 'kontan';
+      }).reduce((s,t) => s+(t.total_tagihan||0), 0);
 
       omzetPerHari.push(omzetHari);
       kasPerHari.push(kasHari);
-      keluarPerHari.push(keluarHari);
+      hutangBaruPerHari.push(hutangHari);
+      bayarHutangPerHari.push(kasHari); // bayar = kas masuk (pembayaran)
     }
 
     raChartInstance = new Chart(ctx, {
@@ -7079,7 +7106,7 @@ function renderGrafik(dari, sampai) {
         datasets: [
           { label:'Omzet', data:omzetPerHari, borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.08)', tension:0.3, fill:true },
           { label:'Kas Masuk', data:kasPerHari, borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,0.05)', tension:0.3 },
-          { label:'Pengeluaran', data:keluarPerHari, borderColor:'#DC2626', backgroundColor:'rgba(220,38,38,0.05)', tension:0.3 }
+          { label:'Hutang Baru', data:hutangBaruPerHari, borderColor:'#D97706', backgroundColor:'rgba(217,119,6,0.05)', tension:0.3, borderDash:[5,3] }
         ]
       },
       options: {
@@ -7096,9 +7123,8 @@ function renderGrafik(dari, sampai) {
     // Bar chart per minggu dalam bulan
     const weeks = [];
     const omzetPerMinggu = [];
-    const keluarPerMinggu = [];
-    const hutangBaruPerMinggu = [];   // FITUR BARU
-    const bayarHutangPerMinggu = [];  // FITUR BARU
+    const hutangBaruPerMinggu = [];
+    const bayarHutangPerMinggu = [];
 
     let weekStart = new Date(dari);
     let w = 1;
@@ -7116,19 +7142,11 @@ function renderGrafik(dari, sampai) {
         return tgl.getTime() >= wsMs && tgl.getTime() <= weMs;
       }).reduce((s,t) => s+(t.total_tagihan||0), 0));
 
-      keluarPerMinggu.push(raKeluarData.filter(k => {
-        const tgl = k.tanggal?.toDate ? k.tanggal.toDate() : new Date(k.tanggal||0);
-        return tgl.getTime() >= wsMs && tgl.getTime() <= weMs;
-      }).reduce((s,k) => s+(k.nominal||0), 0));
-
-      // FITUR BARU: hutang baru per minggu
       hutangBaruPerMinggu.push(raTrxData.filter(t => {
         const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
-        return tgl.getTime() >= wsMs && tgl.getTime() <= weMs &&
-               t.jenis_bayar !== 'kontan';
+        return tgl.getTime() >= wsMs && tgl.getTime() <= weMs && t.jenis_bayar !== 'kontan';
       }).reduce((s,t) => s+(t.total_tagihan||0), 0));
 
-      // FITUR BARU: pembayaran masuk per minggu
       bayarHutangPerMinggu.push(raBayarData.filter(b => {
         const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date(b.tanggal||0);
         return tgl.getTime() >= wsMs && tgl.getTime() <= weMs;
@@ -7143,11 +7161,9 @@ function renderGrafik(dari, sampai) {
       data: {
         labels: weeks,
         datasets: [
-          { label:'Omzet', data:omzetPerMinggu, backgroundColor:'rgba(29,158,117,0.7)' },
-          { label:'Pengeluaran', data:keluarPerMinggu, backgroundColor:'rgba(220,38,38,0.6)' },
-          // FITUR BARU: bar hutang vs bayar
-          { label:'Hutang Baru', data:hutangBaruPerMinggu, backgroundColor:'rgba(217,119,6,0.7)' },
-          { label:'Bayar Hutang', data:bayarHutangPerMinggu, backgroundColor:'rgba(124,58,237,0.7)' }
+          { label:'Omzet', data:omzetPerMinggu, backgroundColor:'rgba(29,158,117,0.75)', borderRadius:5 },
+          { label:'Hutang Baru', data:hutangBaruPerMinggu, backgroundColor:'rgba(217,119,6,0.75)', borderRadius:5 },
+          { label:'Bayar Hutang', data:bayarHutangPerMinggu, backgroundColor:'rgba(124,58,237,0.75)', borderRadius:5 }
         ]
       },
       options: {
@@ -7620,6 +7636,181 @@ function renderGrafikKategori(dari, sampai) {
     }
   });
 }
+
+// ---- SECTION 2B: GRAFIK PIE RINGKASAN KEUANGAN ----
+function renderGrafikPie() {
+  if (raChartPie) { raChartPie.destroy(); raChartPie = null; }
+
+  const totalOmzet      = raTrxData.reduce((s,t) => s+(t.total_tagihan||0), 0);
+  const totalKasMasuk   = raBayarData.filter(b => !b.is_retur).reduce((s,b) => s+(b.nominal||0), 0);
+  const totalHutangBaru = raTrxData.filter(t => t.jenis_bayar !== 'kontan').reduce((s,t) => s+(t.total_tagihan||0), 0);
+  const totalPengeluaran = raKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
+
+  const values = [totalOmzet, totalKasMasuk, totalHutangBaru, totalPengeluaran];
+  const total  = values.reduce((a,b) => a+b, 0);
+
+  const legendEl = document.getElementById('ra-pie-legend');
+  if (legendEl) {
+    const ITEMS = [
+      { label:'Omzet', color:'#1D9E75', val:totalOmzet },
+      { label:'Kas Masuk', color:'#2563EB', val:totalKasMasuk },
+      { label:'Hutang Baru', color:'#D97706', val:totalHutangBaru },
+      { label:'Pengeluaran', color:'#DC2626', val:totalPengeluaran }
+    ];
+    legendEl.innerHTML = ITEMS.map(it => {
+      const pct = total > 0 ? ((it.val / total) * 100).toFixed(1) : '0.0';
+      return `<div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:12px;height:12px;border-radius:3px;background:${it.color};flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:600;color:var(--text-primary)">${it.label}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${formatRupiah(it.val)} <span style="color:${it.color};font-weight:700;">(${pct}%)</span></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  if (total === 0) return;
+
+  const ctx = document.getElementById('ra-chart-pie').getContext('2d');
+  raChartPie = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Omzet', 'Kas Masuk', 'Hutang Baru', 'Pengeluaran'],
+      datasets: [{
+        data: values,
+        backgroundColor: ['#1D9E75','#2563EB','#D97706','#DC2626'],
+        borderWidth: 2,
+        borderColor: '#fff',
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const val = ctx.parsed;
+              const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0';
+              return ` ${formatRupiah(val)} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+
+// ---- SECTION 8D: GRAFIK HUTANG VS BAYAR PER PELANGGAN ----
+function renderGrafikHutangBayar() {
+  if (raChartHutangBayar) { raChartHutangBayar.destroy(); raChartHutangBayar = null; }
+
+  // Kumpulkan hutang baru per pelanggan (transaksi non-kontan)
+  const hutangMap = {};
+  raTrxData.filter(t => t.jenis_bayar !== 'kontan').forEach(t => {
+    const key   = t.pelanggan_id || t.pelanggan_nama || 'unknown';
+    const nama  = t.pelanggan_nama || 'Tidak Diketahui';
+    if (!hutangMap[key]) hutangMap[key] = { nama, hutang: 0, bayar: 0 };
+    hutangMap[key].hutang += t.total_tagihan || 0;
+  });
+
+  // Kumpulkan pembayaran per pelanggan
+  raBayarData.filter(b => !b.is_retur).forEach(b => {
+    const key  = b.pelanggan_id || b.pelanggan_nama || 'unknown';
+    const nama = b.pelanggan_nama || 'Tidak Diketahui';
+    if (!hutangMap[key]) hutangMap[key] = { nama, hutang: 0, bayar: 0 };
+    hutangMap[key].bayar += b.nominal || 0;
+  });
+
+  // Jika tidak ada data sama sekali, sembunyikan wrap
+  const wrapEl = document.getElementById('ra-chart-hutang-wrap')?.parentElement;
+  if (Object.keys(hutangMap).length === 0) {
+    if (wrapEl) wrapEl.style.display = 'none';
+    return;
+  }
+  if (wrapEl) wrapEl.style.display = '';
+
+  // Urutkan: yang hutang terbesar di atas
+  const sorted = Object.values(hutangMap).sort((a,b) => b.hutang - a.hutang);
+
+  // Tinggi dinamis agar tidak terlalu padat
+  const wrapEl2 = document.getElementById('ra-chart-hutang-wrap');
+  if (wrapEl2) wrapEl2.style.height = Math.max(220, sorted.length * 44 + 60) + 'px';
+
+  const labels = sorted.map(p => p.nama.length > 18 ? p.nama.slice(0,18)+'…' : p.nama);
+
+  // Hitung rasio bayar untuk menentukan warna
+  const bayarColors = sorted.map(p => {
+    if (p.hutang === 0) return 'rgba(29,158,117,0.75)';
+    const ratio = p.bayar / p.hutang;
+    if (ratio >= 0.8) return 'rgba(22,163,74,0.85)';      // lunas ≥80% → hijau gelap
+    if (ratio >= 0.5) return 'rgba(29,158,117,0.75)';     // ≥50% → hijau
+    if (ratio >= 0.25) return 'rgba(217,119,6,0.8)';      // ≥25% → amber
+    return 'rgba(220,38,38,0.75)';                         // <25% → merah
+  });
+
+  const ctx = document.getElementById('ra-chart-hutang-bayar').getContext('2d');
+  raChartHutangBayar = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Total Hutang Masuk',
+          data: sorted.map(p => p.hutang),
+          backgroundColor: 'rgba(217,119,6,0.55)',
+          borderColor: 'rgba(217,119,6,0.9)',
+          borderWidth: 1,
+          borderRadius: 4
+        },
+        {
+          label: 'Total Sudah Dibayar',
+          data: sorted.map(p => p.bayar),
+          backgroundColor: bayarColors,
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            afterBody: (items) => {
+              if (items[0]) {
+                const idx = items[0].dataIndex;
+                const p   = sorted[idx];
+                const sisa = p.hutang - p.bayar;
+                const pct  = p.hutang > 0 ? ((p.bayar / p.hutang) * 100).toFixed(1) : '100';
+                return [`Sisa hutang: ${formatRupiah(sisa)}`, `Lunas: ${pct}%`];
+              }
+              return [];
+            },
+            label: ctx => {
+              const val = ctx.parsed.x;
+              return ` ${ctx.dataset.label}: ${formatRupiah(val)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { callback: v => 'Rp '+(v/1000).toFixed(0)+'k', font:{ size:10 } },
+          grid: { color:'#f0f0f0' }
+        },
+        y: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
 
 // ---- SECTION 7: PRODUK TERLARIS ----
 function renderProdukTable() {
