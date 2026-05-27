@@ -8052,6 +8052,42 @@ window.exportRekapAdminPdf = async function() {
     y += imgH + 4;
   }
 
+  // ---- HELPER: keterangan (legend) teks di bawah grafik ----
+  // items: [{ color: '#hex', label: 'teks', value: 'opsional' }, ...]
+  function addChartLegend(items, note = '') {
+    checkNewPage(items.length > 4 ? 18 : 10);
+    const colW = contentW / Math.min(items.length, 4);
+    let lx = margin;
+    let ly = y;
+    let col = 0;
+    doc.setFontSize(8);
+    items.forEach((item, idx) => {
+      if (col > 0 && col % 4 === 0) { lx = margin; ly += 7; col = 0; }
+      // Kotak warna kecil
+      const rgb = hexToRgb(item.color);
+      if (rgb) doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+      else doc.setFillColor(100, 100, 100);
+      doc.rect(lx, ly, 3, 3, 'F');
+      doc.setTextColor(17,24,39);
+      const txt = item.value ? `${item.label}: ${item.value}` : item.label;
+      doc.text(txt, lx + 4.5, ly + 2.8, { maxWidth: colW - 6 });
+      lx += colW;
+      col++;
+    });
+    y = ly + 6;
+    if (note) {
+      doc.setFontSize(7.5); doc.setTextColor(107,114,128);
+      doc.text(note, margin, y); y += 5;
+      doc.setTextColor(17,24,39);
+    }
+    doc.setFontSize(8);
+  }
+
+  function hexToRgb(hex) {
+    const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return r ? [parseInt(r[1],16), parseInt(r[2],16), parseInt(r[3],16)] : null;
+  }
+
   // ---- START PDF ----
   addHeader();
 
@@ -8075,31 +8111,96 @@ window.exportRekapAdminPdf = async function() {
   // ── GRAFIK ──
   const showGrafikPdf = raTab !== 'harian';
   if (showGrafikPdf) {
-    sectionTitle('GRAFIK TREN');
+    const trendLabel = raTab === 'mingguan' ? 'per hari dalam minggu' : 'per minggu dalam bulan';
+    sectionTitle(`GRAFIK TREN (${trendLabel})`);
     addChartImage('ra-chart', 52);
+    addChartLegend(
+      raTab === 'mingguan'
+        ? [
+            { color:'#1D9E75', label:'Omzet', value: formatRupiah(omzet) },
+            { color:'#2563EB', label:'Kas Masuk', value: formatRupiah(kasMasuk) },
+            { color:'#D97706', label:'Hutang Baru', value: formatRupiah(raTrxData.filter(t=>t.jenis_bayar!=='kontan').reduce((s,t)=>s+(t.total_tagihan||0),0)) }
+          ]
+        : [
+            { color:'#1D9E75', label:'Omzet', value: formatRupiah(omzet) },
+            { color:'#D97706', label:'Hutang Baru' },
+            { color:'#7C3AED', label:'Bayar Hutang', value: formatRupiah(kasMasuk) }
+          ],
+      raTab === 'bulanan' ? 'Grafik batang per minggu — pengeluaran ditampilkan di grafik terpisah' : ''
+    );
   }
 
-  sectionTitle('RINGKASAN KEUANGAN (PIE)');
+  sectionTitle('RINGKASAN KEUANGAN PERIODE INI');
   addChartImage('ra-chart-pie', 52);
+  const totalHutangBaru = raTrxData.filter(t=>t.jenis_bayar!=='kontan').reduce((s,t)=>s+(t.total_tagihan||0),0);
+  addChartLegend([
+    { color:'#1D9E75', label:'Omzet', value: formatRupiah(omzet) },
+    { color:'#2563EB', label:'Kas Masuk', value: formatRupiah(kasMasuk) },
+    { color:'#D97706', label:'Hutang Baru', value: formatRupiah(totalHutangBaru) },
+    { color:'#DC2626', label:'Pengeluaran', value: formatRupiah(pengeluaran) }
+  ], `Sisa hutang belum terbayar: ${formatRupiah(totalHutangBaru - kasMasuk > 0 ? totalHutangBaru - kasMasuk : 0)}`);
 
-  sectionTitle('PRODUK & PELANGGAN');
+  sectionTitle('PRODUK TERLARIS & PELANGGAN PALING AKTIF');
   addChartPair('ra-chart-produk', 'ra-chart-pelanggan', 52);
+  // Keterangan produk top-3
+  const produkTop3 = (() => {
+    const m = {};
+    raTrxData.forEach(t => (t.items||[]).forEach(it => {
+      const k = it.produk_id||it.produk_nama;
+      if (!m[k]) m[k] = { nama: it.produk_nama, kodi: 0 };
+      m[k].kodi += it.jumlah_kodi||0;
+    }));
+    return Object.values(m).sort((a,b)=>b.kodi-a.kodi).slice(0,3);
+  })();
+  const pelTop3 = (() => {
+    const m = {};
+    raTrxData.forEach(t => {
+      const k = t.pelanggan_id||t.pelanggan_nama||'?';
+      if (!m[k]) m[k] = { nama: t.pelanggan_nama||'?', trx: 0 };
+      m[k].trx++;
+    });
+    return Object.values(m).sort((a,b)=>b.trx-a.trx).slice(0,3);
+  })();
+  const legendProdukPel = [
+    ...produkTop3.map((p,i) => ({ color: ['#1D9E75','#64A0FF','#DC2626'][i]||'#999', label:`${i+1}. ${p.nama}`, value:`${p.kodi}k` })),
+    ...pelTop3.map((p,i)   => ({ color: ['#2563EB','#7C3AED','#D97706'][i]||'#999', label:`${i+1}. ${p.nama}`, value:`${p.trx} trx` }))
+  ];
+  if (legendProdukPel.length) addChartLegend(legendProdukPel, 'Kiri: produk terlaris (kodi)  ·  Kanan: pelanggan paling aktif (jumlah transaksi)');
 
-  sectionTitle('PENGELUARAN PER KATEGORI');
+  sectionTitle('TREN PENGELUARAN PER KATEGORI');
   addChartImage('ra-chart-kategori', 50);
+  const KATEGORI_LABEL = { bensin:'⛽ Bensin', makan:'🍽 Makan', becak:'🛺 Becak', lainnya:'Lainnya' };
+  const KATEGORI_COLOR = { bensin:'#FB923C', makan:'#34D399', becak:'#60A5FA', lainnya:'#A78BFA' };
+  const keluarPerKat = ['bensin','makan','becak','lainnya'].map(k => ({
+    color: KATEGORI_COLOR[k],
+    label: KATEGORI_LABEL[k],
+    value: formatRupiah(raKeluarData.filter(x=>x.kategori===k).reduce((s,x)=>s+(x.nominal||0),0))
+  }));
+  addChartLegend(keluarPerKat, `Total pengeluaran: ${formatRupiah(pengeluaran)}`);
 
   if (raTab === 'bulanan' && raChartHutangBayar) {
-    const nPel = Object.keys((() => {
-      const m = {};
-      raTrxData.filter(t=>t.jenis_bayar!=='kontan').forEach(t=>{ m[t.pelanggan_id||t.pelanggan_nama]= true; });
-      raBayarData.forEach(b=>{ m[b.pelanggan_id||b.pelanggan_nama]=true; });
-      return m;
-    })()).length;
+    const hutangPelMap = {};
+    raTrxData.filter(t=>t.jenis_bayar!=='kontan').forEach(t=>{ const k=t.pelanggan_id||t.pelanggan_nama||'?'; if(!hutangPelMap[k]) hutangPelMap[k]={nama:t.pelanggan_nama||'?',hutang:0,bayar:0}; hutangPelMap[k].hutang+=t.total_tagihan||0; });
+    raBayarData.filter(b=>!b.is_retur).forEach(b=>{ const k=b.pelanggan_id||b.pelanggan_nama||'?'; if(!hutangPelMap[k]) hutangPelMap[k]={nama:b.pelanggan_nama||'?',hutang:0,bayar:0}; hutangPelMap[k].bayar+=b.nominal||0; });
+    const nPel = Object.keys(hutangPelMap).length;
     sectionTitle('HUTANG VS PEMBAYARAN PER PELANGGAN');
     addChartImage('ra-chart-hutang-bayar', Math.min(Math.max(nPel * 10 + 20, 50), 100));
+    // Cari yang paling lancar & paling tertunggak
+    const sorted = Object.values(hutangPelMap).filter(p=>p.hutang>0).sort((a,b)=>(b.bayar/b.hutang)-(a.bayar/a.hutang));
+    const topBayar  = sorted[0];
+    const botBayar  = sorted[sorted.length-1];
+    addChartLegend(
+      [
+        { color:'#D97706', label:'Total Hutang Masuk', value: formatRupiah(Object.values(hutangPelMap).reduce((s,p)=>s+p.hutang,0)) },
+        { color:'#1D9E75', label:'Total Sudah Dibayar', value: formatRupiah(Object.values(hutangPelMap).reduce((s,p)=>s+p.bayar,0)) }
+      ],
+      topBayar && botBayar
+        ? `Pembayaran paling lancar: ${topBayar.nama} (${((topBayar.bayar/topBayar.hutang)*100).toFixed(0)}%)  ·  Paling tertunggak: ${botBayar.nama} (${((botBayar.bayar/botBayar.hutang)*100).toFixed(0)}%)`
+        : ''
+    );
   }
 
-  y += 2;
+  y += 4;
 
   // ── RINGKASAN PRODUK TERJUAL ──
   if (raTrxData.length > 0) {
@@ -8142,15 +8243,30 @@ window.exportRekapAdminPdf = async function() {
     y += 4;
   }
 
-  // ── DETAIL PEMBAYARAN MASUK ──
+  // ── TOTAL PEMBAYARAN MASUK PER PELANGGAN (diurutkan terbesar) ──
   if (raBayarData.length > 0) {
-    sectionTitle(`DETAIL PEMBAYARAN MASUK (${raBayarData.length})`);
-    tableRow(['#','Pelanggan','Nominal','Metode','Dicatat Oleh'], [8, contentW*0.3, contentW*0.22, contentW*0.18, contentW*0.22], true, [232,247,241]);
-    raBayarData.forEach((b, i) => {
-      const bg = i % 2 === 1 ? [249,250,251] : null;
-      tableRow([i+1, b.pelanggan_nama||'-', formatRupiah(b.nominal), b.metode, b.dicatat_oleh_nama||'-'],
-               [8, contentW*0.3, contentW*0.22, contentW*0.18, contentW*0.22], false, bg);
+    // Kelompokkan per pelanggan
+    const bayarPerPel = {};
+    raBayarData.filter(b => !b.is_retur).forEach(b => {
+      const key  = b.pelanggan_id || b.pelanggan_nama || 'unknown';
+      const nama = b.pelanggan_nama || 'Tidak Diketahui';
+      if (!bayarPerPel[key]) bayarPerPel[key] = { nama, total: 0, jml: 0 };
+      bayarPerPel[key].total += b.nominal || 0;
+      bayarPerPel[key].jml++;
     });
+    const bayarArr = Object.values(bayarPerPel).sort((a, b) => b.total - a.total);
+    const grandTotalBayar = bayarArr.reduce((s, p) => s + p.total, 0);
+
+    sectionTitle(`PEMBAYARAN MASUK PER PELANGGAN (${bayarArr.length} pelanggan · ${raBayarData.filter(b=>!b.is_retur).length} transaksi)`);
+    tableRow(['#','Pelanggan','Total Bayar','Jml Trx'], [8, contentW*0.5, contentW*0.28, contentW*0.14], true, [232,247,241]);
+    bayarArr.forEach((p, i) => {
+      const bg = i % 2 === 1 ? [249,250,251] : null;
+      tableRow([i+1, p.nama, formatRupiah(p.total), p.jml],
+               [8, contentW*0.5, contentW*0.28, contentW*0.14], false, bg);
+    });
+    // Baris total
+    tableRow(['', 'TOTAL', formatRupiah(grandTotalBayar), raBayarData.filter(b=>!b.is_retur).length],
+             [8, contentW*0.5, contentW*0.28, contentW*0.14], true, [232,247,241]);
     y += 4;
   }
 
