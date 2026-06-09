@@ -792,6 +792,11 @@
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
         📊 Rekap Stok
       </a>
+      <!-- RIWAYAT STOK SUB-MENU -->
+      <a class="nav-item" id="nav-riwayat-stok" data-page="riwayat-stok" onclick="navigateTo('riwayat-stok')" style="display:none;padding-left:32px;font-size:13px;">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        📋 Riwayat Stok
+      </a>
       <a class="nav-item" data-page="rekap-saya" onclick="navigateTo('rekap-saya')">
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
         Rekap Saya
@@ -1751,6 +1756,106 @@
         </div>
       </div>
     </div>
+    <!-- ====== RIWAYAT STOK DETAIL ====== -->
+    <div class="page" id="page-riwayat-stok">
+      <div class="page-header flex justify-between" style="align-items:flex-start;">
+        <div>
+          <div class="page-title">📋 Riwayat Stok</div>
+          <div class="page-subtitle" id="riwayat-stok-page-subtitle">Pilih produk untuk melihat riwayat pergerakan stok</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="navigateTo('stok')">← Kembali ke Stok</button>
+      </div>
+
+      <!-- Filter: Produk + Tanggal -->
+      <div class="card card-body" style="margin-bottom:16px;">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+          <div style="flex:2;min-width:180px;">
+            <label class="form-label">Produk</label>
+            <select class="form-control" id="rs-filter-produk" onchange="onChangeRsProduk()">
+              <option value="">— Pilih Produk —</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label class="form-label">Dari Tanggal</label>
+            <input type="date" class="form-control" id="rs-filter-dari" />
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label class="form-label">Sampai Tanggal</label>
+            <input type="date" class="form-control" id="rs-filter-sampai" />
+          </div>
+          <button class="btn btn-primary" onclick="tampilkanRiwayatStokDetail()">🔍 Tampilkan</button>
+          <button class="btn btn-secondary" onclick="resetRsFilter()">🔄 Reset</button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div id="rs-summary-wrap" style="display:none;margin-bottom:16px;">
+        <div class="stok-summary-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:0;">
+          <div class="stok-summary-card" style="border-left:4px solid #6366F1;">
+            <div class="stok-summary-label">📦 Stok Awal</div>
+            <div class="stok-summary-value" id="rs-sum-awal" style="color:#6366F1">—</div>
+            <div style="font-size:11px;color:var(--text-muted)" id="rs-sum-awal-sub"></div>
+          </div>
+          <div class="stok-summary-card" style="border-left:4px solid #16A34A;">
+            <div class="stok-summary-label">➕ Penambahan Stok</div>
+            <div class="stok-summary-value text-green" id="rs-sum-tambah">—</div>
+            <div style="font-size:11px;color:var(--text-muted)" id="rs-sum-tambah-sub"></div>
+          </div>
+          <div class="stok-summary-card" style="border-left:4px solid #DC2626;">
+            <div class="stok-summary-label">📤 Terjual / Keluar</div>
+            <div class="stok-summary-value text-red" id="rs-sum-keluar">—</div>
+            <div style="font-size:11px;color:var(--text-muted)" id="rs-sum-keluar-sub"></div>
+          </div>
+          <div class="stok-summary-card" style="border-left:4px solid #D97706;">
+            <div class="stok-summary-label">📊 Stok Akhir Periode</div>
+            <div class="stok-summary-value" id="rs-sum-akhir" style="color:#D97706">—</div>
+            <div style="font-size:11px;color:var(--text-muted)" id="rs-sum-akhir-sub"></div>
+          </div>
+          <div class="stok-summary-card" style="border-left:4px solid #1D9E75;background:var(--green-light);">
+            <div class="stok-summary-label">✅ Stok Sekarang</div>
+            <div class="stok-summary-value text-green" id="rs-sum-sekarang">—</div>
+            <div style="font-size:11px;color:var(--text-muted)" id="rs-sum-sekarang-sub"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabel Riwayat Detail -->
+      <div id="rs-tabel-wrap" style="display:none;">
+        <div class="card">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div class="card-title" id="rs-tabel-title">Riwayat Pergerakan Stok</div>
+            <span class="badge badge-gray" id="rs-tabel-count">0 entri</span>
+          </div>
+          <div class="table-wrap">
+            <table id="rs-tabel">
+              <thead>
+                <tr>
+                  <th style="min-width:130px;">Tanggal & Waktu</th>
+                  <th>Jenis</th>
+                  <th class="text-right">Perubahan</th>
+                  <th class="text-right">🏠 Stok Rumah</th>
+                  <th class="text-right">🚗 Stok Mobil</th>
+                  <th class="text-right">📦 Total Stok</th>
+                  <th>Catatan / Oleh</th>
+                </tr>
+              </thead>
+              <tbody id="rs-tabel-tbody"></tbody>
+            </table>
+          </div>
+          <div id="rs-load-more-wrap" style="display:none;text-align:center;padding:12px;">
+            <button class="btn btn-secondary btn-sm" onclick="rsLoadMore()">Muat Lebih Banyak</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty / Loading state -->
+      <div id="rs-empty-state" style="text-align:center;padding:48px 20px;color:var(--text-muted);">
+        <div style="font-size:40px;margin-bottom:12px;">📋</div>
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px;">Pilih produk untuk melihat riwayat</div>
+        <div style="font-size:13px;">Gunakan filter di atas untuk memilih produk dan rentang tanggal</div>
+      </div>
+    </div>
+
     <!-- ====== REKAP SAYA ====== -->
     <div class="page" id="page-rekap-saya">
       <div class="page-header flex justify-between" style="align-items:flex-start;">
@@ -5896,6 +6001,274 @@ window.loadMoreRiwayatStok = function() {
 window.loadStok = loadStok;
 
 // ============================================================
+// RIWAYAT STOK DETAIL
+// ============================================================
+let rsCurrentProdukId   = null;
+let rsCurrentLimit      = 50;
+let rsAllLogs           = []; // semua log setelah filter, untuk load-more
+
+window.loadRiwayatStokPage = function() {
+  // Isi dropdown produk dari allStok (sudah diload saat halaman stok dibuka)
+  const sel = document.getElementById('rs-filter-produk');
+  if (!sel) return;
+
+  // Isi opsi produk (hanya sekali atau setelah reload)
+  if (sel.options.length <= 1) {
+    const sorted = [...allStok].sort((a,b) => (a.nama||'').localeCompare(b.nama||'','id'));
+    sorted.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.nama;
+      sel.appendChild(opt);
+    });
+  }
+
+  // Set default tanggal: 30 hari terakhir
+  const today = new Date();
+  const tiga0Hari = new Date(); tiga0Hari.setDate(today.getDate() - 29);
+  const fmt = d => d.toISOString().split('T')[0];
+  if (!document.getElementById('rs-filter-dari').value)
+    document.getElementById('rs-filter-dari').value = fmt(tiga0Hari);
+  if (!document.getElementById('rs-filter-sampai').value)
+    document.getElementById('rs-filter-sampai').value = fmt(today);
+
+  // Jika ada produk terpilih sebelumnya, tampilkan lagi
+  if (rsCurrentProdukId) {
+    sel.value = rsCurrentProdukId;
+    tampilkanRiwayatStokDetail();
+  }
+};
+
+window.onChangeRsProduk = function() {
+  // Reset tampilan saat produk berubah
+  rsCurrentProdukId = null;
+  document.getElementById('rs-summary-wrap').style.display = 'none';
+  document.getElementById('rs-tabel-wrap').style.display = 'none';
+  document.getElementById('rs-empty-state').style.display = 'block';
+  document.getElementById('riwayat-stok-page-subtitle').textContent = 'Pilih produk untuk melihat riwayat pergerakan stok';
+};
+
+window.resetRsFilter = function() {
+  rsCurrentProdukId = null;
+  document.getElementById('rs-filter-produk').value = '';
+  const today = new Date();
+  const tiga0Hari = new Date(); tiga0Hari.setDate(today.getDate() - 29);
+  const fmt = d => d.toISOString().split('T')[0];
+  document.getElementById('rs-filter-dari').value = fmt(tiga0Hari);
+  document.getElementById('rs-filter-sampai').value = fmt(today);
+  document.getElementById('rs-summary-wrap').style.display = 'none';
+  document.getElementById('rs-tabel-wrap').style.display = 'none';
+  document.getElementById('rs-empty-state').style.display = 'block';
+  document.getElementById('riwayat-stok-page-subtitle').textContent = 'Pilih produk untuk melihat riwayat pergerakan stok';
+};
+
+window.tampilkanRiwayatStokDetail = async function() {
+  const produkId = document.getElementById('rs-filter-produk').value;
+  if (!produkId) { showToast('Pilih produk terlebih dahulu', 'error'); return; }
+
+  const dariVal   = document.getElementById('rs-filter-dari').value;
+  const sampaiVal = document.getElementById('rs-filter-sampai').value;
+  if (!dariVal || !sampaiVal) { showToast('Isi rentang tanggal', 'error'); return; }
+
+  const dari   = new Date(dariVal);   dari.setHours(0,0,0,0);
+  const sampai = new Date(sampaiVal); sampai.setHours(23,59,59,999);
+
+  rsCurrentProdukId = produkId;
+  rsCurrentLimit    = 50;
+
+  // Loading state
+  document.getElementById('rs-empty-state').style.display = 'none';
+  document.getElementById('rs-summary-wrap').style.display = 'none';
+  document.getElementById('rs-tabel-wrap').style.display = 'none';
+  const tabelBodyEl = document.getElementById('rs-tabel-tbody');
+  if (tabelBodyEl) tabelBodyEl.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted);">⏳ Memuat riwayat...</td></tr>`;
+  document.getElementById('rs-tabel-wrap').style.display = 'block';
+
+  try {
+    // Fetch stok_log untuk produk ini dalam rentang tanggal
+    const snap = await getDocs(query(
+      collection(db, 'stok_log'),
+      where('produk_id', '==', produkId),
+      where('created_at', '>=', Timestamp.fromDate(dari)),
+      where('created_at', '<=', Timestamp.fromDate(sampai)),
+      orderBy('created_at', 'asc')
+    ));
+    rsAllLogs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Ambil info produk
+    const produk = allStok.find(p => p.id === produkId);
+    const produkNama = produk?.nama || produkId;
+    const pcsPerKodi = produk?.stok?.pcs_per_kodi || produk?.pcs_per_kodi || 20;
+
+    // Update subtitle
+    document.getElementById('riwayat-stok-page-subtitle').textContent =
+      `${produkNama} · ${dari.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})} — ${sampai.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}`;
+
+    // Hitung summary
+    _renderRsSummary(rsAllLogs, produk, pcsPerKodi);
+
+    // Render tabel
+    _renderRsTabel(rsAllLogs, pcsPerKodi, rsCurrentLimit);
+
+  } catch(e) {
+    document.getElementById('rs-tabel-tbody').innerHTML =
+      `<tr><td colspan="7" style="color:#DC2626;padding:16px;">Gagal memuat: ${e.message}</td></tr>`;
+    console.error(e);
+  }
+};
+
+function _renderRsSummary(logs, produk, pcsPerKodi) {
+  const wrap = document.getElementById('rs-summary-wrap');
+  if (!wrap) return;
+
+  // Stok sekarang dari allStok
+  const stokRumahNow  = produk?.stok?.stok_rumah  ?? 0;
+  const stokMobilNow  = produk?.stok?.stok_mobil   ?? 0;
+  const totalNow      = stokRumahNow + stokMobilNow;
+
+  const fmtKd = v => {
+    if (v === null || v === undefined) return '—';
+    const n = +v;
+    return `${n % 1 === 0 ? n : n.toFixed(2)} kd`;
+  };
+  const fmtPcs = v => {
+    if (v === null || v === undefined) return '';
+    return `(${Math.round(+v * pcsPerKodi)} pcs)`;
+  };
+
+  // Stok awal periode: nilai total sebelum log pertama
+  let stokAwal = null, stokAwalSub = '';
+  if (logs.length > 0) {
+    const first = logs[0];
+    stokAwal = (first.stok_rumah_sebelum ?? 0) + (first.stok_mobil_sebelum ?? 0);
+    stokAwalSub = `Rumah ${fmtKd(first.stok_rumah_sebelum)} · Mobil ${fmtKd(first.stok_mobil_sebelum)}`;
+  }
+
+  // Penambahan stok (tambah_rumah)
+  const logsIn  = logs.filter(l => l.jenis === 'tambah_rumah');
+  const tambah  = logsIn.reduce((s,l) => s + (l.jumlah_kodi || 0), 0);
+  const tambahSub = `${logsIn.length} kali restok`;
+
+  // Terjual / keluar (penjualan → jumlah_kodi negatif)
+  const logsOut = logs.filter(l => l.jenis === 'penjualan');
+  const keluar  = logsOut.reduce((s,l) => s + Math.abs(l.jumlah_kodi || 0), 0);
+  const keluarSub = `${logsOut.length} transaksi`;
+
+  // Koreksi (untuk info)
+  const logsKor = logs.filter(l => ['opname','koreksi'].includes(l.jenis));
+  const korAdj  = logsKor.reduce((s,l) => s + (l.jumlah_kodi || 0), 0);
+
+  // Stok akhir periode: nilai setelah log terakhir
+  let stokAkhir = null, stokAkhirSub = '';
+  if (logs.length > 0) {
+    const last = logs[logs.length - 1];
+    stokAkhir = (last.stok_rumah_sesudah ?? 0) + (last.stok_mobil_sesudah ?? 0);
+    stokAkhirSub = `Rumah ${fmtKd(last.stok_rumah_sesudah)} · Mobil ${fmtKd(last.stok_mobil_sesudah)}`;
+  }
+
+  const setEl = (id, val, sub) => {
+    const el  = document.getElementById(id);
+    const sub2 = document.getElementById(id + '-sub');
+    if (el) el.textContent = val;
+    if (sub2) sub2.textContent = sub || '';
+  };
+
+  setEl('rs-sum-awal',    stokAwal !== null ? `${fmtKd(stokAwal)} ${fmtPcs(stokAwal)}` : '(tidak ada log)', stokAwalSub);
+  setEl('rs-sum-tambah',  `+${fmtKd(tambah)} ${fmtPcs(tambah)}`, tambahSub + (logsKor.length ? ` · Koreksi: ${fmtKd(korAdj)}` : ''));
+  setEl('rs-sum-keluar',  `-${fmtKd(keluar)} ${fmtPcs(keluar)}`, keluarSub);
+  setEl('rs-sum-akhir',   stokAkhir !== null ? `${fmtKd(stokAkhir)} ${fmtPcs(stokAkhir)}` : '(tidak ada log)', stokAkhirSub);
+  setEl('rs-sum-sekarang', `${fmtKd(totalNow)} ${fmtPcs(totalNow)}`,
+    `Rumah ${fmtKd(stokRumahNow)} · Mobil ${fmtKd(stokMobilNow)}`);
+
+  wrap.style.display = 'block';
+}
+
+function _renderRsTabel(logs, pcsPerKodi, limitNum) {
+  const tbody   = document.getElementById('rs-tabel-tbody');
+  const countEl = document.getElementById('rs-tabel-count');
+  const moreEl  = document.getElementById('rs-load-more-wrap');
+  if (!tbody) return;
+
+  if (countEl) countEl.textContent = `${logs.length} entri`;
+
+  const JENIS_LABEL = {
+    isi_mobil:    { text:'🚗 Isi Mobil',      color:'#2563EB' },
+    tambah_rumah: { text:'🏠 Tambah Stok',    color:'#16A34A' },
+    penjualan:    { text:'🛍️ Penjualan',      color:'#DC2626' },
+    opname:       { text:'📋 Opname',          color:'#6B7280' },
+    koreksi:      { text:'🔧 Koreksi',         color:'#D97706' },
+  };
+
+  const fmtKd = v => {
+    if (v === null || v === undefined) return '—';
+    const n = +v;
+    return n % 1 === 0 ? `${n} kd` : `${n.toFixed(2)} kd`;
+  };
+
+  // Tampilkan secara DESC (terbaru di atas) — balik urutan dari ascending logs
+  const displayed = [...logs].reverse().slice(0, limitNum);
+
+  if (displayed.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted);">Tidak ada pergerakan stok di periode ini</td></tr>`;
+    if (moreEl) moreEl.style.display = 'none';
+    return;
+  }
+
+  tbody.innerHTML = displayed.map(log => {
+    const tgl = log.created_at?.toDate ? log.created_at.toDate() : new Date();
+    const tglStr = tgl.toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    const jenisInfo = JENIS_LABEL[log.jenis] || { text: log.jenis, color:'#6B7280' };
+    const kd = log.jumlah_kodi ?? 0;
+    const isPositif = kd >= 0;
+
+    // Tampilkan perubahan — pakai satuan asli jika tersimpan
+    let changeDisplay;
+    if (log.satuan_input === 'pcs' && log.jumlah_input !== undefined) {
+      const sign = log.jumlah_input >= 0 ? '+' : '';
+      changeDisplay = `${sign}${log.jumlah_input} pcs`;
+    } else {
+      const sign = kd > 0 ? '+' : '';
+      changeDisplay = `${sign}${fmtKd(kd)}`;
+    }
+
+    const changeColor = isPositif ? '#16A34A' : '#DC2626';
+    const totalSebelum = (log.stok_rumah_sebelum ?? 0) + (log.stok_mobil_sebelum ?? 0);
+    const totalSesudah = (log.stok_rumah_sesudah ?? 0) + (log.stok_mobil_sesudah ?? 0);
+
+    const catatanOleh = [log.catatan, log.created_by_nama].filter(Boolean).join(' · ');
+
+    return `<tr>
+      <td style="font-size:12px;white-space:nowrap">${tglStr}</td>
+      <td><span style="font-size:12px;font-weight:600;color:${jenisInfo.color}">${jenisInfo.text}</span></td>
+      <td class="text-right" style="font-weight:700;color:${changeColor}">${changeDisplay}</td>
+      <td class="text-right" style="font-size:12px">
+        <span style="color:var(--text-muted)">${fmtKd(log.stok_rumah_sebelum)}</span>
+        → <strong>${fmtKd(log.stok_rumah_sesudah)}</strong>
+      </td>
+      <td class="text-right" style="font-size:12px">
+        <span style="color:var(--text-muted)">${fmtKd(log.stok_mobil_sebelum)}</span>
+        → <strong>${fmtKd(log.stok_mobil_sesudah)}</strong>
+      </td>
+      <td class="text-right" style="font-size:12px">
+        <span style="color:var(--text-muted)">${fmtKd(totalSebelum)}</span>
+        → <strong style="color:${kd < 0 ? '#DC2626':'#16A34A'}">${fmtKd(totalSesudah)}</strong>
+      </td>
+      <td style="font-size:11px;color:var(--text-secondary);max-width:160px;word-break:break-word">${catatanOleh || '—'}</td>
+    </tr>`;
+  }).join('');
+
+  if (moreEl) moreEl.style.display = logs.length > limitNum ? 'block' : 'none';
+}
+
+window.rsLoadMore = function() {
+  rsCurrentLimit += 50;
+  const produk = allStok.find(p => p.id === rsCurrentProdukId);
+  const pcsPerKodi = produk?.stok?.pcs_per_kodi || produk?.pcs_per_kodi || 20;
+  _renderRsTabel(rsAllLogs, pcsPerKodi, rsCurrentLimit);
+};
+
+
+// ============================================================
 // REKAP STOK — Tabel ringkasan keseluruhan stok
 // ============================================================
 let _rekapStokData = []; // menyimpan data allStok untuk filter
@@ -6081,18 +6454,18 @@ window.navigateTo = function(page) {
     loadRekapSaya();
   }
 
-  // ---- Rekap Stok: tampilkan sub-menu dan load data ----
-  const navRekapStok = document.getElementById('nav-rekap-stok');
-  if (page === 'stok') {
-    // Saat buka halaman Stok: tampilkan sub-menu rekap stok
-    if (navRekapStok) navRekapStok.style.display = 'flex';
-  } else if (page === 'rekap-stok') {
-    // Saat buka Rekap Stok: load data dan pastikan sub-menu tetap terlihat
-    if (navRekapStok) navRekapStok.style.display = 'flex';
+  // ---- Sub-menu Stok (Rekap Stok + Riwayat Stok) ----
+  const navRekapStok   = document.getElementById('nav-rekap-stok');
+  const navRiwayatStok = document.getElementById('nav-riwayat-stok');
+  const isStokFamily   = ['stok','rekap-stok','riwayat-stok'].includes(page);
+
+  if (navRekapStok)   navRekapStok.style.display   = isStokFamily ? 'flex' : 'none';
+  if (navRiwayatStok) navRiwayatStok.style.display  = isStokFamily ? 'flex' : 'none';
+
+  if (page === 'rekap-stok') {
     loadRekapStok();
-  } else {
-    // Halaman lain: sembunyikan sub-menu
-    if (navRekapStok) navRekapStok.style.display = 'none';
+  } else if (page === 'riwayat-stok') {
+    loadRiwayatStokPage();
   }
 };
 
