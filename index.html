@@ -3434,7 +3434,8 @@ window.simpanPembayaran = async function() {
       tanggal: Timestamp.fromDate(new Date(tanggalVal)),
       metode: metode,
       dicatat_oleh: currentUser.uid,
-      dicatat_oleh_nama: currentUserData?.nama || currentUser.email
+      dicatat_oleh_nama: currentUserData?.nama || currentUser.email,
+      created_at: serverTimestamp()         // waktu pencatatan akurat (jam:menit)
     });
  
     // 2. Update transaksi
@@ -5376,7 +5377,8 @@ window.simpanTransaksi = async function() {
         tanggal: tanggalTrx,
         metode: 'tunai',
         dicatat_oleh: currentUser.uid,
-        dicatat_oleh_nama: currentUserData?.nama || '-'
+        dicatat_oleh_nama: currentUserData?.nama || '-',
+        created_at: serverTimestamp()             // waktu pencatatan akurat (jam:menit)
       });
     }
 
@@ -7865,6 +7867,16 @@ window.toggleTrxDetail = function(id) {
 };
 
 // ---- SECTION 5: TABEL PEMBAYARAN ----
+// Ambil waktu paling akurat: prioritaskan created_at (jam:menit asli),
+// fallback ke tanggal. Hindari "new Date()" agar tidak menampilkan waktu palsu.
+function _getWaktuBayar(b) {
+  const src = b.created_at || b.tanggal;
+  if (src?.toDate) return src.toDate();
+  if (src?.seconds) return new Date(src.seconds * 1000);
+  if (src) { const d = new Date(src); return isNaN(d) ? null : d; }
+  return null;
+}
+
 function renderBayarTable() {
   const tbody = document.getElementById('ra-bayar-tbody');
   const total = raBayarData.reduce((s,b) => s+(b.nominal||0), 0);
@@ -7875,18 +7887,58 @@ function renderBayarTable() {
     return;
   }
 
-  const sorted = [...raBayarData].sort((a,b) => (b.tanggal?.seconds||0)-(a.tanggal?.seconds||0));
-  tbody.innerHTML = sorted.map((b, i) => {
-    const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date();
-    const tglStr = tgl.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-    const metodeBadge = b.metode === 'transfer'
-      ? '<span class="badge badge-blue">Transfer</span>'
-      : '<span class="badge badge-gray">Tunai</span>';
-    const oleh = b.dicatat_oleh_nama || raUsersMap[b.dicatat_oleh] || '-';
+  // Kelompokkan pembayaran per pelanggan — gabung jadi satu baris total
+  const grouped = {};
+  raBayarData.forEach(b => {
+    const key = b.pelanggan_id || b.pelanggan_nama || 'unknown';
+    if (!grouped[key]) {
+      grouped[key] = {
+        pelanggan_nama: b.pelanggan_nama || '-',
+        total: 0,
+        count: 0,
+        metodeSet: new Set(),
+        olehSet: new Set(),
+        lastWaktu: null
+      };
+    }
+    const g = grouped[key];
+    g.total += b.nominal || 0;
+    g.count++;
+    g.metodeSet.add(b.metode || 'tunai');
+    g.olehSet.add(b.dicatat_oleh_nama || raUsersMap[b.dicatat_oleh] || '-');
+    const w = _getWaktuBayar(b);
+    if (w && (!g.lastWaktu || w > g.lastWaktu)) g.lastWaktu = w;
+  });
+
+  // Urutkan berdasarkan waktu pembayaran terakhir (terbaru di atas)
+  const arr = Object.values(grouped).sort((a,b) =>
+    (b.lastWaktu?.getTime()||0) - (a.lastWaktu?.getTime()||0));
+
+  tbody.innerHTML = arr.map((g, i) => {
+    const tglStr = g.lastWaktu
+      ? g.lastWaktu.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+      : '-';
+
+    // Badge metode — jika campuran tampilkan "Campuran"
+    let metodeBadge;
+    if (g.metodeSet.size > 1) {
+      metodeBadge = '<span class="badge badge-gray">Campuran</span>';
+    } else {
+      const m = [...g.metodeSet][0];
+      metodeBadge = m === 'transfer' ? '<span class="badge badge-blue">Transfer</span>'
+                  : m === 'retur'    ? '<span class="badge badge-amber">↩️ Retur</span>'
+                  : '<span class="badge badge-gray">Tunai</span>';
+    }
+
+    const oleh = [...g.olehSet].join(', ');
+    const countBadge = g.count > 1
+      ? ` <span class="badge badge-green" style="font-size:10px;padding:1px 6px;">${g.count}× bayar</span>`
+      : '';
+
     return `<tr>
       <td>${i+1}</td>
-      <td style="font-weight:600;">${b.pelanggan_nama||'-'}</td>
-      <td class="text-right" style="color:#16A34A;font-weight:700;">${formatRupiah(b.nominal)}</td>
+      <td style="font-weight:600;">${g.pelanggan_nama}${countBadge}</td>
+      <td class="text-right" style="color:#16A34A;font-weight:700;">${formatRupiah(g.total)}</td>
       <td>${metodeBadge}</td>
       <td style="font-size:12px;color:var(--text-muted);">${oleh}</td>
       <td style="font-size:12px;">${tglStr}</td>
