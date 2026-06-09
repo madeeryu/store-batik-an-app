@@ -1256,6 +1256,29 @@
       <span id="ra-hpp-note" style="display:none;color:#D97706;"> · *HPP parsial, data modal beberapa produk belum diisi.</span>
     </div>
 
+    <!-- SECTION 1B: REKAP STOK HARIAN (hanya harian) -->
+    <div class="card rekap-admin-table" id="ra-stok-harian-wrap" style="display:none;margin-bottom:16px;">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="card-title">📦 Rekap Stok Pasaran</div>
+        <span style="font-size:12px;color:var(--text-muted)" id="ra-stok-harian-subtitle"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Produk</th>
+              <th class="text-right">Stok Awal Mobil</th>
+              <th class="text-right">Terjual</th>
+              <th class="text-right">Stok Akhir Mobil</th>
+              <th class="text-right">% Terjual</th>
+            </tr>
+          </thead>
+          <tbody id="ra-stok-harian-tbody"></tbody>
+        </table>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:24px;flex-wrap:wrap;" id="ra-stok-harian-total"></div>
+    </div>
+
     <!-- SECTION 2: GRAFIK TREN (mingguan & bulanan) -->
     <div class="card" id="ra-grafik-wrap" style="display:none;margin-bottom:16px;">
       <div class="card-header"><div class="card-title">📈 Grafik Tren</div></div>
@@ -1928,8 +1951,8 @@
   </select>
 </div>
 <div class="form-group">
-  <label class="form-label" id="isi-mobil-jumlah-label">Jumlah Kodi yang Dipindahkan ke Mobil</label>
-  <input type="number" class="form-control" id="isi-mobil-jumlah" placeholder="0" min="1" oninput="validateIsiMobil()" />
+  <label class="form-label" id="isi-mobil-jumlah-label">Jumlah yang Dipindahkan ke Mobil</label>
+  <input type="number" class="form-control" id="isi-mobil-jumlah" placeholder="0" min="0.001" step="any" oninput="validateIsiMobil()" />
   <div id="isi-mobil-warning" style="font-size:12px;color:#DC2626;margin-top:4px;display:none;"></div>
 </div>
       <div class="form-group">
@@ -1968,7 +1991,7 @@
 </div>
 <div class="form-group">
   <label class="form-label">Jumlah Masuk</label>
-  <input type="number" class="form-control" id="tambah-rumah-jumlah" placeholder="0" min="1" />
+  <input type="number" class="form-control" id="tambah-rumah-jumlah" placeholder="0" min="0.001" step="any" />
 </div>
       <div class="form-group">
         <label class="form-label">Sumber</label>
@@ -5568,7 +5591,7 @@ window.validateIsiMobil = function() {
 
 window.simpanIsiMobil = async function() {
   const produkId = document.getElementById('isi-mobil-produk-id').value;
-  const jumlah = parseInt(document.getElementById('isi-mobil-jumlah').value);
+  const jumlah = parseFloat(document.getElementById('isi-mobil-jumlah').value);
   const catatan = document.getElementById('isi-mobil-catatan').value.trim();
   const p = allStok.find(x => x.id === produkId);
   if (!p) return;
@@ -5599,7 +5622,9 @@ const stokMobilAfter = stokMobilBefore + jumlahDalamKodiIsi;
       produk_id: produkId,
       produk_nama: p.nama,
       jenis: 'isi_mobil',
-      jumlah_kodi: jumlah,
+      jumlah_kodi: jumlahDalamKodiIsi,   // selalu dalam kodi (desimal)
+      jumlah_input: jumlah,               // angka yang diketik user
+      satuan_input: satuanIsi,            // 'kodi' atau 'pcs'
       stok_rumah_sebelum: stokRumahBefore,
       stok_rumah_sesudah: stokRumahAfter,
       stok_mobil_sebelum: stokMobilBefore,
@@ -5612,7 +5637,7 @@ const stokMobilAfter = stokMobilBefore + jumlahDalamKodiIsi;
     });
 
     await batch.commit();
-    const labelSatuan = satuanIsi === 'pcs' ? `${jumlah} pcs` : `${jumlah} kodi`;
+    const labelSatuan = satuanIsi === 'pcs' ? `${jumlah} pcs` : `${jumlahDalamKodiIsi} kodi`;
 showToast(`${labelSatuan} ${p.nama} dipindahkan ke mobil ✅`, 'success');
     closeModal('modal-isi-mobil');
     loadStok();
@@ -5638,7 +5663,7 @@ window.openTambahStokRumah = function(produkId) {
 
 window.simpanTambahRumah = async function() {
   const produkId = document.getElementById('tambah-rumah-produk-id').value;
-  const jumlah = parseInt(document.getElementById('tambah-rumah-jumlah').value);
+  const jumlah = parseFloat(document.getElementById('tambah-rumah-jumlah').value);
   const sumber = document.getElementById('tambah-rumah-sumber').value;
   const modal = parseFloat(document.getElementById('tambah-rumah-modal').value) || 0;
   const catatan = document.getElementById('tambah-rumah-catatan').value.trim();
@@ -5670,7 +5695,9 @@ const jumlahKodiTambah = satuanTambah === 'pcs' ? jumlah / pcsPerKodiTambah : ju
       produk_id: produkId,
       produk_nama: p.nama,
       jenis: 'tambah_rumah',
-      jumlah_kodi: jumlah,
+      jumlah_kodi: jumlahKodiTambah,      // selalu dalam kodi (desimal)
+      jumlah_input: jumlah,               // angka yang diketik user
+      satuan_input: satuanTambah,         // 'kodi' atau 'pcs'
       stok_rumah_sebelum: stokRumahBefore,
       stok_rumah_sesudah: stokRumahAfter,
       stok_mobil_sebelum: stokMobilBefore,
@@ -5683,7 +5710,8 @@ const jumlahKodiTambah = satuanTambah === 'pcs' ? jumlah / pcsPerKodiTambah : ju
     });
 
     await batch.commit();
-    showToast(`+${jumlah} kodi ${p.nama} berhasil ditambahkan ✅`, 'success');
+    const labelTambah = satuanTambah === 'pcs' ? `${jumlah} pcs` : `${jumlahKodiTambah} kodi`;
+    showToast(`+${labelTambah} ${p.nama} berhasil ditambahkan ✅`, 'success');
     closeModal('modal-tambah-stok-rumah');
     loadStok();
   } catch (e) {
@@ -5818,15 +5846,34 @@ async function fetchRiwayatStok(produkId, limitNum) {
       const jenisClass = `log-${log.jenis}`;
       const refLink = log.jenis === 'penjualan' && log.referensi_id
         ? `<div style="font-size:11px;color:var(--text-muted);">Ref: ${log.referensi_id}</div>` : '';
+
+      // Tampilkan satuan dengan benar — pakai satuan_input jika tersimpan
+      let displayJumlah;
+      if (log.satuan_input === 'pcs' && log.jumlah_input !== undefined) {
+        // Input asli dalam PCS
+        const sign = log.jumlah_input > 0 ? '+' : '';
+        displayJumlah = `${sign}${log.jumlah_input} pcs`;
+      } else {
+        // Input dalam kodi (default / lama)
+        const kd = log.jumlah_kodi ?? 0;
+        const sign = kd > 0 ? '+' : '';
+        displayJumlah = `${sign}${kd} kd`;
+      }
+
+      // Sub-info stok sebelum/sesudah dalam kodi
+      const fmt = v => (v === undefined || v === null) ? '?' : (+v % 1 === 0 ? v : (+v).toFixed(2));
+
       return `
         <div class="stok-log-item">
           <span class="stok-log-jenis ${jenisClass}">${jenisLabel[log.jenis] || log.jenis}</span>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;">
             <span style="font-size:12px;color:var(--text-muted);">${tglStr}</span>
-            <span style="font-weight:600;">${log.jumlah_kodi > 0 ? '+' : ''}${log.jumlah_kodi} kodi</span>
+            <span style="font-weight:600;">${displayJumlah}</span>
           </div>
           <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">
-            Rumah: ${log.stok_rumah_sebelum} → ${log.stok_rumah_sesudah} &nbsp;|&nbsp; Mobil: ${log.stok_mobil_sebelum} → ${log.stok_mobil_sesudah}
+            Rumah: ${fmt(log.stok_rumah_sebelum)} → ${fmt(log.stok_rumah_sesudah)} kd
+            &nbsp;|&nbsp;
+            Mobil: ${fmt(log.stok_mobil_sebelum)} → ${fmt(log.stok_mobil_sesudah)} kd
           </div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">oleh: ${log.created_by_nama}</div>
           ${log.catatan ? `<div style="font-size:12px;font-style:italic;margin-top:2px;color:#4B5563;">"${log.catatan}"</div>` : ''}
@@ -6670,6 +6717,7 @@ let raTrxData = [];
 let raBayarData = [];
 let raKeluarData = [];
 let raStokMap = {};   // produk_id → modal_per_kodi
+let raStokLogHarian = []; // stok_log untuk rekap stok harian
 let raUsersMap = {};  // uid → nama
 
 // ---- INIT SAAT NAVIGASI KE REKAP ----
@@ -6866,6 +6914,20 @@ window.loadRekapAdmin = async function() {
     raUsersMap = {};
     usersSnap.forEach(d => { raUsersMap[d.id] = d.data().nama || d.id; });
 
+    // Fetch stok_log untuk rekap stok harian (hanya tab harian)
+    raStokLogHarian = [];
+    if (raTab === 'harian') {
+      try {
+        const logSnap = await getDocs(query(
+          collection(db, 'stok_log'),
+          where('jenis', '==', 'penjualan'),
+          where('created_at', '>=', Timestamp.fromDate(dari)),
+          where('created_at', '<=', Timestamp.fromDate(sampai))
+        ));
+        raStokLogHarian = logSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch(e) { console.warn('stok_log harian error:', e.message); }
+    }
+
     renderRekapAdmin(dari, sampai);
   } catch(e) {
     console.error('loadRekapAdmin error:', e);
@@ -6907,6 +6969,13 @@ function renderRekapAdmin(dari, sampai) {
   labaBersihEl.className   = 'rekap-finansial-value ' + (labaBersih >= 0 ? 'text-green' : 'text-red');
 
   document.getElementById('ra-hpp-note').style.display = hppParsial ? '' : 'none';
+
+  // Section 1B: Rekap Stok Harian (hanya harian)
+  const stokHarianWrap = document.getElementById('ra-stok-harian-wrap');
+  if (stokHarianWrap) {
+    stokHarianWrap.style.display = raTab === 'harian' ? '' : 'none';
+    if (raTab === 'harian') renderRekapStokHarian(dari);
+  }
 
   // Section 2: Grafik (hanya mingguan & bulanan)
   const showGrafik = raTab !== 'harian';
@@ -7062,6 +7131,92 @@ window.konfirmasiHapusEcer = async function() {
     _hapusEcerId = null;
   }
 };
+
+// ---- SECTION 1B: REKAP STOK HARIAN ----
+function renderRekapStokHarian(dari) {
+  const tbody  = document.getElementById('ra-stok-harian-tbody');
+  const subEl  = document.getElementById('ra-stok-harian-subtitle');
+  const totEl  = document.getElementById('ra-stok-harian-total');
+  if (!tbody) return;
+
+  const tglStr = dari.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  if (subEl) subEl.textContent = tglStr;
+
+  // --- Bangun map produk dari raTrxData (terjual per produk) ---
+  const produkMap = {}; // produk_id → { nama, terjual_kodi, terjual_pcs }
+  raTrxData.forEach(t => {
+    (t.items || []).forEach(item => {
+      const pid = item.produk_id;
+      if (!pid) return;
+      if (!produkMap[pid]) produkMap[pid] = { nama: item.produk_nama || pid, terjual_kodi: 0, terjual_pcs: 0, stok_awal: null, stok_akhir: null };
+      produkMap[pid].terjual_kodi += item.jumlah_kodi || 0;
+      produkMap[pid].terjual_pcs  += item.jumlah_pcs  || (item.jumlah_kodi * 20);
+    });
+  });
+
+  // --- Isi stok_awal & stok_akhir dari stok_log ---
+  // Group log penjualan by produk_id, sort by created_at
+  const logByProduk = {};
+  raStokLogHarian.forEach(log => {
+    if (!logByProduk[log.produk_id]) logByProduk[log.produk_id] = [];
+    logByProduk[log.produk_id].push(log);
+  });
+  Object.entries(logByProduk).forEach(([pid, logs]) => {
+    logs.sort((a, b) => {
+      const tA = a.created_at?.toDate ? a.created_at.toDate().getTime() : 0;
+      const tB = b.created_at?.toDate ? b.created_at.toDate().getTime() : 0;
+      return tA - tB;
+    });
+    const first = logs[0];
+    const last  = logs[logs.length - 1];
+    if (!produkMap[pid]) produkMap[pid] = { nama: first.produk_nama || pid, terjual_kodi: 0, terjual_pcs: 0, stok_awal: null, stok_akhir: null };
+    produkMap[pid].stok_awal  = first.stok_mobil_sebelum ?? null;
+    produkMap[pid].stok_akhir = last.stok_mobil_sesudah  ?? null;
+  });
+
+  // --- Render ---
+  const fmt = v => v === null || v === undefined ? '—' : (+v % 1 === 0 ? `${v} kd` : `${(+v).toFixed(2)} kd`);
+  const fmtPct = (terjual, awal) => {
+    if (awal === null || awal === undefined || awal <= 0) return '—';
+    const pct = (terjual / awal) * 100;
+    return `${pct.toFixed(1)}%`;
+  };
+
+  const sorted = Object.entries(produkMap).sort((a, b) => b[1].terjual_kodi - a[1].terjual_kodi);
+
+  if (sorted.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada transaksi di hari ini</td></tr>`;
+    if (totEl) totEl.innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map(([pid, d]) => {
+    const pctBgColor = (() => {
+      if (d.stok_awal === null || d.stok_awal <= 0) return 'transparent';
+      const pct = (d.terjual_kodi / d.stok_awal) * 100;
+      if (pct >= 80) return '#DCFCE7';
+      if (pct >= 50) return '#FEF9C3';
+      return 'transparent';
+    })();
+    return `<tr style="background:${pctBgColor}">
+      <td style="font-weight:600">${d.nama}</td>
+      <td class="text-right">${fmt(d.stok_awal)}</td>
+      <td class="text-right" style="color:var(--red-text);font-weight:700">${fmt(d.terjual_kodi)}</td>
+      <td class="text-right">${fmt(d.stok_akhir)}</td>
+      <td class="text-right">${fmtPct(d.terjual_kodi, d.stok_awal)}</td>
+    </tr>`;
+  }).join('');
+
+  // Total baris
+  const totalTerjual = sorted.reduce((s, [,d]) => s + d.terjual_kodi, 0);
+  if (totEl) {
+    totEl.innerHTML = `
+      <span style="font-size:13px;color:var(--text-secondary)">Total Produk: <strong>${sorted.length}</strong></span>
+      <span style="font-size:13px;font-weight:700;color:var(--red-text)">Total Terjual: ${(+totalTerjual % 1 === 0 ? totalTerjual : totalTerjual.toFixed(2))} kd</span>
+      <span style="font-size:11px;color:var(--text-muted)">🟢 ≥80% terjual &nbsp;🟡 ≥50% terjual</span>`;
+  }
+}
+
 
 // ---- SECTION 2: GRAFIK ----
 function renderGrafik(dari, sampai) {
