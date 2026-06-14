@@ -3139,11 +3139,14 @@ window.simpanEditTransaksi = async function() {
     const kodi       = parseFloat(row.querySelector('.edit-item-kodi')?.value)  || 0;
     const harga      = parseFloat(row.querySelector('.edit-item-harga')?.value) || 0;
     if (!nama || kodi <= 0 || harga <= 0) { adaError = true; return; }
+    const _produkRef = allProduk.find(p => p.id === produkId);
     items.push({
       produk_id: produkId || null,
       produk_nama: nama,
       jumlah_kodi: kodi,
       harga_kodi: harga,
+      // Snapshot modal: diisi nanti dari item lama (jika ada) atau modal produk terkini
+      modal_kodi_snapshot: (_produkRef && _produkRef.modal_per_kodi != null) ? _produkRef.modal_per_kodi : null,
       subtotal: kodi * harga
     });
     // Hitung selisih untuk update stok (positif = stok mobil berkurang lebih banyak,
@@ -3173,6 +3176,16 @@ window.simpanEditTransaksi = async function() {
     const trxSnap = await getDoc(trxRef);
     if (!trxSnap.exists()) throw new Error('Transaksi tidak ditemukan di database.');
     const trxLama = trxSnap.data();
+
+    // Pertahankan modal snapshot asli: jika produk yang sama sudah ada di transaksi lama
+    // dan punya snapshot, gunakan itu (jangan timpa dengan modal terkini saat edit).
+    items.forEach(it => {
+      if (!it.produk_id) return;
+      const itemLama = (trxLama.items || []).find(o => o.produk_id === it.produk_id);
+      if (itemLama && itemLama.modal_kodi_snapshot != null) {
+        it.modal_kodi_snapshot = itemLama.modal_kodi_snapshot;
+      }
+    });
 
     // Tambahkan item lama yang TIDAK ada di items baru ke stokDiff (sebagai pengembalian)
     // Contoh: kalau di-edit & item dihapus, stoknya harus dikembalikan
@@ -5332,6 +5345,9 @@ function collectItems() {
         satuan: satuan,                    // 'kodi' atau 'pcs'
         harga_kodi: hargaPerKodi,
         harga_pcs: satuan === 'pcs' ? harga : harga / pcsPerKodi,
+        // Snapshot modal per kodi saat transaksi dibuat → HPP transaksi lama tidak
+        // ikut berubah ketika modal produk dinaikkan di kemudian hari.
+        modal_kodi_snapshot: (produk && produk.modal_per_kodi != null) ? produk.modal_per_kodi : null,
         subtotal: jumlah * harga
       });
     }
@@ -7422,6 +7438,13 @@ window.loadRekapAdmin = async function() {
   }
 };
 
+// Modal per kodi untuk HPP: utamakan snapshot saat transaksi, fallback ke modal
+// terkini (untuk transaksi lama yang dibuat sebelum fitur snapshot ada).
+function getItemModalKodi(item) {
+  if (item && item.modal_kodi_snapshot != null) return item.modal_kodi_snapshot;
+  return raStokMap[item.produk_id];
+}
+
 // ---- RENDER SEMUA SECTION ----
 function renderRekapAdmin(dari, sampai) {
   // Hitung HPP
@@ -7429,7 +7452,7 @@ function renderRekapAdmin(dari, sampai) {
   let hppParsial = false;
   raTrxData.forEach(t => {
     (t.items||[]).forEach(item => {
-      const modal = raStokMap[item.produk_id];
+      const modal = getItemModalKodi(item);
       if (modal === undefined || modal === null) { hppParsial = true; return; }
       hpp += (item.jumlah_kodi || 0) * modal;
     });
@@ -7701,7 +7724,7 @@ async function loadRekapEcer(dari, sampai) {
     let hpp = 0;
     raTrxData.forEach(t => {
       (t.items || []).forEach(item => {
-        hpp += (item.jumlah_kodi || 0) * (raStokMap[item.produk_id] || 0);
+        hpp += (item.jumlah_kodi || 0) * (getItemModalKodi(item) || 0);
       });
     });
     const pengeluaran  = raKeluarData.reduce((s, k) => s + (k.nominal || 0), 0);
@@ -8813,7 +8836,7 @@ function renderProdukTable() {
       }
       produkMap[item.produk_id].totalKodi  += item.jumlah_kodi || 0;
       produkMap[item.produk_id].totalOmzet += item.subtotal || 0;
-      const modal = raStokMap[item.produk_id] || 0;
+      const modal = getItemModalKodi(item) || 0;
       produkMap[item.produk_id].totalHpp   += (item.jumlah_kodi||0) * modal;
     });
   });
@@ -8844,7 +8867,7 @@ window.downloadRekapAdminTxt = function() {
   const pengeluaran = raKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
   let hpp = 0;
   raTrxData.forEach(t => (t.items||[]).forEach(it => {
-    hpp += (it.jumlah_kodi||0) * (raStokMap[it.produk_id]||0);
+    hpp += (it.jumlah_kodi||0) * (getItemModalKodi(it)||0);
   }));
   const ecerTotal  = (raEcerDocs||[]).reduce((s,e) => s+(e.total_nominal||0), 0);
   const labaKotor  = omzet - hpp + ecerTotal;
@@ -8973,7 +8996,7 @@ window.exportRekapAdminPdf = async function() {
   const ecerTotal   = (raEcerDocs||[]).reduce((s,e) => s+(e.total_nominal||0), 0);
   let hpp = 0;
   raTrxData.forEach(t => (t.items||[]).forEach(it => {
-    hpp += (it.jumlah_kodi||0) * (raStokMap[it.produk_id]||0);
+    hpp += (it.jumlah_kodi||0) * (getItemModalKodi(it)||0);
   }));
   const labaKotor  = omzet - hpp + ecerTotal;
   const labaBersih = labaKotor - pengeluaran;
