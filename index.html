@@ -859,9 +859,9 @@
         </div>
         <div class="stat-card">
           <div class="stat-icon" style="background:#DCFCE7;">📥</div>
-          <div class="stat-label">Kas Masuk Hari Ini</div>
+          <div class="stat-label">Kas Bersih Hari Ini</div>
           <div class="stat-value" id="stat-kas">Rp 0</div>
-          <div class="stat-sub">total pembayaran hari ini</div>
+          <div class="stat-sub">kas masuk (grosir+ecer) − pengeluaran</div>
         </div>
         <div class="stat-card">
           <div class="stat-icon" style="background:#DBEAFE;">👥</div>
@@ -4370,12 +4370,14 @@ async function loadDashboard() {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
 
-    const todayStr = todayStart.toISOString().split('T')[0];
-    const [trxSnap, bayarSnap, pelSnap, ecerSnap] = await Promise.all([
+    // Gunakan tanggal lokal (bukan UTC) agar cocok dengan tanggal_str di Firestore
+    const todayStr = `${todayStart.getFullYear()}-${String(todayStart.getMonth()+1).padStart(2,'0')}-${String(todayStart.getDate()).padStart(2,'0')}`;
+    const [trxSnap, bayarSnap, pelSnap, ecerSnap, keluarSnap] = await Promise.all([
       getDocs(query(collection(db, 'transaksi'), where('status', '==', 'belum_lunas'))),
       getDocs(query(collection(db, 'pembayaran'), where('tanggal', '>=', Timestamp.fromDate(todayStart)), where('tanggal', '<', Timestamp.fromDate(todayEnd)))),
       getDocs(collection(db, 'pelanggan')),
-      getDocs(query(collection(db, 'rekap_ecer_harian'), where('tanggal_str', '==', todayStr)))
+      getDocs(query(collection(db, 'rekap_ecer_harian'), where('tanggal_str', '==', todayStr))),
+      getDocs(query(collection(db, 'pengeluaran'), where('tanggal', '>=', Timestamp.fromDate(todayStart)), where('tanggal', '<', Timestamp.fromDate(todayEnd))))
     ]);
 
     let totalPiutang = 0;
@@ -4385,6 +4387,11 @@ async function loadDashboard() {
     bayarSnap.forEach(d => { if (!d.data().is_retur) kasHariIni += (d.data().nominal || 0); });
     ecerSnap.forEach(d => { kasHariIni += (d.data().total_nominal || 0); });
 
+    let pengeluaranHariIni = 0;
+    keluarSnap.forEach(d => { if (!d.data().is_deleted) pengeluaranHariIni += (d.data().nominal || 0); });
+
+    const kasBersihHariIni = kasHariIni - pengeluaranHariIni;
+
     let berhutang = 0, macet = 0;
     pelSnap.forEach(d => {
       const p = d.data();
@@ -4393,7 +4400,7 @@ async function loadDashboard() {
     });
 
     document.getElementById('stat-piutang').textContent = formatRupiah(totalPiutang);
-    document.getElementById('stat-kas').textContent = formatRupiah(kasHariIni);
+    document.getElementById('stat-kas').textContent = formatRupiah(kasBersihHariIni);
     document.getElementById('stat-berhutang').textContent = berhutang;
     document.getElementById('stat-macet').textContent = macet;
 
