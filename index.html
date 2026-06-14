@@ -1156,6 +1156,7 @@
       <button class="rekap-admin-tab active" id="ra-tab-harian"   onclick="setRekapAdminTab('harian')">📅 Harian</button>
       <button class="rekap-admin-tab"         id="ra-tab-mingguan" onclick="setRekapAdminTab('mingguan')">📆 Mingguan</button>
       <button class="rekap-admin-tab"         id="ra-tab-bulanan"  onclick="setRekapAdminTab('bulanan')">🗓️ Bulanan</button>
+      <button class="rekap-admin-tab"         id="ra-tab-tahunan"  onclick="setRekapAdminTab('tahunan')">📊 Tahunan</button>
     </div>
 
     <!-- Filter Harian -->
@@ -1219,6 +1220,25 @@
         <button class="btn btn-primary btn-sm" onclick="loadRekapAdmin()">Tampilkan</button>
       </div>
     </div>
+
+    <!-- Filter Tahunan -->
+    <div id="ra-filter-tahunan" style="display:none;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+        <div>
+          <label class="form-label">Tahun</label>
+          <input type="number" class="form-control" id="ra-tahun-tahunan" style="width:120px;" />
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="rekap-nav-btn" onclick="navigasiTahun(-1)">← Prev</button>
+          <button class="rekap-nav-btn" onclick="setTahunIni()">Tahun Ini</button>
+          <button class="rekap-nav-btn" onclick="navigasiTahun(1)">Next →</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="loadRekapAdmin()">Tampilkan</button>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:8px;">
+        💡 Rekap tahunan untuk evaluasi pelanggan & kalkulasi THR Lebaran berdasarkan volume belanja dan keaktifan bayar hutang.
+      </div>
+    </div>
   </div>
 
   <!-- LOADING SKELETON -->
@@ -1259,6 +1279,42 @@
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">
       ℹ️ Omzet termasuk piutang baru. Kas Bersih = kas diterima (grosir + ecer) − pengeluaran.
       <span id="ra-hpp-note" style="display:none;color:#D97706;"> · *HPP parsial, data modal beberapa produk belum diisi.</span>
+    </div>
+
+    <!-- SECTION TAHUNAN: REKAP PER PELANGGAN + THR (hanya tahunan) -->
+    <div class="card rekap-admin-table" id="ra-tahunan-wrap" style="display:none;margin-bottom:16px;">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div class="card-title">🧧 Rekap Pelanggan & Estimasi THR</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);">
+          <span>Rate THR:</span>
+          <input type="number" id="ra-thr-rate" value="0.5" step="0.1" min="0" style="width:64px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;" oninput="renderRekapTahunan()" />
+          <span>% dari belanja</span>
+        </div>
+      </div>
+      <div style="padding:10px 16px;font-size:11.5px;color:var(--text-muted);border-bottom:1px solid var(--border);">
+        💡 THR = Total Belanja × Rate% × faktor keaktifan bayar (0,4 + 0,6 × %Lunas). Semakin besar belanja & semakin lancar bayar → THR makin besar.
+        <strong>Piutang Berjalan</strong> = sisa hutang riil pelanggan saat ini (lintas tahun).
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Pelanggan</th>
+              <th class="text-right">Jml Trx</th>
+              <th class="text-right">Total Belanja</th>
+              <th class="text-right">Dibayar (thn)</th>
+              <th class="text-right">% Lunas</th>
+              <th class="text-right">Piutang Berjalan</th>
+              <th class="text-right">Est. THR</th>
+            </tr>
+          </thead>
+          <tbody id="ra-tahunan-tbody"></tbody>
+        </table>
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-weight:700;flex-wrap:wrap;gap:8px;">
+        <span>Total Estimasi THR Semua Pelanggan</span><span style="color:#D97706;" id="ra-thr-total">Rp 0</span>
+      </div>
     </div>
 
     <!-- SECTION 1B: REKAP STOK HARIAN (hanya harian) -->
@@ -1368,19 +1424,18 @@
 
     <!-- SECTION 4: TABEL TRANSAKSI -->
     <div class="card rekap-admin-table" style="margin-bottom:16px;">
-      <div class="card-header"><div class="card-title">🛒 Transaksi Baru</div></div>
+      <div class="card-header"><div class="card-title">🛒 Transaksi Baru</div>
+        <span style="font-size:12px;color:var(--text-muted)">Klik nama untuk lihat detail transaksi</span>
+      </div>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
               <th>#</th>
               <th>Pelanggan</th>
-              <th>Produk</th>
-              <th class="text-right">Total</th>
-              <th>Jenis</th>
-              <th>Pasar</th>
-              <th>Oleh</th>
-              <th>Aksi</th>
+              <th class="text-right">Jml Trx</th>
+              <th class="text-right">Total Omzet</th>
+              <th style="width:28px"></th>
             </tr>
           </thead>
           <tbody id="ra-trx-tbody"></tbody>
@@ -1393,7 +1448,16 @@
 
     <!-- SECTION 5: TABEL PEMBAYARAN -->
     <div class="card rekap-admin-table" style="margin-bottom:16px;">
-      <div class="card-header"><div class="card-title">💵 Pembayaran Masuk</div></div>
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div class="card-title">💵 Pembayaran Masuk</div>
+        <select id="ra-bayar-sort" onchange="renderBayarTable()" style="font-size:12px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;color:var(--text-primary);background:var(--white);cursor:pointer;">
+          <option value="waktu_baru">🕐 Waktu terbaru</option>
+          <option value="waktu_lama">🕐 Waktu terlama</option>
+          <option value="nominal_besar">💰 Nominal terbesar</option>
+          <option value="nominal_kecil">💰 Nominal terkecil</option>
+          <option value="abjad">🔤 Abjad pelanggan</option>
+        </select>
+      </div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -1458,7 +1522,7 @@
   <div class="card rekap-admin-table" id="ra-ecer-wrap" style="display:none;margin-bottom:16px;">
       <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
         <div class="card-title">🛍️ Rekap Eceran (dari App Ecer)</div>
-        <span style="font-size:12px;color:var(--text-muted)">Dikirim manual dari app ecer</span>
+        <span style="font-size:12px;color:var(--text-muted)">Klik mitra untuk detail per hari</span>
       </div>
       <div class="table-wrap">
         <table>
@@ -1466,19 +1530,25 @@
             <tr>
               <th>#</th>
               <th>Mitra</th>
-              <th>Tanggal</th>
+              <th class="text-right">Jml Hari</th>
               <th class="text-right">Total Pcs</th>
               <th class="text-right">Total Omzet</th>
-              <th>Dikirim Oleh</th>
-              <th></th>
+              <th style="width:28px"></th>
             </tr>
           </thead>
           <tbody id="ra-ecer-tbody"></tbody>
         </table>
       </div>
       <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-weight:700;">
-        <span>Total Omzet Ecer</span>
+        <span>Total Omzet Ecer (net retur)</span>
         <span style="color:#7C3AED;" id="ra-ecer-total">Rp 0</span>
+      </div>
+      <!-- Grafik Omzet & Profit per Mitra -->
+      <div id="ra-ecer-chart-wrap" style="border-top:1px solid var(--border);padding:14px 16px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;">📊 Omzet & Keuntungan per Mitra</div>
+        <div style="position:relative;height:260px;">
+          <canvas id="ra-chart-ecer-mitra"></canvas>
+        </div>
       </div>
     </div>
 
@@ -7096,8 +7166,10 @@ let raChartPelanggan  = null;
 let raChartKategori   = null;
 let raChartPie        = null;
 let raChartHutangBayar = null;
+let raChartEcerMitra   = null;
 
 // Data hasil fetch
+let raEcerDocs = []; // dokumen rekap_ecer_harian periode aktif (untuk chart & PDF)
 let raTrxData = [];
 let raBayarData = [];
 let raKeluarData = [];
@@ -7120,13 +7192,15 @@ function initRekapAdmin() {
   const now = new Date();
   document.getElementById('ra-tahun').value = now.getFullYear();
   document.getElementById('ra-bulan').value = now.getMonth();
+  const thnEl = document.getElementById('ra-tahun-tahunan');
+  if (thnEl) thnEl.value = now.getFullYear();
   setRekapAdminTab('harian');
 }
 
 // ---- TAB SWITCHING ----
 window.setRekapAdminTab = function(tab) {
   raTab = tab;
-  ['harian','mingguan','bulanan'].forEach(t => {
+  ['harian','mingguan','bulanan','tahunan'].forEach(t => {
     document.getElementById(`ra-tab-${t}`).classList.toggle('active', t === tab);
     document.getElementById(`ra-filter-${t}`).style.display = t === tab ? 'block' : 'none';
   });
@@ -7135,10 +7209,31 @@ window.setRekapAdminTab = function(tab) {
   } else if (tab === 'mingguan') {
     raMingguOffset = 0;
     setMingguIni();
+  } else if (tab === 'tahunan') {
+    setTahunIni();
   } else {
     setBulanIni();
   }
 };
+
+// ---- FILTER TAHUNAN ----
+window.setTahunIni = function() {
+  document.getElementById('ra-tahun-tahunan').value = new Date().getFullYear();
+  loadRekapAdmin();
+};
+
+window.navigasiTahun = function(delta) {
+  const el = document.getElementById('ra-tahun-tahunan');
+  el.value = (parseInt(el.value) || new Date().getFullYear()) + delta;
+  loadRekapAdmin();
+};
+
+function getTahunanRange() {
+  const tahun = parseInt(document.getElementById('ra-tahun-tahunan').value) || new Date().getFullYear();
+  const dari = new Date(tahun, 0, 1, 0, 0, 0);
+  const sampai = new Date(tahun, 11, 31, 23, 59, 59, 999);
+  return { dari, sampai };
+}
 
 // ---- FILTER HARIAN ----
 window.setRekapAdminHari = function(mode, el) {
@@ -7238,6 +7333,7 @@ window.loadRekapAdmin = async function() {
   // Tampilkan loading, sembunyikan content
   document.getElementById('ra-loading').style.display = 'block';
   document.getElementById('ra-content').style.display = 'none';
+  _raPiutangRiilMap = null; // reset cache piutang riil tiap load periode baru
 
   let dari, sampai;
   if (raTab === 'harian') {
@@ -7252,6 +7348,9 @@ window.loadRekapAdmin = async function() {
     updateRangeMinggu();
     document.getElementById('rekap-admin-subtitle').textContent =
       document.getElementById('ra-range-minggu').textContent;
+  } else if (raTab === 'tahunan') {
+    ({ dari, sampai } = getTahunanRange());
+    document.getElementById('rekap-admin-subtitle').textContent = `Tahun ${dari.getFullYear()}`;
   } else {
     ({ dari, sampai } = getBulananRange());
     const bulanNama = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
@@ -7392,9 +7491,9 @@ function renderRekapAdmin(dari, sampai) {
   renderGrafikPelanggan();
   renderGrafikKategori(dari, sampai);
 
-  // Hutang vs Bayar — hanya bulanan
+  // Hutang vs Bayar — bulanan & tahunan
   const hutangWrapEl = document.getElementById('ra-chart-hutang-wrap')?.parentElement;
-  if (raTab === 'bulanan') {
+  if (raTab === 'bulanan' || raTab === 'tahunan') {
     if (hutangWrapEl) hutangWrapEl.style.display = '';
     renderGrafikHutangBayar();
   } else {
@@ -7402,9 +7501,94 @@ function renderRekapAdmin(dari, sampai) {
     if (raChartHutangBayar) { raChartHutangBayar.destroy(); raChartHutangBayar = null; }
   }
 
+  // Section Tahunan: rekap pelanggan + THR (hanya tahunan)
+  const tahunanWrap = document.getElementById('ra-tahunan-wrap');
+  if (tahunanWrap) {
+    if (raTab === 'tahunan') {
+      tahunanWrap.style.display = '';
+      renderRekapTahunan();
+    } else {
+      tahunanWrap.style.display = 'none';
+    }
+  }
+
   // Muat rekap ecer secara async (tidak blokir render utama)
   loadRekapEcer(dari, sampai);
 }
+
+// ---- SECTION TAHUNAN: Rekap pelanggan + estimasi THR ----
+let raTahunanData = [];      // hasil komputasi per pelanggan (untuk PDF)
+let _raPiutangRiilMap = null; // pelanggan_id → total_hutang_aktif (cache per-load)
+
+async function renderRekapTahunan() {
+  const tbody  = document.getElementById('ra-tahunan-tbody');
+  const totalEl = document.getElementById('ra-thr-total');
+  if (!tbody) return;
+
+  // Ambil piutang riil pelanggan saat ini (sekali per load)
+  if (_raPiutangRiilMap === null) {
+    _raPiutangRiilMap = {};
+    try {
+      const pelSnap = await getDocs(collection(db, 'pelanggan'));
+      pelSnap.forEach(d => { _raPiutangRiilMap[d.id] = d.data().total_hutang_aktif || 0; });
+    } catch(e) { console.warn('piutang riil error:', e.message); }
+  }
+
+  // Kelompokkan transaksi per pelanggan (hutang masuk = transaksi non-kontan)
+  const map = {};
+  raTrxData.forEach(t => {
+    const key = t.pelanggan_id || t.pelanggan_nama || 'unknown';
+    if (!map[key]) map[key] = { key, nama: t.pelanggan_nama || '-', trx: 0, belanja: 0, hutangMasuk: 0, dibayar: 0 };
+    map[key].trx++;
+    map[key].belanja += t.total_tagihan || 0;
+    if (t.jenis_bayar !== 'kontan') map[key].hutangMasuk += t.total_tagihan || 0;
+  });
+  // Pembayaran masuk per pelanggan (hanya untuk yang ada hutang di tahun ini)
+  raBayarData.filter(b => !b.is_retur).forEach(b => {
+    const key = b.pelanggan_id || b.pelanggan_nama || 'unknown';
+    if (map[key]) map[key].dibayar += b.nominal || 0;
+  });
+
+  const rate = parseFloat(document.getElementById('ra-thr-rate')?.value) || 0;
+
+  const arr = Object.values(map).map(p => {
+    const pctLunas = p.hutangMasuk > 0 ? Math.min(p.dibayar / p.hutangMasuk, 1) : 1;
+    const faktor   = 0.4 + 0.6 * pctLunas;       // keaktifan bayar
+    const thr      = p.belanja * (rate/100) * faktor;
+    const piutangRiil = _raPiutangRiilMap[p.key] ?? null;
+    return { ...p, pctLunas, thr, piutangRiil };
+  }).sort((a,b) => b.belanja - a.belanja);
+
+  raTahunanData = arr;
+
+  if (arr.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada transaksi di tahun ini</td></tr>';
+    totalEl.textContent = formatRupiah(0);
+    return;
+  }
+
+  let totalThr = 0;
+  tbody.innerHTML = arr.map((p, i) => {
+    totalThr += p.thr;
+    const pct = Math.round(p.pctLunas * 100);
+    const pctColor = pct >= 80 ? '#16A34A' : pct >= 50 ? '#D97706' : '#DC2626';
+    const piutangStr = p.piutangRiil === null ? '—'
+      : `<span style="color:${p.piutangRiil > 0 ? '#DC2626' : '#16A34A'}">${formatRupiah(p.piutangRiil)}</span>`;
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-weight:600">${p.nama}</td>
+      <td class="text-right">${p.trx}×</td>
+      <td class="text-right font-bold">${formatRupiah(p.belanja)}</td>
+      <td class="text-right" style="color:#16A34A">${formatRupiah(p.dibayar)}</td>
+      <td class="text-right" style="color:${pctColor};font-weight:700">${pct}%</td>
+      <td class="text-right">${piutangStr}</td>
+      <td class="text-right" style="color:#D97706;font-weight:800">${formatRupiah(p.thr)}</td>
+    </tr>`;
+  }).join('');
+
+  totalEl.textContent = formatRupiah(totalThr);
+}
+window.renderRekapTahunan = renderRekapTahunan;
 
 // ---- SECTION ECER: Rekap dari App Eceran ----
 async function loadRekapEcer(dari, sampai) {
@@ -7431,30 +7615,80 @@ async function loadRekapEcer(dari, sampai) {
 
     if (snap.empty) {
       wrap.style.display = 'none';
+      raEcerDocs = [];
+      if (raChartEcerMitra) { raChartEcerMitra.destroy(); raChartEcerMitra = null; }
       if (grandWrap) grandWrap.style.display = 'none';
       return;
     }
 
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => a.tanggal_str.localeCompare(b.tanggal_str));
+    raEcerDocs = docs;
 
-    let totalEcer = 0;
+    // Kelompokkan per mitra
+    const byMitra = {};
+    docs.forEach(e => {
+      const key = e.mitra_id || e.mitra_nama || 'unknown';
+      if (!byMitra[key]) {
+        byMitra[key] = { key, mitra_nama: e.mitra_nama || '-', total_nominal: 0, total_pcs: 0, total_profit: 0, hariSet: new Set(), entries: [] };
+      }
+      const g = byMitra[key];
+      g.total_nominal += e.total_nominal || 0;
+      g.total_pcs     += e.total_pcs || 0;
+      g.total_profit  += e.total_profit || 0;
+      if (!e.is_retur) g.hariSet.add(e.tanggal_str);
+      g.entries.push(e);
+    });
+
+    const mitraArr = Object.values(byMitra).sort((a,b) => b.total_nominal - a.total_nominal);
+    let totalEcer = docs.reduce((s,e) => s + (e.total_nominal||0), 0);
     let no = 1;
-    tbody.innerHTML = docs.map(e => {
-      totalEcer += e.total_nominal || 0;
-      return `<tr>
-        <td>${no++}</td>
-        <td style="font-weight:600">${e.mitra_nama}</td>
-        <td style="white-space:nowrap">${e.tanggal_str}</td>
-        <td class="text-right">${e.total_pcs || 0} pcs</td>
-        <td class="text-right" style="font-weight:700;color:#7C3AED">${formatRupiah(e.total_nominal)}</td>
-        <td style="font-size:12px;color:var(--text-muted)">${e.dikirim_oleh_nama || '-'}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="bukaMoHapusEcer('${e.id}','${e.mitra_nama}','${e.tanggal_str}')">🗑️</button></td>
-      </tr>`;
+
+    tbody.innerHTML = mitraArr.map(g => {
+      const safeKey = (g.key||'unknown').replace(/[^a-zA-Z0-9]/g,'_');
+      const entriesSorted = [...g.entries].sort((a,b) => a.tanggal_str.localeCompare(b.tanggal_str));
+
+      const detailRows = entriesSorted.map(e => {
+        const isRetur = e.is_retur;
+        const itemsStr = (e.items||[]).length
+          ? (e.items||[]).map(it => `${it.produk_nama} ${it.jumlah_pcs}pcs`).join(', ')
+          : (isRetur ? 'Koreksi retur periode' : '-');
+        return `
+          <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;${isRetur?'border-color:#fca5a5;background:#fff7f7;':''}">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div style="font-weight:600;font-size:13px;${isRetur?'color:var(--red-text)':''}">${isRetur?'↩️ Retur':'📅 '+e.tanggal_str}</div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:12px;color:var(--text-muted)">${e.total_pcs||0} pcs</span>
+                <span style="font-weight:700;${isRetur?'color:var(--red-text)':'color:#7C3AED'}">${formatRupiah(e.total_nominal)}</span>
+                <button class="btn btn-danger btn-sm" style="padding:3px 8px;" onclick="event.stopPropagation();bukaMoHapusEcer('${e.id}','${(e.mitra_nama||'').replace(/'/g,"\\'")}','${e.tanggal_str}')">🗑️</button>
+              </div>
+            </div>
+            <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">${itemsStr}${e.dikirim_oleh_nama?` · dikirim: ${e.dikirim_oleh_nama}`:''}</div>
+          </div>`;
+      }).join('');
+
+      const detailHTML = `
+        <tr class="rekap-accordion-detail" id="ecerg-detail-${safeKey}">
+          <td colspan="6"><div class="rekap-accordion-td">${detailRows}</div></td>
+        </tr>`;
+
+      return `
+        <tr onclick="toggleEcerGroupDetail('${safeKey}')" style="cursor:pointer;">
+          <td>${no++}</td>
+          <td style="font-weight:600">${g.mitra_nama}</td>
+          <td class="text-right">${g.hariSet.size}</td>
+          <td class="text-right">${g.total_pcs} pcs</td>
+          <td class="text-right" style="font-weight:700;color:#7C3AED">${formatRupiah(g.total_nominal)}</td>
+          <td style="text-align:center;color:var(--text-muted)" id="ecerg-arrow-${safeKey}">▾</td>
+        </tr>
+        ${detailHTML}`;
     }).join('');
 
     totalEl.textContent = formatRupiah(totalEcer);
     wrap.style.display = '';
+
+    // Render grafik omzet & profit per mitra
+    renderGrafikEcerMitra(mitraArr);
 
     // Tambahkan total ecer ke Kas Masuk, lalu kurangi pengeluaran
     const kasMasukGrosir = raBayarData.filter(b => !b.is_retur).reduce((s, b) => s + (b.nominal || 0), 0);
@@ -7486,6 +7720,53 @@ async function loadRekapEcer(dari, sampai) {
     console.error('loadRekapEcer error:', err);
     wrap.style.display = 'none';
   }
+}
+
+window.toggleEcerGroupDetail = function(key) {
+  const el = document.getElementById(`ecerg-detail-${key}`);
+  const arrow = document.getElementById(`ecerg-arrow-${key}`);
+  if (el) {
+    el.classList.toggle('open');
+    if (arrow) arrow.textContent = el.classList.contains('open') ? '▴' : '▾';
+  }
+};
+
+// ---- GRAFIK OMZET & KEUNTUNGAN PER MITRA (ecer) ----
+function renderGrafikEcerMitra(mitraArr) {
+  if (raChartEcerMitra) { raChartEcerMitra.destroy(); raChartEcerMitra = null; }
+  const cvs = document.getElementById('ra-chart-ecer-mitra');
+  const wrap = document.getElementById('ra-ecer-chart-wrap');
+  if (!cvs) return;
+  if (!mitraArr || mitraArr.length === 0) { if (wrap) wrap.style.display = 'none'; return; }
+  if (wrap) wrap.style.display = '';
+
+  const labels = mitraArr.map(m => m.mitra_nama.length > 16 ? m.mitra_nama.slice(0,16)+'…' : m.mitra_nama);
+  const omzetData  = mitraArr.map(m => m.total_nominal);
+  const profitData = mitraArr.map(m => m.total_profit);
+
+  raChartEcerMitra = new Chart(cvs.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Omzet',     data: omzetData,  backgroundColor: 'rgba(124,58,237,0.65)', borderRadius: 4 },
+        { label: 'Keuntungan', data: profitData, backgroundColor: 'rgba(22,163,74,0.75)',  borderRadius: 4 }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${formatRupiah(ctx.parsed.x)}` } }
+      },
+      scales: {
+        x: { ticks: { callback: v => 'Rp '+(v/1000).toFixed(0)+'k', font:{ size:10 } }, grid: { color:'#f0f0f0' } },
+        y: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
 }
 
 let _hapusEcerId = null;
@@ -7725,6 +8006,43 @@ function renderGrafik(dari, sampai) {
         }
       }
     });
+  } else if (raTab === 'tahunan') {
+    // Bar chart per bulan dalam tahun
+    const bulanNama = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    const omzetPerBulan  = new Array(12).fill(0);
+    const hutangPerBulan = new Array(12).fill(0);
+    const bayarPerBulan  = new Array(12).fill(0);
+
+    raTrxData.forEach(t => {
+      const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+      const m = tgl.getMonth();
+      omzetPerBulan[m] += t.total_tagihan || 0;
+      if (t.jenis_bayar !== 'kontan') hutangPerBulan[m] += t.total_tagihan || 0;
+    });
+    raBayarData.filter(b => !b.is_retur).forEach(b => {
+      const tgl = b.tanggal?.toDate ? b.tanggal.toDate() : new Date(b.tanggal||0);
+      bayarPerBulan[tgl.getMonth()] += b.nominal || 0;
+    });
+
+    raChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: bulanNama,
+        datasets: [
+          { label:'Omzet', data:omzetPerBulan, backgroundColor:'rgba(29,158,117,0.75)', borderRadius:4 },
+          { label:'Hutang Baru', data:hutangPerBulan, backgroundColor:'rgba(217,119,6,0.75)', borderRadius:4 },
+          { label:'Bayar Hutang', data:bayarPerBulan, backgroundColor:'rgba(124,58,237,0.75)', borderRadius:4 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position:'bottom' } },
+        scales: {
+          y: { ticks: { callback: v => 'Rp '+v.toLocaleString('id-ID') } }
+        }
+      }
+    });
   }
 }
 
@@ -7807,74 +8125,107 @@ window.toggleKaryawanDetail = function(uid) {
   if (el) el.classList.toggle('open');
 };
 
-// ---- SECTION 4: TABEL TRANSAKSI ----
+// ---- SECTION 4: TABEL TRANSAKSI (dikelompokkan per pelanggan) ----
+// Render satu baris item transaksi secara horizontal (nama — qty×harga — subtotal)
+function _trxItemRowHTML(it) {
+  return `
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed #eef0f2;font-size:13px;">
+      <span style="flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${it.produk_nama}</span>
+      <span style="color:var(--text-muted);white-space:nowrap;">${it.jumlah_kodi} kodi × ${formatRupiah(it.harga_kodi)}</span>
+      <span style="font-weight:700;white-space:nowrap;min-width:92px;text-align:right;">${formatRupiah(it.subtotal)}</span>
+    </div>`;
+}
+
+// Render satu blok transaksi (dalam detail per pelanggan)
+function _trxBlockHTML(t) {
+  const pasarStr  = t.pasar === 'tegal_gubug' ? 'Tegal Gubug' : 'Jatibarang';
+  const jenisBadge = t.jenis_bayar === 'kontan'
+    ? '<span class="badge badge-green">Kontan</span>'
+    : t.jenis_bayar === 'tahunan'
+    ? '<span class="badge badge-amber">Tahunan</span>'
+    : '<span class="badge badge-amber">Cicilan</span>';
+  const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date();
+  const tglStr = tgl.toLocaleDateString('id-ID', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+  const oleh = raUsersMap[t.created_by] || '-';
+  const statusBadge = t.status === 'lunas'
+    ? '<span class="badge badge-green">Lunas</span>'
+    : `<span class="badge badge-red">Sisa ${formatRupiah(t.sisa_hutang||0)}</span>`;
+  const itemsHTML = (t.items||[]).map(_trxItemRowHTML).join('');
+
+  return `
+    <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <div style="font-size:12px;color:var(--text-muted);">${tglStr} · ${pasarStr} · oleh ${oleh}</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${jenisBadge}${statusBadge}</div>
+      </div>
+      ${itemsHTML}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+        <div style="display:flex;gap:6px;" onclick="event.stopPropagation();">
+          <button class="btn btn-sm btn-secondary" style="padding:4px 10px;" onclick="openEditTrx('${t.id}')">✏️ Edit</button>
+          <button class="btn btn-sm btn-danger" style="padding:4px 10px;" onclick="openHapusTrx('${t.id}')">🗑️ Hapus</button>
+        </div>
+        <div style="font-weight:800;font-size:14px;">${formatRupiah(t.total_tagihan)}</div>
+      </div>
+    </div>`;
+}
+
 function renderTrxTable() {
   const tbody = document.getElementById('ra-trx-tbody');
   const total = raTrxData.reduce((s,t) => s+(t.total_tagihan||0), 0);
   document.getElementById('ra-trx-total').textContent = formatRupiah(total);
 
   if (raTrxData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada transaksi</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada transaksi</td></tr>';
     return;
   }
 
-  const sorted = [...raTrxData].sort((a,b) => (b.created_at?.seconds||0)-(a.created_at?.seconds||0));
-  tbody.innerHTML = sorted.map((t, i) => {
-    const produkStr = (t.items||[]).map(it => `${it.produk_nama} ${it.jumlah_kodi}k`).join(', ');
-    const pasarStr  = t.pasar === 'tegal_gubug' ? 'Tegal Gubug' : 'Jatibarang';
-    const jenisBadge = t.jenis_bayar === 'kontan'
-      ? '<span class="badge badge-green">Kontan</span>'
-      : t.jenis_bayar === 'tahunan'
-      ? '<span class="badge badge-amber">Tahunan</span>'
-      : '<span class="badge badge-amber">Cicilan</span>';
-    const oleh = raUsersMap[t.created_by] || '-';
-    const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date();
+  // Kelompokkan transaksi per pelanggan
+  const grouped = {};
+  raTrxData.forEach(t => {
+    const key = t.pelanggan_id || t.pelanggan_nama || 'unknown';
+    if (!grouped[key]) {
+      grouped[key] = { key, nama: t.pelanggan_nama || '-', total: 0, trxs: [] };
+    }
+    grouped[key].total += t.total_tagihan || 0;
+    grouped[key].trxs.push(t);
+  });
 
-    const itemsDetailHTML = (t.items||[]).map(it => `
-      <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed #f3f4f6;">
-        <span>${it.produk_nama}</span>
-        <span>${it.jumlah_kodi} kodi × ${formatRupiah(it.harga_kodi)}</span>
-        <span style="font-weight:700;">${formatRupiah(it.subtotal)}</span>
-      </div>`).join('');
-    const statusBadge = t.status === 'lunas'
-      ? '<span class="badge badge-green">Lunas</span>'
-      : `<span class="badge badge-red">Sisa ${formatRupiah(t.sisa_hutang||0)}</span>`;
+  // Urutkan: total omzet terbesar di atas
+  const arr = Object.values(grouped).sort((a,b) => b.total - a.total);
+
+  tbody.innerHTML = arr.map((g, i) => {
+    // Urutkan transaksi pelanggan: terbaru di atas
+    const trxsSorted = [...g.trxs].sort((a,b) => (b.created_at?.seconds||0)-(a.created_at?.seconds||0));
+    const safeKey = (g.key || 'unknown').replace(/[^a-zA-Z0-9]/g,'_');
 
     const detailHTML = `
-      <tr class="rekap-accordion-detail" id="trx-detail-${t.id}">
-        <td colspan="8">
+      <tr class="rekap-accordion-detail" id="trxg-detail-${safeKey}">
+        <td colspan="5">
           <div class="rekap-accordion-td">
-            ${itemsDetailHTML}
-            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;">
-              <span style="font-weight:700;">Total Tagihan</span>
-              <span style="font-weight:800;">${formatRupiah(t.total_tagihan)}</span>
-            </div>
-            <div style="margin-top:4px;">${statusBadge}</div>
+            ${trxsSorted.map(_trxBlockHTML).join('')}
           </div>
         </td>
       </tr>`;
 
     return `
-      <tr onclick="toggleTrxDetail('${t.id}')" style="cursor:pointer;">
+      <tr onclick="toggleTrxGroupDetail('${safeKey}')" style="cursor:pointer;">
         <td>${i+1}</td>
-        <td style="font-weight:600;">${t.pelanggan_nama}</td>
-        <td style="max-width:120px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${produkStr}</td>
-        <td class="text-right font-bold">${formatRupiah(t.total_tagihan)}</td>
-        <td>${jenisBadge}</td>
-        <td style="font-size:12px;">${pasarStr}</td>
-        <td style="font-size:12px;color:var(--text-muted);">${oleh}</td>
-        <td onclick="event.stopPropagation();" style="white-space:nowrap;">
-          <button class="btn btn-sm btn-secondary" style="padding:4px 8px;margin-right:4px;" onclick="openEditTrx('${t.id}')">✏️</button>
-          <button class="btn btn-sm btn-danger" style="padding:4px 8px;" onclick="openHapusTrx('${t.id}')">🗑️</button>
-        </td>
+        <td style="font-weight:600;">${g.nama}</td>
+        <td class="text-right">${g.trxs.length}×</td>
+        <td class="text-right font-bold text-green">${formatRupiah(g.total)}</td>
+        <td style="text-align:center;color:var(--text-muted);" id="trxg-arrow-${safeKey}">▾</td>
       </tr>
       ${detailHTML}`;
   }).join('');
 }
 
-window.toggleTrxDetail = function(id) {
-  const el = document.getElementById(`trx-detail-${id}`);
-  if (el) el.classList.toggle('open');
+window.toggleTrxGroupDetail = function(key) {
+  const el = document.getElementById(`trxg-detail-${key}`);
+  const arrow = document.getElementById(`trxg-arrow-${key}`);
+  if (el) {
+    el.classList.toggle('open');
+    if (arrow) arrow.textContent = el.classList.contains('open') ? '▴' : '▾';
+  }
 };
 
 // ---- SECTION 5: TABEL PEMBAYARAN ----
@@ -7921,9 +8272,18 @@ function renderBayarTable() {
     if (w && (!g.lastWaktu || w > g.lastWaktu)) g.lastWaktu = w;
   });
 
-  // Urutkan berdasarkan waktu pembayaran terakhir (terbaru di atas)
-  const arr = Object.values(grouped).sort((a,b) =>
-    (b.lastWaktu?.getTime()||0) - (a.lastWaktu?.getTime()||0));
+  // Urutkan sesuai pilihan dropdown
+  const sortMode = document.getElementById('ra-bayar-sort')?.value || 'waktu_baru';
+  const arr = Object.values(grouped).sort((a,b) => {
+    switch (sortMode) {
+      case 'waktu_lama':    return (a.lastWaktu?.getTime()||0) - (b.lastWaktu?.getTime()||0);
+      case 'nominal_besar': return b.total - a.total;
+      case 'nominal_kecil': return a.total - b.total;
+      case 'abjad':         return (a.pelanggan_nama||'').localeCompare(b.pelanggan_nama||'', 'id');
+      case 'waktu_baru':
+      default:              return (b.lastWaktu?.getTime()||0) - (a.lastWaktu?.getTime()||0);
+    }
+  });
 
   tbody.innerHTML = arr.map((g, i) => {
     const tglStr = g.lastWaktu
@@ -7956,6 +8316,8 @@ function renderBayarTable() {
     </tr>`;
   }).join('');
 }
+
+window.renderBayarTable = renderBayarTable;
 
 // ---- SECTION 6: TABEL PENGELUARAN ----
 function renderKeluarTable() {
@@ -8484,21 +8846,25 @@ window.downloadRekapAdminTxt = function() {
   raTrxData.forEach(t => (t.items||[]).forEach(it => {
     hpp += (it.jumlah_kodi||0) * (raStokMap[it.produk_id]||0);
   }));
-  const labaKotor  = omzet - hpp;
+  const ecerTotal  = (raEcerDocs||[]).reduce((s,e) => s+(e.total_nominal||0), 0);
+  const labaKotor  = omzet - hpp + ecerTotal;
   const labaBersih = labaKotor - pengeluaran;
+  const kasBersih  = kasMasuk + ecerTotal - pengeluaran;
   const periode    = document.getElementById('rekap-admin-subtitle').textContent;
-  const tabLabel   = raTab === 'harian' ? 'HARIAN' : raTab === 'mingguan' ? 'MINGGUAN' : 'BULANAN';
+  const tabLabel   = raTab === 'harian' ? 'HARIAN' : raTab === 'mingguan' ? 'MINGGUAN' : raTab === 'tahunan' ? 'TAHUNAN' : 'BULANAN';
   const nm         = currentUserData?.nama || currentUser?.email || '-';
 
   let txt = `📊 REKAP ${tabLabel} STORE BATIK AN\n`;
   txt += `Periode: ${periode}\n`;
   txt += `═══════════════════════════\n`;
   txt += `💰 FINANSIAL\n`;
-  txt += `Omzet        : ${formatRupiah(omzet)}\n`;
-  txt += `Kas Masuk    : ${formatRupiah(kasMasuk)}\n`;
+  txt += `Omzet Grosir : ${formatRupiah(omzet)}\n`;
+  txt += `Kas Grosir   : ${formatRupiah(kasMasuk)}\n`;
+  txt += `Omzet Eceran : ${formatRupiah(ecerTotal)}\n`;
   txt += `HPP          : ${formatRupiah(hpp)}\n`;
   txt += `Laba Kotor   : ${formatRupiah(labaKotor)}\n`;
   txt += `Pengeluaran  : ${formatRupiah(pengeluaran)}\n`;
+  txt += `KAS BERSIH   : ${formatRupiah(kasBersih)}\n`;
   txt += `LABA BERSIH  : ${formatRupiah(labaBersih)} ${labaBersih >= 0 ? '✅ UNTUNG' : '❌ RUGI'}\n`;
 
   if (raTrxData.length > 0) {
@@ -8534,6 +8900,35 @@ window.downloadRekapAdminTxt = function() {
     Object.values(karyMap).forEach(k => {
       txt += `• ${k.nama}: Terima ${formatRupiah(k.kas)} | Keluar ${formatRupiah(k.keluar)}\n`;
     });
+  }
+
+  // Rekap eceran per mitra
+  if ((raEcerDocs||[]).length > 0) {
+    const ecerByMitra = {};
+    raEcerDocs.forEach(e => {
+      const key = e.mitra_id || e.mitra_nama || 'unknown';
+      if (!ecerByMitra[key]) ecerByMitra[key] = { nama: e.mitra_nama||'-', pcs:0, omzet:0, profit:0 };
+      ecerByMitra[key].pcs    += e.total_pcs||0;
+      ecerByMitra[key].omzet  += e.total_nominal||0;
+      ecerByMitra[key].profit += e.total_profit||0;
+    });
+    txt += `\n═══════════════════════════\n🛍️ REKAP ECERAN PER MITRA\n`;
+    Object.values(ecerByMitra).sort((a,b)=>b.omzet-a.omzet).forEach(m => {
+      txt += `• ${m.nama}: ${m.pcs} pcs | Omzet ${formatRupiah(m.omzet)} | Untung ${formatRupiah(m.profit)}\n`;
+    });
+    txt += `Total Omzet Eceran: ${formatRupiah(ecerTotal)}\n`;
+  }
+
+  // Rekap tahunan + THR
+  if (raTab === 'tahunan' && (raTahunanData||[]).length > 0) {
+    const rate = parseFloat(document.getElementById('ra-thr-rate')?.value) || 0;
+    txt += `\n═══════════════════════════\n🧧 ESTIMASI THR (rate ${rate}% × keaktifan bayar)\n`;
+    let totalThr = 0;
+    raTahunanData.forEach(p => {
+      totalThr += p.thr;
+      txt += `• ${p.nama}: ${p.trx}x | Belanja ${formatRupiah(p.belanja)} | Lunas ${Math.round(p.pctLunas*100)}% | THR ${formatRupiah(p.thr)}\n`;
+    });
+    txt += `TOTAL ESTIMASI THR: ${formatRupiah(totalThr)}\n`;
   }
 
   txt += `\n═══════════════════════════\n`;
@@ -8575,14 +8970,16 @@ window.exportRekapAdminPdf = async function() {
   const omzet       = raTrxData.reduce((s,t) => s+(t.total_tagihan||0), 0);
   const kasMasuk    = raBayarData.filter(b => !b.is_retur).reduce((s,b) => s+(b.nominal||0), 0);
   const pengeluaran = raKeluarData.reduce((s,k) => s+(k.nominal||0), 0);
+  const ecerTotal   = (raEcerDocs||[]).reduce((s,e) => s+(e.total_nominal||0), 0);
   let hpp = 0;
   raTrxData.forEach(t => (t.items||[]).forEach(it => {
     hpp += (it.jumlah_kodi||0) * (raStokMap[it.produk_id]||0);
   }));
-  const labaKotor  = omzet - hpp;
+  const labaKotor  = omzet - hpp + ecerTotal;
   const labaBersih = labaKotor - pengeluaran;
+  const kasBersih  = kasMasuk + ecerTotal - pengeluaran;
   const periode    = document.getElementById('rekap-admin-subtitle').textContent;
-  const tabLabel   = raTab === 'harian' ? 'Harian' : raTab === 'mingguan' ? 'Mingguan' : 'Bulanan';
+  const tabLabel   = raTab === 'harian' ? 'Harian' : raTab === 'mingguan' ? 'Mingguan' : raTab === 'tahunan' ? 'Tahunan' : 'Bulanan';
   const nm         = currentUserData?.nama || currentUser?.email || '-';
   let pageNum = 1;
 
@@ -8707,17 +9104,20 @@ window.exportRekapAdminPdf = async function() {
   // ── HALAMAN 1: RINGKASAN FINANSIAL ──
   sectionTitle('RINGKASAN FINANSIAL');
   const finRows = [
-    ['Omzet', formatRupiah(omzet)],
-    ['Kas Masuk', formatRupiah(kasMasuk)],
+    ['Omzet Grosir', formatRupiah(omzet)],
+    ['Kas Masuk Grosir', formatRupiah(kasMasuk)],
+    ['Omzet Eceran (net retur)', formatRupiah(ecerTotal)],
     ['HPP', formatRupiah(hpp)],
     ['Laba Kotor', formatRupiah(labaKotor)],
     ['Pengeluaran', formatRupiah(pengeluaran)],
-    ['LABA BERSIH', formatRupiah(labaBersih) + (labaBersih >= 0 ? ' ✅' : ' ❌')]
+    ['KAS BERSIH', formatRupiah(kasBersih)],
+    ['LABA BERSIH', formatRupiah(labaBersih) + (labaBersih >= 0 ? ' OK' : ' RUGI')]
   ];
+  const lastIdx = finRows.length - 1;
   const labaBersihBg = labaBersih >= 0 ? [232,247,241] : [254,226,226];
   tableRow(['Keterangan','Nilai'], [contentW*0.6, contentW*0.4], true, [232,247,241]);
   finRows.forEach((row, i) => {
-    tableRow(row, [contentW*0.6, contentW*0.4], false, i === 5 ? labaBersihBg : null);
+    tableRow(row, [contentW*0.6, contentW*0.4], false, i === lastIdx ? labaBersihBg : (i === lastIdx-1 ? [232,247,241] : null));
   });
   y += 6;
 
@@ -8859,17 +9259,23 @@ window.exportRekapAdminPdf = async function() {
     y += 4;
   }
 
-  // ── DETAIL TRANSAKSI (tanpa kolom produk agar tidak tumpuk) ──
+  // ── TRANSAKSI PER PELANGGAN (dikelompokkan, sesuai tampilan app) ──
   if (raTrxData.length > 0) {
-    sectionTitle(`DETAIL TRANSAKSI (${raTrxData.length} transaksi)`);
-    tableRow(['#','Pelanggan','Pasar','Total','Jenis','Item'], [8, contentW*0.25, contentW*0.18, contentW*0.2, contentW*0.14, contentW*0.15], true, [232,247,241]);
-    raTrxData.forEach((t, i) => {
-      const pasar = t.pasar === 'tegal_gubug' ? 'Tegal Gubug' : (t.pasar || '-');
-      const nItem = (t.items||[]).length;
-      const bg = i % 2 === 1 ? [249,250,251] : null;
-      tableRow([i+1, t.pelanggan_nama, pasar, formatRupiah(t.total_tagihan), t.jenis_bayar, `${nItem} produk`],
-               [8, contentW*0.25, contentW*0.18, contentW*0.2, contentW*0.14, contentW*0.15], false, bg);
+    const trxPerPel = {};
+    raTrxData.forEach(t => {
+      const key  = t.pelanggan_id || t.pelanggan_nama || 'unknown';
+      if (!trxPerPel[key]) trxPerPel[key] = { nama: t.pelanggan_nama || '-', jml: 0, total: 0 };
+      trxPerPel[key].jml++;
+      trxPerPel[key].total += t.total_tagihan || 0;
     });
+    const trxArr = Object.values(trxPerPel).sort((a,b) => b.total - a.total);
+    sectionTitle(`TRANSAKSI PER PELANGGAN (${trxArr.length} pelanggan · ${raTrxData.length} transaksi)`);
+    tableRow(['#','Pelanggan','Jml Trx','Total Omzet'], [8, contentW*0.5, contentW*0.18, contentW*0.24], true, [232,247,241]);
+    trxArr.forEach((p, i) => {
+      const bg = i % 2 === 1 ? [249,250,251] : null;
+      tableRow([i+1, p.nama, `${p.jml}x`, formatRupiah(p.total)], [8, contentW*0.5, contentW*0.18, contentW*0.24], false, bg);
+    });
+    tableRow(['','TOTAL','', formatRupiah(omzet)], [8, contentW*0.5, contentW*0.18, contentW*0.24], true, [232,247,241]);
     y += 4;
   }
 
@@ -8909,6 +9315,48 @@ window.exportRekapAdminPdf = async function() {
       tableRow([i+1, k.dicatat_oleh_nama||'-', k.kategori, k.keterangan||'-', formatRupiah(k.nominal)],
                [8, contentW*0.22, contentW*0.15, contentW*0.33, contentW*0.22], false, bg);
     });
+    y += 4;
+  }
+
+  // ── REKAP ECERAN PER MITRA ──
+  if ((raEcerDocs||[]).length > 0) {
+    const ecerByMitra = {};
+    raEcerDocs.forEach(e => {
+      const key = e.mitra_id || e.mitra_nama || 'unknown';
+      if (!ecerByMitra[key]) ecerByMitra[key] = { nama: e.mitra_nama || '-', pcs: 0, omzet: 0, profit: 0 };
+      ecerByMitra[key].pcs    += e.total_pcs || 0;
+      ecerByMitra[key].omzet  += e.total_nominal || 0;
+      ecerByMitra[key].profit += e.total_profit || 0;
+    });
+    const ecerArr = Object.values(ecerByMitra).sort((a,b) => b.omzet - a.omzet);
+    sectionTitle(`REKAP ECERAN PER MITRA (${ecerArr.length} mitra)`);
+    tableRow(['#','Mitra','Total Pcs','Omzet','Keuntungan'], [8, contentW*0.34, contentW*0.16, contentW*0.22, contentW*0.2], true, [232,247,241]);
+    ecerArr.forEach((m, i) => {
+      const bg = i % 2 === 1 ? [249,250,251] : null;
+      tableRow([i+1, m.nama, `${m.pcs} pcs`, formatRupiah(m.omzet), formatRupiah(m.profit)],
+               [8, contentW*0.34, contentW*0.16, contentW*0.22, contentW*0.2], false, bg);
+    });
+    tableRow(['','TOTAL','', formatRupiah(ecerTotal), formatRupiah(ecerArr.reduce((s,m)=>s+m.profit,0))],
+             [8, contentW*0.34, contentW*0.16, contentW*0.22, contentW*0.2], true, [232,247,241]);
+    y += 4;
+  }
+
+  // ── REKAP TAHUNAN PER PELANGGAN + THR (hanya tahunan) ──
+  if (raTab === 'tahunan' && (raTahunanData||[]).length > 0) {
+    const rate = parseFloat(document.getElementById('ra-thr-rate')?.value) || 0;
+    sectionTitle(`REKAP PELANGGAN & ESTIMASI THR (rate ${rate}% · ${raTahunanData.length} pelanggan)`);
+    tableRow(['#','Pelanggan','Trx','Belanja','%Lunas','Piutang','Est THR'],
+             [8, contentW*0.24, contentW*0.08, contentW*0.2, contentW*0.1, contentW*0.16, contentW*0.16], true, [232,247,241]);
+    let totalThrPdf = 0;
+    raTahunanData.forEach((p, i) => {
+      totalThrPdf += p.thr;
+      const bg = i % 2 === 1 ? [249,250,251] : null;
+      tableRow([i+1, p.nama, `${p.trx}x`, formatRupiah(p.belanja), `${Math.round(p.pctLunas*100)}%`,
+                p.piutangRiil===null?'-':formatRupiah(p.piutangRiil), formatRupiah(p.thr)],
+               [8, contentW*0.24, contentW*0.08, contentW*0.2, contentW*0.1, contentW*0.16, contentW*0.16], false, bg);
+    });
+    tableRow(['','TOTAL ESTIMASI THR','','','','', formatRupiah(totalThrPdf)],
+             [8, contentW*0.24, contentW*0.08, contentW*0.2, contentW*0.1, contentW*0.16, contentW*0.16], true, [254,243,199]);
     y += 4;
   }
 
