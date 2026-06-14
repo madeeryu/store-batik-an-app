@@ -1236,7 +1236,7 @@
         <div class="rekap-finansial-value text-green" id="ra-omzet">Rp 0</div>
       </div>
       <div class="rekap-finansial-card">
-        <div class="rekap-finansial-label">💵 Kas Masuk</div>
+        <div class="rekap-finansial-label">💵 Kas Bersih</div>
         <div class="rekap-finansial-value" id="ra-kas">Rp 0</div>
       </div>
       <div class="rekap-finansial-card">
@@ -1257,7 +1257,7 @@
       </div>
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">
-      ℹ️ Omzet termasuk piutang baru. Kas masuk adalah uang yang benar-benar diterima.
+      ℹ️ Omzet termasuk piutang baru. Kas Bersih = kas diterima (grosir + ecer) − pengeluaran.
       <span id="ra-hpp-note" style="display:none;color:#D97706;"> · *HPP parsial, data modal beberapa produk belum diisi.</span>
     </div>
 
@@ -4370,10 +4370,12 @@ async function loadDashboard() {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
 
-    const [trxSnap, bayarSnap, pelSnap] = await Promise.all([
+    const todayStr = todayStart.toISOString().split('T')[0];
+    const [trxSnap, bayarSnap, pelSnap, ecerSnap] = await Promise.all([
       getDocs(query(collection(db, 'transaksi'), where('status', '==', 'belum_lunas'))),
       getDocs(query(collection(db, 'pembayaran'), where('tanggal', '>=', Timestamp.fromDate(todayStart)), where('tanggal', '<', Timestamp.fromDate(todayEnd)))),
-      getDocs(collection(db, 'pelanggan'))
+      getDocs(collection(db, 'pelanggan')),
+      getDocs(query(collection(db, 'rekap_ecer_harian'), where('tanggal_str', '==', todayStr)))
     ]);
 
     let totalPiutang = 0;
@@ -4381,6 +4383,7 @@ async function loadDashboard() {
 
     let kasHariIni = 0;
     bayarSnap.forEach(d => { if (!d.data().is_retur) kasHariIni += (d.data().nominal || 0); });
+    ecerSnap.forEach(d => { kasHariIni += (d.data().total_nominal || 0); });
 
     let berhutang = 0, macet = 0;
     pelSnap.forEach(d => {
@@ -7334,7 +7337,7 @@ function renderRekapAdmin(dari, sampai) {
 
   // Update kartu
   document.getElementById('ra-omzet').textContent      = formatRupiah(omzet);
-  document.getElementById('ra-kas').textContent         = formatRupiah(kasMasuk);
+  document.getElementById('ra-kas').textContent         = formatRupiah(kasMasuk - pengeluaran);
   document.getElementById('ra-hpp').textContent         = formatRupiah(hpp);
   document.getElementById('ra-laba-kotor').textContent  = formatRupiah(labaKotor);
   document.getElementById('ra-pengeluaran').textContent = formatRupiah(pengeluaran);
@@ -7446,10 +7449,11 @@ async function loadRekapEcer(dari, sampai) {
     totalEl.textContent = formatRupiah(totalEcer);
     wrap.style.display = '';
 
-    // Tambahkan total ecer ke Kas Masuk
+    // Tambahkan total ecer ke Kas Masuk, lalu kurangi pengeluaran
     const kasMasukGrosir = raBayarData.filter(b => !b.is_retur).reduce((s, b) => s + (b.nominal || 0), 0);
     const kasMasukGabung = kasMasukGrosir + totalEcer;
-    document.getElementById('ra-kas').textContent = formatRupiah(kasMasukGabung);
+    const pengeluaranTotal = raKeluarData.reduce((s, k) => s + (k.nominal || 0), 0);
+    document.getElementById('ra-kas').textContent = formatRupiah(kasMasukGabung - pengeluaranTotal);
 
     // Recalculate Laba Kotor dan Laba Bersih dengan kas ecer masuk
     const omzetGrosir   = raTrxData.reduce((s, t) => s + (t.total_tagihan || 0), 0);
