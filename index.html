@@ -806,6 +806,10 @@
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
         Rekap
       </a>
+      <a class="nav-item owner-only" data-page="arus-kas" onclick="navigateTo('arus-kas')">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Arus Kas & Modal
+      </a>
       <a class="nav-item owner-only" data-page="pengaturan" onclick="navigateTo('pengaturan')">
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
         Pengaturan
@@ -1084,7 +1088,19 @@
           <div id="piutang-total" style="font-size:28px;font-weight:700;color:#DC2626;">Rp 0</div>
         </div>
       </div>
- 
+
+      <!-- Umur Piutang (Aging) -->
+      <div class="card card-body" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div style="font-size:14px;font-weight:700;">⏳ Umur Piutang</div>
+          <button class="btn btn-secondary btn-sm" id="aging-reset-btn" onclick="setPiutangAgeFilter('')" style="display:none;">Tampilkan Semua Umur</button>
+        </div>
+        <div id="aging-buckets" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;">
+          <div class="loading-state" style="grid-column:1/-1;padding:8px;"><div class="loading-spinner"></div></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">💡 Klik kategori untuk menyaring pelanggan berdasarkan umur tunggakan. Makin tua umurnya, makin prioritas ditagih.</div>
+      </div>
+
       <!-- Filter tab + search -->
       <div class="card card-body" style="margin-bottom:16px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -1168,7 +1184,86 @@
       <div id="histori-content-aktif"></div>
       <div id="histori-content-lunas" style="display:none;"></div>
     </div>
- 
+
+    <!-- ====== ARUS KAS & SALDO MODAL (owner only) ====== -->
+    <div class="page owner-only" id="page-arus-kas">
+      <div class="page-header flex justify-between" style="align-items:flex-start;">
+        <div>
+          <div class="page-title">💵 Arus Kas & Saldo Modal</div>
+          <div class="page-subtitle">Lacak uang masuk, keluar, dan saldo modal berjalan</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="openSetSaldoAwal()">⚙️ Saldo Awal</button>
+          <button class="btn btn-primary btn-sm" onclick="cetakArusKasPdf()">📄 PDF</button>
+        </div>
+      </div>
+
+      <!-- Navigasi tahun -->
+      <div class="card card-body" style="margin-bottom:16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="rekap-nav-btn" onclick="navArusKasTahun(-1)">← Prev</button>
+        <span id="arus-kas-tahun-label" style="font-weight:700;font-size:15px;min-width:80px;text-align:center;">-</span>
+        <button class="rekap-nav-btn" onclick="navArusKasTahun(1)">Next →</button>
+        <button class="btn btn-secondary btn-sm" onclick="setArusKasTahunIni()">Tahun Ini</button>
+      </div>
+
+      <div id="arus-kas-loading" style="display:none;"><div class="rekap-loading-skeleton"></div><div class="rekap-loading-skeleton" style="height:40px;"></div></div>
+
+      <div id="arus-kas-content" style="display:none;">
+        <!-- Kartu ringkasan -->
+        <div class="stats-grid" id="arus-kas-cards" style="margin-bottom:16px;"></div>
+
+        <!-- Grafik saldo berjalan -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header"><div class="card-title">📈 Saldo Modal Berjalan (per bulan)</div></div>
+          <div style="position:relative;height:280px;padding:12px 16px;">
+            <canvas id="arus-kas-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Tabel arus kas bulanan -->
+        <div class="card rekap-admin-table">
+          <div class="card-header"><div class="card-title">🗓️ Rincian Arus Kas Bulanan</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Bulan</th>
+                <th class="text-right">Uang Masuk</th>
+                <th class="text-right">Uang Keluar</th>
+                <th class="text-right">Arus Bersih</th>
+                <th class="text-right">Saldo Akhir</th>
+              </tr></thead>
+              <tbody id="arus-kas-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Set Saldo Awal -->
+    <div class="modal-backdrop" id="modal-saldo-awal" onclick="handleBackdropClick(event,'modal-saldo-awal')">
+      <div class="modal" style="max-width:420px;">
+        <div class="modal-header">
+          <div class="modal-title">⚙️ Saldo Kas Awal (Modal)</div>
+          <button class="modal-close" onclick="closeModal('modal-saldo-awal')">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Masukkan jumlah modal/kas awal yang Anda miliki sebagai titik mulai. Saldo berjalan dihitung dari sini.</p>
+          <div class="form-group">
+            <label class="form-label">Saldo Kas Awal (Rp)</label>
+            <input type="number" class="form-control" id="inp-saldo-awal" min="0" placeholder="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Per Tanggal (modal mulai dihitung)</label>
+            <input type="date" class="form-control" id="inp-saldo-awal-tgl" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal('modal-saldo-awal')">Batal</button>
+          <button class="btn btn-primary" onclick="simpanSaldoAwal()">💾 Simpan</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ====== REKAP ADMIN (owner only) — PROMPT C ====== -->
 <div class="page owner-only" id="page-rekap">
   <div class="page-header flex justify-between" style="align-items:flex-start;">
@@ -2829,6 +2924,61 @@ let trxData = {
 let piutangData = [];
 let piutangFilter = 'semua';
 let piutangDateFilter = 'hari_ini'; // TAMBAHAN
+let piutangAgeFilter = ''; // '', 'b0','b1','b2','b3' (umur tunggakan)
+
+// Definisi bucket umur piutang (hari)
+const AGING_BUCKETS = [
+  { id:'b0', label:'≤ 1 minggu',  min:0,   max:7,        color:'#16A34A', bg:'#F0FDF4' },
+  { id:'b1', label:'1 mgg–1 bln', min:8,   max:30,       color:'#2563EB', bg:'#EFF6FF' },
+  { id:'b2', label:'1–3 bulan',   min:31,  max:90,       color:'#D97706', bg:'#FFFBEB' },
+  { id:'b3', label:'> 3 bulan',   min:91,  max:Infinity, color:'#DC2626', bg:'#FEF2F2' }
+];
+
+function _trxAgeDays(trx) {
+  const tgl = trx.tanggal?.toDate ? trx.tanggal.toDate() : new Date(trx.tanggal || 0);
+  return Math.floor((Date.now() - tgl.getTime()) / 86400000);
+}
+function _bucketOf(days) {
+  return AGING_BUCKETS.find(b => days >= b.min && days <= b.max) || AGING_BUCKETS[AGING_BUCKETS.length-1];
+}
+// Umur tunggakan tertua pelanggan (hari) di antara transaksi belum lunas
+function _pelOldestAge(p) {
+  return (p.transaksi || []).reduce((mx, t) => Math.max(mx, _trxAgeDays(t)), 0);
+}
+
+window.setPiutangAgeFilter = function(bucketId) {
+  piutangAgeFilter = bucketId;
+  renderAgingSummary();
+  renderPiutangList();
+};
+
+function renderAgingSummary() {
+  const cont = document.getElementById('aging-buckets');
+  if (!cont) return;
+  // Akumulasi nominal & jumlah pelanggan per bucket (berdasarkan tiap transaksi belum lunas)
+  const agg = {}; AGING_BUCKETS.forEach(b => agg[b.id] = { total:0, pelSet:new Set() });
+  piutangData.forEach(p => {
+    (p.transaksi || []).forEach(t => {
+      const b = _bucketOf(_trxAgeDays(t));
+      agg[b.id].total += t.sisa_hutang || 0;
+      agg[b.id].pelSet.add(p.pelanggan_id);
+    });
+  });
+
+  cont.innerHTML = AGING_BUCKETS.map(b => {
+    const a = agg[b.id];
+    const active = piutangAgeFilter === b.id;
+    return `<div onclick="setPiutangAgeFilter('${active ? '' : b.id}')"
+      style="cursor:pointer;border-radius:10px;padding:10px 12px;border:2px solid ${active ? b.color : 'transparent'};background:${b.bg};transition:all .12s;">
+      <div style="font-size:11px;font-weight:700;color:${b.color};">${b.label}</div>
+      <div style="font-size:16px;font-weight:800;margin-top:2px;">${formatRupiah(a.total)}</div>
+      <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">${a.pelSet.size} pelanggan</div>
+    </div>`;
+  }).join('');
+
+  const resetBtn = document.getElementById('aging-reset-btn');
+  if (resetBtn) resetBtn.style.display = piutangAgeFilter ? '' : 'none';
+}
 
 window.setPiutangDateFilter = function(mode) {
   piutangDateFilter = mode;
@@ -2915,6 +3065,7 @@ async function loadPiutang() {
  
     // Urutkan terbesar
     piutangData = Object.values(pelangganMap).sort((a, b) => b.total_hutang - a.total_hutang);
+    renderAgingSummary();
     renderPiutangList();
   } catch (e) {
     console.error(e);
@@ -2941,6 +3092,16 @@ window.renderPiutangList = function() {
         return tgl.toDateString() === todayStr;
       });
       if (!adaTrxHariIni) return false;
+    }
+
+    // Filter umur piutang (aging)
+    if (piutangAgeFilter) {
+      const b = AGING_BUCKETS.find(x => x.id === piutangAgeFilter);
+      const adaDiBucket = p.transaksi.some(t => {
+        const d = _trxAgeDays(t);
+        return d >= b.min && d <= b.max;
+      });
+      if (!adaDiBucket) return false;
     }
 
     // Filter status
@@ -2989,13 +3150,16 @@ function buildPiutangCard(p) {
     const jenisBadge = trx.jenis_bayar === 'tahunan'
       ? '<span class="badge badge-amber" style="font-size:11px;">Tahunan</span>'
       : '<span class="badge badge-green" style="font-size:11px;">Cicilan</span>';
- 
+    const _trxAge = _trxAgeDays(trx);
+    const _trxAgeB = _bucketOf(_trxAge);
+    const trxAgeBadge = `<span class="badge" style="background:${_trxAgeB.bg};color:${_trxAgeB.color};font-size:10px;">⏳ ${_trxAge}h</span>`;
+
     return `<div class="piutang-trx-block">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div style="font-size:12px;font-weight:600;color:var(--text-muted);">
           ${formatTanggal(tglTrx)}
         </div>
-        ${jenisBadge}
+        <div style="display:flex;gap:4px;align-items:center;">${trxAgeBadge}${jenisBadge}</div>
       </div>
       ${itemsHTML}
       <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e5e7eb;">
@@ -3030,6 +3194,11 @@ function buildPiutangCard(p) {
     </div>`;
   }).join('');
  
+  // Badge umur tunggakan tertua
+  const _oldestAge = _pelOldestAge(p);
+  const _ageB = _bucketOf(_oldestAge);
+  const ageBadge = `<span class="badge" style="background:${_ageB.bg};color:${_ageB.color};font-size:11px;">⏳ ${_oldestAge} hari (${_ageB.label})</span>`;
+
   return `<div class="piutang-pelanggan-card">
     <div class="piutang-pelanggan-header">
       <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -3037,6 +3206,7 @@ function buildPiutangCard(p) {
           ${statusBadge}
           <span class="font-bold" style="font-size:15px;cursor:pointer;text-decoration:underline;color:var(--primary);"
             onclick="bukaHistori('${p.pelanggan_id}','piutang')">${p.pelanggan_nama}</span>
+          ${ageBadge}
         </div>
       </div>
       <div style="margin-top:4px;font-size:18px;font-weight:700;color:#DC2626;">
@@ -4307,7 +4477,235 @@ window.cetakLaporanPelanggan = async function() {
   doc.save(`laporan-${safeName}-${new Date().toISOString().split('T')[0]}.pdf`);
   showToast('Laporan PDF berhasil diunduh 📄', 'success');
 };
- 
+
+// ============================================================
+// ARUS KAS & SALDO MODAL
+// ============================================================
+let _arusKasTahun = new Date().getFullYear();
+let _arusKasData = null;   // { saldoAwal, saldoAwalTgl, monthly: {key: {masuk,keluar}}, ... }
+let _arusKasChart = null;
+const BULAN_NAMA = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+window.navArusKasTahun = function(delta) { _arusKasTahun += delta; loadArusKas(); };
+window.setArusKasTahunIni = function() { _arusKasTahun = new Date().getFullYear(); loadArusKas(); };
+
+async function loadArusKas() {
+  document.getElementById('arus-kas-loading').style.display = 'block';
+  document.getElementById('arus-kas-content').style.display = 'none';
+  document.getElementById('arus-kas-tahun-label').textContent = _arusKasTahun;
+
+  try {
+    const { collection, getDocs, doc, getDoc } =
+      await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    // Ambil semua data sumber arus kas + saldo awal
+    const [bayarSnap, keluarSnap, ecerSnap, setSnap] = await Promise.all([
+      getDocs(collection(db, 'pembayaran')),
+      getDocs(collection(db, 'pengeluaran')),
+      getDocs(collection(db, 'rekap_ecer_harian')),
+      getDoc(doc(db, 'pengaturan', 'keuangan'))
+    ]);
+
+    const saldoAwal    = setSnap.exists() ? (setSnap.data().saldo_kas_awal || 0) : 0;
+    const saldoAwalTgl = setSnap.exists() ? (setSnap.data().saldo_awal_tanggal || null) : null;
+
+    // Agregasi per bulan (key = 'YYYY-MM')
+    const monthly = {};
+    const ensure = k => { if (!monthly[k]) monthly[k] = { masuk: 0, keluar: 0 }; return monthly[k]; };
+    const keyOf = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+
+    bayarSnap.forEach(s => {
+      const b = s.data();
+      if (b.is_retur) return; // retur bukan kas masuk
+      const d = b.tanggal?.toDate ? b.tanggal.toDate() : (b.tanggal?.seconds ? new Date(b.tanggal.seconds*1000) : null);
+      if (!d) return;
+      ensure(keyOf(d)).masuk += b.nominal || 0;
+    });
+    ecerSnap.forEach(s => {
+      const e = s.data();
+      if (!e.tanggal_str) return;
+      const k = e.tanggal_str.slice(0,7); // YYYY-MM
+      ensure(k).masuk += e.total_nominal || 0; // sudah net retur dari ecer
+    });
+    keluarSnap.forEach(s => {
+      const k = s.data();
+      if (k.is_deleted) return;
+      const d = k.tanggal?.toDate ? k.tanggal.toDate() : (k.tanggal?.seconds ? new Date(k.tanggal.seconds*1000) : null);
+      if (!d) return;
+      ensure(keyOf(d)).keluar += k.nominal || 0;
+    });
+
+    _arusKasData = { saldoAwal, saldoAwalTgl, monthly };
+    renderArusKas();
+  } catch(e) {
+    console.error('loadArusKas error:', e);
+    showToast('Gagal memuat arus kas: ' + e.message, 'error');
+  } finally {
+    document.getElementById('arus-kas-loading').style.display = 'none';
+    document.getElementById('arus-kas-content').style.display = 'block';
+  }
+}
+
+function renderArusKas() {
+  const { saldoAwal, monthly } = _arusKasData;
+  const tahun = _arusKasTahun;
+
+  // Saldo kumulatif: mulai dari saldoAwal + net SEMUA bulan sebelum tahun ini
+  const allKeys = Object.keys(monthly).sort();
+  let saldoSebelumTahun = saldoAwal;
+  allKeys.forEach(k => {
+    const [y] = k.split('-').map(Number);
+    if (y < tahun) saldoSebelumTahun += (monthly[k].masuk - monthly[k].keluar);
+  });
+
+  // Hitung 12 bulan tahun terpilih
+  let saldo = saldoSebelumTahun;
+  const rows = [];
+  let totalMasuk = 0, totalKeluar = 0;
+  for (let m = 0; m < 12; m++) {
+    const k = `${tahun}-${String(m+1).padStart(2,'0')}`;
+    const masuk = monthly[k]?.masuk || 0;
+    const keluar = monthly[k]?.keluar || 0;
+    const net = masuk - keluar;
+    saldo += net;
+    totalMasuk += masuk; totalKeluar += keluar;
+    rows.push({ bulan: BULAN_NAMA[m], masuk, keluar, net, saldo });
+  }
+  const saldoAkhir = saldo;
+  const deltaTahun = saldoAkhir - saldoSebelumTahun;
+
+  // Kartu ringkasan
+  document.getElementById('arus-kas-cards').innerHTML = `
+    <div class="stat-card"><div class="stat-icon" style="background:#E0E7FF;">🏦</div>
+      <div class="stat-label">Saldo Awal Tahun</div>
+      <div class="stat-value">${formatRupiah(saldoSebelumTahun)}</div>
+      <div class="stat-sub">Modal di awal ${tahun}</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#DCFCE7;">📥</div>
+      <div class="stat-label">Total Masuk ${tahun}</div>
+      <div class="stat-value text-green">${formatRupiah(totalMasuk)}</div>
+      <div class="stat-sub">Bayar hutang + kontan + ecer</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#FEE2E2;">📤</div>
+      <div class="stat-label">Total Keluar ${tahun}</div>
+      <div class="stat-value text-red">${formatRupiah(totalKeluar)}</div>
+      <div class="stat-sub">Pengeluaran</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:${deltaTahun>=0?'#DCFCE7':'#FEE2E2'};">${deltaTahun>=0?'📈':'📉'}</div>
+      <div class="stat-label">Saldo Akhir / Perubahan</div>
+      <div class="stat-value" style="color:${deltaTahun>=0?'#16A34A':'#DC2626'}">${formatRupiah(saldoAkhir)}</div>
+      <div class="stat-sub" style="color:${deltaTahun>=0?'#16A34A':'#DC2626'}">${deltaTahun>=0?'▲ Naik ':'▼ Turun '}${formatRupiah(Math.abs(deltaTahun))} thn ini</div></div>`;
+
+  // Tabel
+  const tbody = document.getElementById('arus-kas-tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td style="font-weight:600;">${r.bulan} ${tahun}</td>
+      <td class="text-right" style="color:#16A34A;">${r.masuk?formatRupiah(r.masuk):'-'}</td>
+      <td class="text-right" style="color:#DC2626;">${r.keluar?formatRupiah(r.keluar):'-'}</td>
+      <td class="text-right" style="font-weight:600;color:${r.net>=0?'#16A34A':'#DC2626'};">${r.net>=0?'+':''}${formatRupiah(r.net)}</td>
+      <td class="text-right" style="font-weight:800;">${formatRupiah(r.saldo)}</td>
+    </tr>`).join('') + `
+    <tr style="background:#f9fafb;">
+      <td style="font-weight:800;">TOTAL ${tahun}</td>
+      <td class="text-right" style="font-weight:800;color:#16A34A;">${formatRupiah(totalMasuk)}</td>
+      <td class="text-right" style="font-weight:800;color:#DC2626;">${formatRupiah(totalKeluar)}</td>
+      <td class="text-right" style="font-weight:800;color:${(totalMasuk-totalKeluar)>=0?'#16A34A':'#DC2626'};">${formatRupiah(totalMasuk-totalKeluar)}</td>
+      <td class="text-right" style="font-weight:800;">${formatRupiah(saldoAkhir)}</td>
+    </tr>`;
+
+  // Grafik saldo berjalan
+  if (_arusKasChart) { _arusKasChart.destroy(); _arusKasChart = null; }
+  const ctx = document.getElementById('arus-kas-chart')?.getContext('2d');
+  if (ctx) {
+    _arusKasChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: rows.map(r => r.bulan),
+        datasets: [{
+          label: 'Saldo Modal', data: rows.map(r => r.saldo),
+          borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.1)',
+          tension: 0.3, fill: true, pointRadius: 3
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' Saldo: '+formatRupiah(c.parsed.y) } } },
+        scales: { y: { ticks: { callback: v => 'Rp '+(v/1000000).toFixed(1)+'jt' }, grid:{color:'#f0f0f0'} } }
+      }
+    });
+  }
+
+  _arusKasRows = rows; // simpan untuk PDF
+}
+let _arusKasRows = [];
+
+// ---- Set Saldo Awal ----
+window.openSetSaldoAwal = async function() {
+  try {
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    const snap = await getDoc(doc(db, 'pengaturan', 'keuangan'));
+    document.getElementById('inp-saldo-awal').value = snap.exists() ? (snap.data().saldo_kas_awal || '') : '';
+    document.getElementById('inp-saldo-awal-tgl').value = snap.exists() ? (snap.data().saldo_awal_tanggal || '') : '';
+  } catch(e) {}
+  openModal('modal-saldo-awal');
+};
+
+window.simpanSaldoAwal = async function() {
+  const saldo = parseFloat(document.getElementById('inp-saldo-awal').value) || 0;
+  const tgl = document.getElementById('inp-saldo-awal-tgl').value || null;
+  try {
+    const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    await setDoc(doc(db, 'pengaturan', 'keuangan'), { saldo_kas_awal: saldo, saldo_awal_tanggal: tgl }, { merge: true });
+    closeModal('modal-saldo-awal');
+    showToast('Saldo awal disimpan ✓', 'success');
+    loadArusKas();
+  } catch(e) { showToast('Gagal simpan: ' + e.message, 'error'); }
+};
+
+// ---- Cetak PDF Arus Kas ----
+window.cetakArusKasPdf = async function() {
+  if (!_arusKasRows.length) { showToast('Data belum siap', 'error'); return; }
+  showToast('Menyiapkan PDF...', 'info');
+  if (!window.jspdf) {
+    await new Promise((res, rej) => { const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const pageW = doc.internal.pageSize.getWidth(), margin = 14, contentW = pageW - margin*2;
+  let y = margin;
+  const nm = currentUserData?.nama || currentUser?.email || '-';
+
+  doc.setFillColor(29,158,117); doc.rect(0,0,pageW,22,'F');
+  doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+  doc.text('STORE BATIK AN', margin, 10);
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text(`Laporan Arus Kas & Saldo Modal — Tahun ${_arusKasTahun}`, margin, 16);
+  doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')} oleh ${nm}`, pageW-margin, 16, {align:'right'});
+  y = 30; doc.setTextColor(17,24,39);
+
+  const tM = _arusKasRows.reduce((s,r)=>s+r.masuk,0);
+  const tK = _arusKasRows.reduce((s,r)=>s+r.keluar,0);
+  const saldoAkhir = _arusKasRows[_arusKasRows.length-1].saldo;
+
+  doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setFillColor(232,247,241);
+  doc.rect(margin,y,contentW,7,'F'); doc.text('RINGKASAN', margin+2, y+5); y += 11;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  [['Total Uang Masuk', formatRupiah(tM)],['Total Uang Keluar', formatRupiah(tK)],
+   ['Arus Bersih Tahun', formatRupiah(tM-tK)],['Saldo Modal Akhir', formatRupiah(saldoAkhir)]].forEach(r=>{
+    doc.text(r[0], margin+2, y); doc.text(r[1], pageW-margin-2, y, {align:'right'}); y += 6;
+  });
+  y += 4;
+
+  doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setFillColor(232,247,241);
+  doc.rect(margin,y,contentW,7,'F'); doc.text('RINCIAN BULANAN', margin+2, y+5); y += 10;
+  const w = [contentW*0.24, contentW*0.2, contentW*0.2, contentW*0.16, contentW*0.2];
+  function prow(cols, hdr, bg){ doc.setFontSize(8); doc.setFont('helvetica',hdr?'bold':'normal'); if(bg){doc.setFillColor(...bg);doc.rect(margin,y,contentW,6.5,'F');} let x=margin; const al=[0,1,1,1,1]; cols.forEach((c,i)=>{ doc.text(String(c), al[i]?x+w[i]-1.5:x+1.5, y+4.5, al[i]?{align:'right'}:{}); x+=w[i]; }); doc.setDrawColor(229,231,235); doc.line(margin,y+6.5,margin+contentW,y+6.5); y+=7; }
+  prow(['Bulan','Masuk','Keluar','Bersih','Saldo'], true, [232,247,241]);
+  _arusKasRows.forEach((r,i)=>prow([`${r.bulan} ${_arusKasTahun}`, formatRupiah(r.masuk), formatRupiah(r.keluar), formatRupiah(r.net), formatRupiah(r.saldo)], false, i%2?[249,250,251]:null));
+  prow([`TOTAL ${_arusKasTahun}`, formatRupiah(tM), formatRupiah(tK), formatRupiah(tM-tK), formatRupiah(saldoAkhir)], true, [232,247,241]);
+
+  doc.save(`arus-kas-${_arusKasTahun}.pdf`);
+  showToast('PDF arus kas diunduh 📄', 'success');
+};
+
 // ============================================================
 // REKAP HARIAN
 // ============================================================
@@ -4566,6 +4964,7 @@ window.navigateTo = function(page) {
   if (page === 'produk') loadProduk();
   if (page === 'transaksi') initTransaksi();
   if (page === 'piutang') loadPiutang();
+  if (page === 'arus-kas') loadArusKas();
   if (page === 'rekap') {
     const today = new Date().toISOString().split('T')[0];
     if (!document.getElementById('rekap-tanggal').value) {
@@ -4796,7 +5195,8 @@ function showApp() {
 const pageTitles = {
   dashboard: 'Dashboard', transaksi: 'Transaksi Baru', piutang: 'Piutang',
   pelanggan: 'Pelanggan', produk: 'Produk', rekap: 'Rekap', pengaturan: 'Pengaturan',
-  histori: 'Histori Pelanggan', stok: 'Stok',  'rekap-stok': '📊 Rekap Stok'
+  histori: 'Histori Pelanggan', stok: 'Stok',  'rekap-stok': '📊 Rekap Stok',
+  'arus-kas': '💵 Arus Kas & Modal'
 };
 
 // navigateTo didefinisikan lengkap di bawah (bagian PATCH), tidak perlu duplikat di sini
