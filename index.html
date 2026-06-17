@@ -4202,17 +4202,55 @@ window.cetakLaporanPelanggan = async function() {
     } catch(e) {}
   }
 
-  // Detail transaksi
+  // Detail transaksi per nota (barang yang dibeli + status lunas/belum)
   if (c.trx.length) {
     const trxSorted = [...c.trx].sort((a,b)=>_trxTime(b)-_trxTime(a));
-    sectionTitle(`DETAIL TRANSAKSI (${trxSorted.length})`);
-    row(['Tanggal','Total','Jenis','Status'], [contentW*0.3, contentW*0.3, contentW*0.2, contentW*0.2], true, [232,247,241]);
-    trxSorted.forEach((t,i)=>{
-      const tgl=_trxTime(t).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
-      const status = t.status==='lunas'?'Lunas':`Sisa ${formatRupiah(t.sisa_hutang||0)}`;
-      row([tgl, formatRupiah(t.total_tagihan), t.jenis_bayar||'-', status], [contentW*0.3, contentW*0.3, contentW*0.2, contentW*0.2], false, i%2?[249,250,251]:null);
+    sectionTitle(`DETAIL TRANSAKSI / NOTA (${trxSorted.length})`);
+    trxSorted.forEach((t, idx) => {
+      const tgl = _trxTime(t).toLocaleDateString('id-ID',{ weekday:'long', day:'numeric', month:'long', year:'numeric' });
+      const lunas = t.status === 'lunas';
+      const statusLabel = lunas ? 'LUNAS' : `BELUM LUNAS (sisa ${formatRupiah(t.sisa_hutang||0)})`;
+
+      // Header nota (hijau bila lunas, amber bila belum)
+      checkPage(13);
+      doc.setFillColor(lunas ? 232 : 254, lunas ? 247 : 243, lunas ? 241 : 199);
+      doc.rect(margin, y, contentW, 6.5, 'F');
+      doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(17,24,39);
+      doc.text(`Nota #${idx+1} — ${tgl}`, margin+1.5, y+4.5, { maxWidth: contentW*0.62 });
+      doc.setTextColor(lunas ? 22 : 217, lunas ? 163 : 119, lunas ? 74 : 6);
+      doc.text(`${(t.jenis_bayar||'-').toUpperCase()} · ${statusLabel}`, pageW - margin - 1.5, y+4.5, { align:'right' });
+      doc.setTextColor(17,24,39); doc.setFont('helvetica','normal'); y += 7;
+
+      // Item-item yang dibeli
+      const items = t.items || [];
+      if (items.length) {
+        items.forEach(it => {
+          checkPage(6);
+          doc.setFontSize(8);
+          doc.text(`• ${it.produk_nama}`, margin+2, y+4, { maxWidth: contentW*0.5 - 4 });
+          doc.text(`${it.jumlah_kodi} kodi x ${formatRupiah(it.harga_kodi)}`, margin + contentW*0.5, y+4);
+          doc.text(formatRupiah(it.subtotal), margin + contentW - 1.5, y+4, { align:'right' });
+          doc.setDrawColor(238,240,242); doc.line(margin, y+5.5, margin+contentW, y+5.5);
+          y += 6;
+        });
+      } else {
+        checkPage(6); doc.setFontSize(8); doc.setTextColor(150,150,150);
+        doc.text('  (rincian item tidak tersedia)', margin+2, y+4); doc.setTextColor(17,24,39); y += 6;
+      }
+
+      // Total tagihan + sisa
+      checkPage(6); doc.setFontSize(8); doc.setFont('helvetica','bold');
+      doc.text('Total Tagihan', margin+2, y+4);
+      doc.text(formatRupiah(t.total_tagihan), margin + contentW - 1.5, y+4, { align:'right' });
+      doc.setFont('helvetica','normal'); y += 5.5;
+      const dibayarNota = (t.total_tagihan||0) - (t.sisa_hutang||0);
+      checkPage(5);
+      doc.setFontSize(7.5); doc.setTextColor(107,114,128);
+      doc.text(`Sudah dibayar: ${formatRupiah(dibayarNota)}`, margin+2, y+3.5);
+      if (!lunas) { doc.setTextColor(220,38,38); doc.text(`Sisa: ${formatRupiah(t.sisa_hutang||0)}`, margin + contentW - 1.5, y+3.5, { align:'right' }); }
+      doc.setTextColor(17,24,39); doc.setFontSize(8); y += 7;
     });
-    y += 4;
+    y += 2;
   }
 
   // Detail pembayaran
@@ -9918,7 +9956,11 @@ window.simpanEditTrx = async function() {
   }
 };
 
+// ============================================================
+// END PATCH D
+// ============================================================
 
+// Expose
 window.loadRekapAdmin         = loadRekapAdmin;
 window.setRekapAdminTab       = setRekapAdminTab;
 window.setRekapAdminHari      = setRekapAdminHari;
@@ -9932,7 +9974,9 @@ window.toggleTrxDetail        = toggleTrxDetail;
 window.downloadRekapAdminTxt  = downloadRekapAdminTxt;
 window.exportRekapAdminPdf    = exportRekapAdminPdf;
 
-
+// ============================================================
+// END PATCH C
+// ============================================================
 
 </script>
 
