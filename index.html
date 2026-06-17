@@ -1121,7 +1121,39 @@
  
       <!-- Info pelanggan -->
       <div class="card card-body" style="margin-bottom:16px;" id="histori-info-card"></div>
- 
+
+      <!-- Kartu Aktivitas & Keaktifan Pelanggan -->
+      <div class="card" id="histori-aktivitas-card" style="margin-bottom:16px;">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div class="card-title">📊 Aktivitas & Keaktifan Pelanggan</div>
+          <button class="btn btn-secondary btn-sm" onclick="cetakLaporanPelanggan()">📄 Cetak PDF</button>
+        </div>
+        <div class="card-body">
+          <!-- Selektor periode -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="histori-periode-btns">
+            <button class="rekap-filter-btn" onclick="setHistoriPeriode('minggu',this)">📆 Mingguan</button>
+            <button class="rekap-filter-btn" onclick="setHistoriPeriode('bulan',this)">🗓️ Bulanan</button>
+            <button class="rekap-filter-btn" onclick="setHistoriPeriode('tahun',this)">📊 Tahunan</button>
+            <button class="rekap-filter-btn active" onclick="setHistoriPeriode('semua',this)">♾️ Semua</button>
+          </div>
+          <div style="display:none;align-items:center;gap:10px;margin-bottom:14px;" id="histori-periode-nav">
+            <button class="rekap-nav-btn" onclick="navHistoriPeriode(-1)">← Prev</button>
+            <span id="histori-periode-label" style="font-size:13px;font-weight:600;color:var(--text-secondary);"></span>
+            <button class="rekap-nav-btn" onclick="navHistoriPeriode(1)">Next →</button>
+          </div>
+          <!-- Statistik -->
+          <div id="histori-aktivitas-stats"></div>
+          <!-- Grafik perbandingan -->
+          <div style="position:relative;height:240px;margin-top:16px;">
+            <canvas id="histori-chart"></canvas>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">
+            ℹ️ <strong>Mengendap</strong> = nominal transaksi − dibayar pada periode terpilih (hutang yang belum tertutup di periode itu).
+            <strong>Sisa Hutang Berjalan</strong> = total piutang aktif pelanggan saat ini (lintas waktu).
+          </div>
+        </div>
+      </div>
+
       <!-- Tab hutang aktif / riwayat lunas -->
       <div style="display:flex;gap:0;margin-bottom:16px;border-radius:10px;overflow:hidden;border:1px solid var(--border);">
         <button id="histori-tab-aktif" onclick="switchHistoriTab('aktif')"
@@ -3872,7 +3904,15 @@ window.bukaHistori = async function(pelangganId, fromPage = 'piutang') {
  
   const allBayarSnap = await getDocs(query(collection(db, 'pembayaran'), where('pelanggan_id', '==', pelangganId)));
   const allBayar = allBayarSnap.docs.map(d => ({ id: d.id, ...d.data() }));
- 
+
+  // Simpan ke state untuk kartu aktivitas (periode bisa diganti tanpa fetch ulang)
+  _historiState = { pel, pelangganId, allTrx, allBayar, granularity: 'semua', offset: 0 };
+  // Reset tombol periode ke "Semua" & sembunyikan navigasi periode
+  document.querySelectorAll('#histori-periode-btns .rekap-filter-btn').forEach((b, i) => b.classList.toggle('active', i === 3));
+  const _navEl = document.getElementById('histori-periode-nav');
+  if (_navEl) _navEl.style.display = 'none';
+  renderHistoriAktivitas();
+
   const aktifTrx = allTrx.filter(t => t.status === 'belum_lunas');
   const lunasTrx = allTrx.filter(t => t.status === 'lunas');
  
@@ -3921,6 +3961,275 @@ window.switchHistoriTab = function(tab) {
   document.getElementById('histori-tab-aktif').style.color = isAktif ? '#fff' : 'var(--text-muted)';
   document.getElementById('histori-tab-lunas').style.background = isAktif ? '#fff' : 'var(--primary)';
   document.getElementById('histori-tab-lunas').style.color = isAktif ? 'var(--text-muted)' : '#fff';
+};
+
+// ============================================================
+// KARTU AKTIVITAS & KEAKTIFAN PELANGGAN (di halaman histori)
+// ============================================================
+let _historiState = null;       // { pel, pelangganId, allTrx, allBayar, granularity, offset }
+let _historiChart = null;       // Chart.js instance
+let _historiComputed = null;    // hasil komputasi periode terakhir (untuk PDF)
+
+// Ambil waktu transaksi (tanggal pasaran > created_at)
+function _trxTime(t) {
+  const src = t.tanggal || t.created_at;
+  if (src?.toDate) return src.toDate();
+  if (src?.seconds) return new Date(src.seconds * 1000);
+  return new Date(src || 0);
+}
+function _bayarTime(b) {
+  const src = b.tanggal || b.created_at;
+  if (src?.toDate) return src.toDate();
+  if (src?.seconds) return new Date(src.seconds * 1000);
+  return new Date(src || 0);
+}
+
+// Rentang periode berdasarkan granularity + offset (offset 0 = periode sekarang)
+function _historiPeriodeRange() {
+  const g = _historiState.granularity;
+  const off = _historiState.offset;
+  const now = new Date();
+  if (g === 'semua') return { dari: null, sampai: null, label: 'Sepanjang waktu' };
+  if (g === 'minggu') {
+    const day = now.getDay();
+    const start = new Date(now); start.setDate(now.getDate() - ((day + 6) % 7)); start.setHours(0,0,0,0);
+    start.setDate(start.getDate() + off * 7);
+    const end = new Date(start); end.setDate(start.getDate() + 6); end.setHours(23,59,59,999);
+    const fmt = d => d.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
+    return { dari: start, sampai: end, label: `${fmt(start)} — ${fmt(end)}` };
+  }
+  if (g === 'bulan') {
+    const d = new Date(now.getFullYear(), now.getMonth() + off, 1);
+    const dari = new Date(d.getFullYear(), d.getMonth(), 1, 0,0,0);
+    const sampai = new Date(d.getFullYear(), d.getMonth()+1, 0, 23,59,59,999);
+    const bulanNama = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    return { dari, sampai, label: `${bulanNama[d.getMonth()]} ${d.getFullYear()}` };
+  }
+  // tahun
+  const tahun = now.getFullYear() + off;
+  return { dari: new Date(tahun,0,1,0,0,0), sampai: new Date(tahun,11,31,23,59,59,999), label: `Tahun ${tahun}` };
+}
+
+window.setHistoriPeriode = function(g, btn) {
+  if (!_historiState) return;
+  _historiState.granularity = g;
+  _historiState.offset = 0;
+  document.querySelectorAll('#histori-periode-btns .rekap-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('histori-periode-nav').style.display = (g === 'semua') ? 'none' : 'flex';
+  renderHistoriAktivitas();
+};
+
+window.navHistoriPeriode = function(delta) {
+  if (!_historiState) return;
+  _historiState.offset += delta;
+  renderHistoriAktivitas();
+};
+
+function _computeHistoriAktivitas() {
+  const { allTrx, allBayar, pel } = _historiState;
+  const { dari, sampai, label } = _historiPeriodeRange();
+  const inRange = (d) => (!dari || (d.getTime() >= dari.getTime() && d.getTime() <= sampai.getTime()));
+
+  const trx = allTrx.filter(t => inRange(_trxTime(t)));
+  const bayar = allBayar.filter(b => !b.is_retur && inRange(_bayarTime(b)));
+  const retur = allBayar.filter(b => b.is_retur && inRange(_bayarTime(b)));
+
+  const jmlTrx     = trx.length;
+  const omzet      = trx.reduce((s,t) => s + (t.total_tagihan||0), 0);
+  const hutangBaru = trx.filter(t => t.jenis_bayar !== 'kontan').reduce((s,t) => s + (t.total_tagihan||0), 0);
+  const dibayar    = bayar.reduce((s,b) => s + (b.nominal||0), 0);
+  const totalRetur = retur.reduce((s,b) => s + (b.nominal||0), 0);
+  const mengendap  = Math.max(0, omzet - dibayar - totalRetur);
+  const pctAktif   = omzet > 0 ? Math.min((dibayar / omzet) * 100, 100) : (jmlTrx === 0 ? 0 : 100);
+  const sisaBerjalan = pel.total_hutang_aktif || 0;
+
+  // Frekuensi: tanggal transaksi pertama & terakhir (dalam periode)
+  let first = null, last = null;
+  trx.forEach(t => { const d = _trxTime(t); if (!first || d < first) first = d; if (!last || d > last) last = d; });
+
+  return { label, dari, sampai, jmlTrx, omzet, hutangBaru, dibayar, totalRetur, mengendap, pctAktif, sisaBerjalan, first, last, trx, bayar };
+}
+
+window.renderHistoriAktivitas = function() {
+  if (!_historiState) return;
+  const c = _computeHistoriAktivitas();
+  _historiComputed = c;
+
+  const labelEl = document.getElementById('histori-periode-label');
+  if (labelEl) labelEl.textContent = c.label;
+
+  const pctColor = c.pctAktif >= 80 ? '#16A34A' : c.pctAktif >= 50 ? '#D97706' : '#DC2626';
+  const freqStr = c.first && c.last
+    ? `${c.first.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})} → ${c.last.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}`
+    : '—';
+
+  document.getElementById('histori-aktivitas-stats').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
+      <div class="stat-card" style="padding:14px;">
+        <div class="stat-label">Jumlah Transaksi</div>
+        <div class="stat-value" style="font-size:22px;">${c.jmlTrx}×</div>
+        <div class="stat-sub">${freqStr}</div>
+      </div>
+      <div class="stat-card" style="padding:14px;">
+        <div class="stat-label">Total Omzet</div>
+        <div class="stat-value text-green" style="font-size:20px;">${formatRupiah(c.omzet)}</div>
+        <div class="stat-sub">Hutang baru: ${formatRupiah(c.hutangBaru)}</div>
+      </div>
+      <div class="stat-card" style="padding:14px;">
+        <div class="stat-label">Total Dibayar</div>
+        <div class="stat-value" style="font-size:20px;color:#2563EB;">${formatRupiah(c.dibayar)}</div>
+        <div class="stat-sub">${c.totalRetur>0?`Retur: ${formatRupiah(c.totalRetur)}`:'Pembayaran masuk'}</div>
+      </div>
+      <div class="stat-card" style="padding:14px;">
+        <div class="stat-label">% Keaktifan Bayar</div>
+        <div class="stat-value" style="font-size:22px;color:${pctColor};">${c.pctAktif.toFixed(0)}%</div>
+        <div class="stat-sub">Dibayar / Omzet periode</div>
+      </div>
+      <div class="stat-card" style="padding:14px;">
+        <div class="stat-label">Mengendap (periode)</div>
+        <div class="stat-value text-red" style="font-size:20px;">${formatRupiah(c.mengendap)}</div>
+        <div class="stat-sub">Belum tertutup di periode</div>
+      </div>
+      <div class="stat-card" style="padding:14px;">
+        <div class="stat-label">Sisa Hutang Berjalan</div>
+        <div class="stat-value text-red" style="font-size:20px;">${formatRupiah(c.sisaBerjalan)}</div>
+        <div class="stat-sub">Total piutang aktif kini</div>
+      </div>
+    </div>`;
+
+  // Grafik perbandingan 3 nilai
+  if (_historiChart) { _historiChart.destroy(); _historiChart = null; }
+  const ctx = document.getElementById('histori-chart')?.getContext('2d');
+  if (ctx) {
+    _historiChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Nominal Transaksi', 'Bayar Hutang', 'Sisa Mengendap'],
+        datasets: [{
+          data: [c.omzet, c.dibayar, c.mengendap],
+          backgroundColor: ['rgba(37,99,235,0.75)','rgba(22,163,74,0.8)','rgba(220,38,38,0.75)'],
+          borderRadius: 6,
+          maxBarThickness: 90
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${formatRupiah(ctx.parsed.y)}` } } },
+        scales: { y: { ticks: { callback: v => 'Rp '+(v/1000).toFixed(0)+'k' }, grid: { color:'#f0f0f0' } } }
+      }
+    });
+  }
+};
+
+// ---- CETAK PDF LAPORAN PER PELANGGAN ----
+window.cetakLaporanPelanggan = async function() {
+  if (!_historiState) { showToast('Data belum siap', 'error'); return; }
+  showToast('Menyiapkan laporan...', 'info');
+
+  if (!window.jspdf) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const c = _computeHistoriAktivitas();
+  const pel = _historiState.pel;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 14, contentW = pageW - margin*2;
+  let y = margin, pageNum = 1;
+  const nm = currentUserData?.nama || currentUser?.email || '-';
+
+  function header() {
+    doc.setFillColor(29,158,117); doc.rect(0,0,pageW,22,'F');
+    doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+    doc.text('STORE BATIK AN', margin, 10);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.text(`Laporan Aktivitas Pelanggan | Periode: ${c.label}`, margin, 16);
+    doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')} oleh ${nm}`, pageW - margin, 16, { align:'right' });
+    y = 28; doc.setTextColor(17,24,39);
+  }
+  function footer() {
+    doc.setFontSize(8); doc.setTextColor(107,114,128);
+    doc.text(`Halaman ${pageNum}`, margin, pageH-6);
+    doc.text('Store Batik AN — Confidential', pageW - margin, pageH-6, { align:'right' });
+    doc.setTextColor(17,24,39);
+  }
+  function checkPage(need=10){ if (y+need > pageH-14){ footer(); doc.addPage(); pageNum++; header(); } }
+  function sectionTitle(t){ checkPage(14); doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setFillColor(232,247,241); doc.rect(margin,y,contentW,7,'F'); doc.text(t, margin+2, y+5); doc.setFont('helvetica','normal'); y+=10; }
+  function row(cols, widths, hdr=false, bg=null){ checkPage(7); if(bg){doc.setFillColor(...bg);doc.rect(margin,y,contentW,6.5,'F');} doc.setFontSize(8); doc.setFont('helvetica',hdr?'bold':'normal'); let x=margin; cols.forEach((col,i)=>{doc.text(String(col||''),x+1,y+4.5,{maxWidth:widths[i]-2});x+=widths[i];}); doc.setDrawColor(229,231,235); doc.line(margin,y+6.5,margin+contentW,y+6.5); y+=7; doc.setFont('helvetica','normal'); doc.setDrawColor(0,0,0); }
+
+  header();
+
+  // Identitas pelanggan
+  sectionTitle('IDENTITAS PELANGGAN');
+  row(['Nama', pel.nama || '-'], [contentW*0.4, contentW*0.6]);
+  row(['No. HP', pel.hp || '-'], [contentW*0.4, contentW*0.6], false, [249,250,251]);
+  row(['Pasar Utama', (pel.pasar_utama||'-').replace('_',' ')], [contentW*0.4, contentW*0.6]);
+  row(['Status', pel.status || 'aktif'], [contentW*0.4, contentW*0.6], false, [249,250,251]);
+  y += 4;
+
+  // Ringkasan aktivitas
+  sectionTitle(`RINGKASAN AKTIVITAS (${c.label})`);
+  row(['Keterangan','Nilai'], [contentW*0.6, contentW*0.4], true, [232,247,241]);
+  const rows = [
+    ['Jumlah Transaksi', `${c.jmlTrx} transaksi`],
+    ['Total Omzet (belanja)', formatRupiah(c.omzet)],
+    ['Hutang Baru (non-kontan)', formatRupiah(c.hutangBaru)],
+    ['Total Dibayar', formatRupiah(c.dibayar)],
+    ['Total Retur', formatRupiah(c.totalRetur)],
+    ['Mengendap (periode)', formatRupiah(c.mengendap)],
+    ['% Keaktifan Bayar', `${c.pctAktif.toFixed(1)}%`],
+    ['Sisa Hutang Berjalan (kini)', formatRupiah(c.sisaBerjalan)]
+  ];
+  rows.forEach((r,i)=>row(r,[contentW*0.6,contentW*0.4],false,i%2?[249,250,251]:null));
+  y += 4;
+
+  // Grafik
+  const cvs = document.getElementById('histori-chart');
+  if (cvs) {
+    try {
+      const img = cvs.toDataURL('image/png',1.0);
+      sectionTitle('GRAFIK PERBANDINGAN');
+      checkPage(60);
+      doc.addImage(img, 'PNG', margin, y, contentW, 56); y += 60;
+    } catch(e) {}
+  }
+
+  // Detail transaksi
+  if (c.trx.length) {
+    const trxSorted = [...c.trx].sort((a,b)=>_trxTime(b)-_trxTime(a));
+    sectionTitle(`DETAIL TRANSAKSI (${trxSorted.length})`);
+    row(['Tanggal','Total','Jenis','Status'], [contentW*0.3, contentW*0.3, contentW*0.2, contentW*0.2], true, [232,247,241]);
+    trxSorted.forEach((t,i)=>{
+      const tgl=_trxTime(t).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+      const status = t.status==='lunas'?'Lunas':`Sisa ${formatRupiah(t.sisa_hutang||0)}`;
+      row([tgl, formatRupiah(t.total_tagihan), t.jenis_bayar||'-', status], [contentW*0.3, contentW*0.3, contentW*0.2, contentW*0.2], false, i%2?[249,250,251]:null);
+    });
+    y += 4;
+  }
+
+  // Detail pembayaran
+  if (c.bayar.length) {
+    const bSorted = [...c.bayar].sort((a,b)=>_bayarTime(b)-_bayarTime(a));
+    sectionTitle(`DETAIL PEMBAYARAN (${bSorted.length})`);
+    row(['Tanggal','Nominal','Metode'], [contentW*0.4, contentW*0.35, contentW*0.25], true, [232,247,241]);
+    bSorted.forEach((b,i)=>{
+      const tgl=_bayarTime(b).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+      row([tgl, formatRupiah(b.nominal), b.metode||'tunai'], [contentW*0.4, contentW*0.35, contentW*0.25], false, i%2?[249,250,251]:null);
+    });
+  }
+
+  footer();
+  const safeName = (pel.nama||'pelanggan').replace(/[^a-zA-Z0-9]/g,'_');
+  doc.save(`laporan-${safeName}-${new Date().toISOString().split('T')[0]}.pdf`);
+  showToast('Laporan PDF berhasil diunduh 📄', 'success');
 };
  
 // ============================================================
@@ -4552,7 +4861,10 @@ function renderPelanggan() {
   listEl.innerHTML = filtered.map(p => `
     <div class="list-item" onclick="showDetailPelanggan('${p.id}')">
       <div class="li-main">
-        <div class="li-name">${p.nama}</div>
+        <div class="li-name">
+          <span style="color:var(--green-text);text-decoration:underline;cursor:pointer;"
+            onclick="event.stopPropagation();bukaHistori('${p.id}','pelanggan')">${p.nama}</span>
+        </div>
         <div class="li-sub">${p.hp || '-'} · ${formatPasar(p.pasar_utama)} · ${getBadgeStatus(p.status)}</div>
       </div>
       <div class="li-right">
@@ -4593,7 +4905,8 @@ window.showDetailPelanggan = function(id) {
     </div>
   `;
   const footer = document.getElementById('modal-detail-pelanggan-footer');
-  let footerHtml = `<button class="btn btn-secondary" onclick="closeModal('modal-detail-pelanggan');editPelanggan('${p.id}')">✏️ Edit</button>`;
+  let footerHtml = `<button class="btn btn-primary" onclick="closeModal('modal-detail-pelanggan');bukaHistori('${p.id}','pelanggan')">📊 Riwayat & Aktivitas</button>
+    <button class="btn btn-secondary" onclick="closeModal('modal-detail-pelanggan');editPelanggan('${p.id}')">✏️ Edit</button>`;
   if (isOwner) {
     if (p.diblokir_manual) {
       footerHtml += `<button class="btn btn-secondary" onclick="toggleBlokir('${p.id}', false)">✅ Aktifkan</button>`;
@@ -9605,11 +9918,7 @@ window.simpanEditTrx = async function() {
   }
 };
 
-// ============================================================
-// END PATCH D
-// ============================================================
 
-// Expose
 window.loadRekapAdmin         = loadRekapAdmin;
 window.setRekapAdminTab       = setRekapAdminTab;
 window.setRekapAdminHari      = setRekapAdminHari;
@@ -9623,9 +9932,7 @@ window.toggleTrxDetail        = toggleTrxDetail;
 window.downloadRekapAdminTxt  = downloadRekapAdminTxt;
 window.exportRekapAdminPdf    = exportRekapAdminPdf;
 
-// ============================================================
-// END PATCH C
-// ============================================================
+
 
 </script>
 
