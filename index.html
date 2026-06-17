@@ -4248,7 +4248,45 @@ window.cetakLaporanPelanggan = async function() {
       doc.setFontSize(7.5); doc.setTextColor(107,114,128);
       doc.text(`Sudah dibayar: ${formatRupiah(dibayarNota)}`, margin+2, y+3.5);
       if (!lunas) { doc.setTextColor(220,38,38); doc.text(`Sisa: ${formatRupiah(t.sisa_hutang||0)}`, margin + contentW - 1.5, y+3.5, { align:'right' }); }
-      doc.setTextColor(17,24,39); doc.setFontSize(8); y += 7;
+      doc.setTextColor(17,24,39); doc.setFontSize(8); y += 6;
+
+      // Riwayat catatan bayar nota ini (semua pembayaran, lintas periode)
+      const pays = _historiState.allBayar
+        .filter(b => b.transaksi_id === t.id)
+        .sort((a,b) => _bayarTime(a) - _bayarTime(b));
+      if (pays.length) {
+        const jmlCicil = pays.filter(p => !p.is_retur).length;
+        checkPage(5);
+        doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(80,80,80);
+        doc.text(`Riwayat bayar${jmlCicil > 1 ? ` (dicicil ${jmlCicil}x)` : ''}:`, margin+2, y+3.5);
+        doc.setFont('helvetica','normal'); doc.setTextColor(17,24,39); y += 4.8;
+
+        pays.forEach((p, n) => {
+          checkPage(5);
+          const tglP = _bayarTime(p).toLocaleDateString('id-ID',{ day:'2-digit', month:'short', year:'numeric' });
+          const lbl = p.is_retur ? 'retur' : (p.metode || 'tunai');
+          doc.setFontSize(7.5);
+          if (p.is_retur) doc.setTextColor(217,119,6); else doc.setTextColor(22,120,80);
+          doc.text(`   ${n+1}. ${tglP}  ${p.is_retur ? '-' : '+'}${formatRupiah(p.nominal)}  (${lbl})`, margin+3, y+3.5);
+          doc.setTextColor(17,24,39); y += 4.5;
+        });
+
+        if (lunas) {
+          const lastPay = pays[pays.length-1];
+          const lunasDate = lastPay ? _bayarTime(lastPay).toLocaleDateString('id-ID',{ day:'2-digit', month:'short', year:'numeric' }) : '-';
+          checkPage(5);
+          doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(22,163,74);
+          doc.text(`   >> LUNAS pada ${lunasDate}`, margin+3, y+3.5);
+          doc.setTextColor(17,24,39); doc.setFont('helvetica','normal'); y += 5;
+        }
+      } else if (!lunas) {
+        checkPage(5);
+        doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+        doc.text('   Belum ada pembayaran tercatat.', margin+3, y+3.5);
+        doc.setTextColor(17,24,39); y += 5;
+      }
+
+      doc.setFontSize(8); y += 3;
     });
     y += 2;
   }
