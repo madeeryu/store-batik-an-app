@@ -6308,7 +6308,9 @@ window.simpanTransaksi = async function() {
           catatan: `Terjual ke ${trxData.pelanggan.nama} - ${formatPasar(trxData.pasar)}`,
           created_by: currentUser.uid,
           created_by_nama: currentUserData?.nama || '-',
-          created_at: serverTimestamp()
+          // Gunakan tanggal transaksi (bukan waktu input) agar rekap stok harian
+          // menempatkan pergerakan stok di tanggal yang benar saat input mundur.
+          created_at: tanggalTrx
         });
       }
       await stokBatch.commit();
@@ -7462,7 +7464,7 @@ window.loadRekapSaya = async function() {
     rekapSayaTrxData = trxSnap.docs
       .map(d => ({ id:d.id, ...d.data() }))
       .filter(t => {
-        const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+        const tgl = _trxDate(t);
         return tgl.getTime() >= fromMs && tgl.getTime() <= toMs;
       });
 
@@ -7672,9 +7674,9 @@ async function renderRekapSaya() {
     trxEl.innerHTML = '<div class="rekap-empty"><div class="empty-icon">🛒</div>Belum ada transaksi yang kamu buat</div>';
     document.getElementById('rs-trx-total').style.display = 'none';
   } else {
-    const sorted = [...rekapSayaTrxData].sort((a,b) => (b.created_at?.seconds||0)-(a.created_at?.seconds||0));
+    const sorted = [...rekapSayaTrxData].sort((a,b) => _trxDate(b) - _trxDate(a));
     trxEl.innerHTML = sorted.map(t => {
-      const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date();
+      const tgl = _trxDate(t);
       const tglStr = tgl.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
       const produkStr = (t.items||[]).map(i=>`${i.produk_nama} ${i.jumlah_kodi}k`).join(', ');
       const jenisBadge = t.jenis_bayar === 'kontan'
@@ -8133,6 +8135,16 @@ function getBulananRange() {
   return { dari, sampai };
 }
 
+// Tanggal transaksi untuk rekap/grafik: utamakan `tanggal` (tanggal transaksi
+// yang dipilih user) agar transaksi yang diinput mundur masuk ke tanggal yang benar,
+// fallback ke created_at (waktu input) untuk data lama tanpa field tanggal.
+function _trxDate(t) {
+  const src = t.tanggal || t.created_at;
+  if (src?.toDate) return src.toDate();
+  if (src?.seconds) return new Date(src.seconds * 1000);
+  return new Date(src || 0);
+}
+
 // ---- LOAD DATA UTAMA ----
 window.loadRekapAdmin = async function() {
   // Tampilkan loading, sembunyikan content
@@ -8181,7 +8193,7 @@ window.loadRekapAdmin = async function() {
 
     // Filter di client
     raTrxData = trxSnap.docs.map(d => ({id:d.id,...d.data()})).filter(t => {
-      const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+      const tgl = _trxDate(t);
       return tgl.getTime() >= fromMs && tgl.getTime() <= toMs;
     });
 
@@ -8722,7 +8734,7 @@ function renderGrafik(dari, sampai) {
       const dsMs = dayStart.getTime(), deMs = dayEnd.getTime();
 
       const omzetHari = raTrxData.filter(t => {
-        const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+        const tgl = _trxDate(t);
         return tgl.getTime() >= dsMs && tgl.getTime() <= deMs;
       }).reduce((s,t) => s+(t.total_tagihan||0), 0);
 
@@ -8732,7 +8744,7 @@ function renderGrafik(dari, sampai) {
       }).reduce((s,b) => s+(b.nominal||0), 0);
 
       const hutangHari = raTrxData.filter(t => {
-        const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+        const tgl = _trxDate(t);
         return tgl.getTime() >= dsMs && tgl.getTime() <= deMs && t.jenis_bayar !== 'kontan';
       }).reduce((s,t) => s+(t.total_tagihan||0), 0);
 
@@ -8781,12 +8793,12 @@ function renderGrafik(dari, sampai) {
       weeks.push(`Minggu ${w}`);
 
       omzetPerMinggu.push(raTrxData.filter(t => {
-        const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+        const tgl = _trxDate(t);
         return tgl.getTime() >= wsMs && tgl.getTime() <= weMs;
       }).reduce((s,t) => s+(t.total_tagihan||0), 0));
 
       hutangBaruPerMinggu.push(raTrxData.filter(t => {
-        const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+        const tgl = _trxDate(t);
         return tgl.getTime() >= wsMs && tgl.getTime() <= weMs && t.jenis_bayar !== 'kontan';
       }).reduce((s,t) => s+(t.total_tagihan||0), 0));
 
@@ -8826,7 +8838,7 @@ function renderGrafik(dari, sampai) {
     const bayarPerBulan  = new Array(12).fill(0);
 
     raTrxData.forEach(t => {
-      const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date(t.created_at||0);
+      const tgl = _trxDate(t);
       const m = tgl.getMonth();
       omzetPerBulan[m] += t.total_tagihan || 0;
       if (t.jenis_bayar !== 'kontan') hutangPerBulan[m] += t.total_tagihan || 0;
@@ -8956,7 +8968,7 @@ function _trxBlockHTML(t) {
     : t.jenis_bayar === 'tahunan'
     ? '<span class="badge badge-amber">Tahunan</span>'
     : '<span class="badge badge-amber">Cicilan</span>';
-  const tgl = t.created_at?.toDate ? t.created_at.toDate() : new Date();
+  const tgl = _trxDate(t);
   const tglStr = tgl.toLocaleDateString('id-ID', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
   const oleh = raUsersMap[t.created_by] || '-';
   const statusBadge = t.status === 'lunas'
@@ -9006,8 +9018,8 @@ function renderTrxTable() {
   const arr = Object.values(grouped).sort((a,b) => b.total - a.total);
 
   tbody.innerHTML = arr.map((g, i) => {
-    // Urutkan transaksi pelanggan: terbaru di atas
-    const trxsSorted = [...g.trxs].sort((a,b) => (b.created_at?.seconds||0)-(a.created_at?.seconds||0));
+    // Urutkan transaksi pelanggan: terbaru di atas (pakai tanggal transaksi)
+    const trxsSorted = [...g.trxs].sort((a,b) => _trxDate(b) - _trxDate(a));
     const safeKey = (g.key || 'unknown').replace(/[^a-zA-Z0-9]/g,'_');
 
     const detailHTML = `
