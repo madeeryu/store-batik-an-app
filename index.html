@@ -1660,15 +1660,20 @@
               <th class="text-right">Jml Hari</th>
               <th class="text-right">Total Pcs</th>
               <th class="text-right">Total Omzet</th>
+              <th class="text-right">Total Profit</th>
               <th style="width:28px"></th>
             </tr>
           </thead>
           <tbody id="ra-ecer-tbody"></tbody>
         </table>
       </div>
-      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-weight:700;">
+      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-weight:700;flex-wrap:wrap;gap:8px;">
         <span>Total Omzet Ecer (net retur)</span>
         <span style="color:#7C3AED;" id="ra-ecer-total">Rp 0</span>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-weight:700;flex-wrap:wrap;gap:8px;">
+        <span>Total Keuntungan Ecer</span>
+        <span style="color:#16A34A;" id="ra-ecer-profit-total">Rp 0</span>
       </div>
       <!-- Grafik Omzet & Profit per Mitra -->
       <div id="ra-ecer-chart-wrap" style="border-top:1px solid var(--border);padding:14px 16px;">
@@ -8484,6 +8489,7 @@ async function loadRekapEcer(dari, sampai) {
               <div style="display:flex;align-items:center;gap:10px;">
                 <span style="font-size:12px;color:var(--text-muted)">${e.total_pcs||0} pcs</span>
                 <span style="font-weight:700;${isRetur?'color:var(--red-text)':'color:#7C3AED'}">${formatRupiah(e.total_nominal)}</span>
+                ${!isRetur ? `<span style="font-size:12px;color:#16A34A;font-weight:600">+${formatRupiah(e.total_profit||0)}</span>` : ''}
                 <button class="btn btn-danger btn-sm" style="padding:3px 8px;" onclick="event.stopPropagation();bukaMoHapusEcer('${e.id}','${(e.mitra_nama||'').replace(/'/g,"\\'")}','${e.tanggal_str}')">🗑️</button>
               </div>
             </div>
@@ -8493,7 +8499,7 @@ async function loadRekapEcer(dari, sampai) {
 
       const detailHTML = `
         <tr class="rekap-accordion-detail" id="ecerg-detail-${safeKey}">
-          <td colspan="6"><div class="rekap-accordion-td">${detailRows}</div></td>
+          <td colspan="7"><div class="rekap-accordion-td">${detailRows}</div></td>
         </tr>`;
 
       return `
@@ -8503,12 +8509,16 @@ async function loadRekapEcer(dari, sampai) {
           <td class="text-right">${g.hariSet.size}</td>
           <td class="text-right">${g.total_pcs} pcs</td>
           <td class="text-right" style="font-weight:700;color:#7C3AED">${formatRupiah(g.total_nominal)}</td>
+          <td class="text-right" style="font-weight:700;color:#16A34A">${formatRupiah(g.total_profit)}</td>
           <td style="text-align:center;color:var(--text-muted)" id="ecerg-arrow-${safeKey}">▾</td>
         </tr>
         ${detailHTML}`;
     }).join('');
 
+    const totalProfitEcer = docs.reduce((s,e) => s + (e.total_profit||0), 0);
     totalEl.textContent = formatRupiah(totalEcer);
+    const profitTotalEl = document.getElementById('ra-ecer-profit-total');
+    if (profitTotalEl) profitTotalEl.textContent = formatRupiah(totalProfitEcer);
     wrap.style.display = '';
 
     // Render grafik omzet & profit per mitra
