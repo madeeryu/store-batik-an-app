@@ -9095,6 +9095,7 @@ function renderBayarTable() {
         pelanggan_nama: b.pelanggan_nama || '-',
         total: 0,
         count: 0,
+        notaSet: new Set(),
         metodeSet: new Set(),
         olehSet: new Set(),
         lastWaktu: null
@@ -9103,6 +9104,7 @@ function renderBayarTable() {
     const g = grouped[key];
     g.total += b.nominal || 0;
     g.count++;
+    if (b.transaksi_id) g.notaSet.add(b.transaksi_id);
     g.metodeSet.add(b.metode || 'tunai');
     g.olehSet.add(b.dicatat_oleh_nama || raUsersMap[b.dicatat_oleh] || '-');
     const w = _getWaktuBayar(b);
@@ -9139,9 +9141,15 @@ function renderBayarTable() {
     }
 
     const oleh = [...g.olehSet].join(', ');
-    const countBadge = g.count > 1
-      ? ` <span class="badge badge-green" style="font-size:10px;padding:1px 6px;">${g.count}× bayar</span>`
-      : '';
+    // Marker: jika 1 pembayaran tersebar ke beberapa nota → "X nota",
+    // jika 1 nota dibayar beberapa kali (cicil) → "X× cicil".
+    const notaCount = g.notaSet.size;
+    let countBadge = '';
+    if (notaCount > 1) {
+      countBadge = ` <span class="badge badge-green" style="font-size:10px;padding:1px 6px;" title="Pembayaran ini menutup ${notaCount} nota">${notaCount} nota</span>`;
+    } else if (g.count > 1) {
+      countBadge = ` <span class="badge badge-blue" style="font-size:10px;padding:1px 6px;" title="Nota ini dibayar ${g.count} kali (cicilan)">${g.count}× cicil</span>`;
+    }
 
     return `<tr>
       <td>${i+1}</td>
