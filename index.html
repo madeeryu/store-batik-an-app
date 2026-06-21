@@ -9864,26 +9864,41 @@ window.exportRekapAdminPdf = async function() {
   }
 
   // ---- HELPER: sisipkan grafik chart canvas ke PDF ----
-  function addChartImage(canvasId, imgH = 55) {
+  // Sisipkan chart dgn menjaga rasio aspek asli kanvas (tidak gepeng).
+  // maxH = tinggi maksimum; jika rasio membuat lebih tinggi, lebar dikecilkan & di-tengah-kan.
+  function addChartImage(canvasId, maxH = 55) {
     const cvs = document.getElementById(canvasId);
-    if (!cvs) return;
+    if (!cvs || !cvs.width || !cvs.height) return;
     try {
-      const imgData = cvs.toDataURL('image/png', 1.0);
-      checkNewPage(imgH + 4);
-      doc.addImage(imgData, 'PNG', margin, y, contentW, imgH);
-      y += imgH + 4;
+      const aspect = cvs.height / cvs.width; // tinggi : lebar
+      let w = contentW, h = contentW * aspect;
+      if (h > maxH) { h = maxH; w = maxH / aspect; }
+      const x = margin + (contentW - w) / 2; // tengah
+      checkNewPage(h + 4);
+      doc.addImage(cvs.toDataURL('image/png', 1.0), 'PNG', x, y, w, h);
+      y += h + 4;
     } catch(e) { /* skip jika canvas kosong */ }
   }
 
-  function addChartPair(idLeft, idRight, imgH = 55) {
+  function addChartPair(idLeft, idRight, maxH = 55) {
     const cL = document.getElementById(idLeft);
     const cR = document.getElementById(idRight);
     if (!cL && !cR) return;
-    checkNewPage(imgH + 4);
     const half = (contentW - 4) / 2;
-    if (cL) { try { doc.addImage(cL.toDataURL('image/png',1.0), 'PNG', margin, y, half, imgH); } catch(e){} }
-    if (cR) { try { doc.addImage(cR.toDataURL('image/png',1.0), 'PNG', margin + half + 4, y, half, imgH); } catch(e){} }
-    y += imgH + 4;
+    const fit = (cvs, boxW) => {
+      // kembalikan {w,h} menjaga aspek, dibatasi boxW & maxH
+      const aspect = (cvs.width && cvs.height) ? cvs.height / cvs.width : 0.6;
+      let w = boxW, h = boxW * aspect;
+      if (h > maxH) { h = maxH; w = maxH / aspect; }
+      return { w, h };
+    };
+    const dL = cL ? fit(cL, half) : { w:0, h:0 };
+    const dR = cR ? fit(cR, half) : { w:0, h:0 };
+    const rowH = Math.max(dL.h, dR.h);
+    checkNewPage(rowH + 4);
+    if (cL) { try { doc.addImage(cL.toDataURL('image/png',1.0), 'PNG', margin + (half - dL.w)/2, y, dL.w, dL.h); } catch(e){} }
+    if (cR) { try { doc.addImage(cR.toDataURL('image/png',1.0), 'PNG', margin + half + 4 + (half - dR.w)/2, y, dR.w, dR.h); } catch(e){} }
+    y += rowH + 4;
   }
 
   // ---- HELPER: keterangan (legend) teks di bawah grafik ----
@@ -10006,7 +10021,7 @@ window.exportRekapAdminPdf = async function() {
 
   sectionTitle('TREN PENGELUARAN PER KATEGORI');
   addChartImage('ra-chart-kategori', 50);
-  const KATEGORI_LABEL = { bensin:'⛽ Bensin', makan:'🍽 Makan', becak:'🛺 Becak', lainnya:'Lainnya' };
+  const KATEGORI_LABEL = { bensin:'Bensin', makan:'Makan', becak:'Becak', lainnya:'Lainnya' };
   const KATEGORI_COLOR = { bensin:'#FB923C', makan:'#34D399', becak:'#60A5FA', lainnya:'#A78BFA' };
   const keluarPerKat = ['bensin','makan','becak','lainnya'].map(k => ({
     color: KATEGORI_COLOR[k],
