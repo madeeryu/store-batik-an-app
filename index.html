@@ -8891,6 +8891,7 @@ function renderKaryawanTable() {
     map[uid].trx++;
   });
   raBayarData.forEach(b => {
+    if (b.is_retur) return; // retur bukan kas masuk
     const uid = b.dicatat_oleh || 'unknown';
     if (!map[uid]) map[uid] = { nama: raUsersMap[uid] || uid, trx: 0, kas: 0, keluar: 0 };
     map[uid].kas += b.nominal || 0;
@@ -9075,17 +9076,19 @@ function _getWaktuBayar(b) {
 
 function renderBayarTable() {
   const tbody = document.getElementById('ra-bayar-tbody');
-  const total = raBayarData.reduce((s,b) => s+(b.nominal||0), 0);
+  // Hanya kas masuk riil: kecualikan retur (retur mengurangi hutang, bukan uang masuk)
+  const bayarMasuk = raBayarData.filter(b => !b.is_retur);
+  const total = bayarMasuk.reduce((s,b) => s+(b.nominal||0), 0);
   document.getElementById('ra-bayar-total').textContent = formatRupiah(total);
 
-  if (raBayarData.length === 0) {
+  if (bayarMasuk.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada pembayaran</td></tr>';
     return;
   }
 
   // Kelompokkan pembayaran per pelanggan — gabung jadi satu baris total
   const grouped = {};
-  raBayarData.forEach(b => {
+  bayarMasuk.forEach(b => {
     const key = b.pelanggan_id || b.pelanggan_nama || 'unknown';
     if (!grouped[key]) {
       grouped[key] = {
@@ -9710,9 +9713,10 @@ window.downloadRekapAdminTxt = function() {
     });
   }
 
-  if (raBayarData.length > 0) {
-    txt += `\n═══════════════════════════\n💵 PEMBAYARAN MASUK (${raBayarData.length} pembayaran)\n`;
-    raBayarData.forEach(b => {
+  const bayarMasukTxt = raBayarData.filter(b => !b.is_retur);
+  if (bayarMasukTxt.length > 0) {
+    txt += `\n═══════════════════════════\n💵 PEMBAYARAN MASUK (${bayarMasukTxt.length} pembayaran)\n`;
+    bayarMasukTxt.forEach(b => {
       txt += `• ${b.pelanggan_nama||'-'}: ${formatRupiah(b.nominal)} (${b.metode})\n`;
     });
   }
@@ -9720,6 +9724,7 @@ window.downloadRekapAdminTxt = function() {
   // Per karyawan
   const karyMap = {};
   raBayarData.forEach(b => {
+    if (b.is_retur) return; // retur bukan kas masuk
     const uid = b.dicatat_oleh || 'unknown';
     if (!karyMap[uid]) karyMap[uid] = { nama: raUsersMap[uid]||uid, kas:0, keluar:0 };
     karyMap[uid].kas += b.nominal || 0;
@@ -10212,6 +10217,7 @@ window.exportRekapAdminPdf = async function() {
   // ── REKAP PER KARYAWAN ──
   const karyMap = {};
   raBayarData.forEach(b => {
+    if (b.is_retur) return; // retur bukan kas masuk
     const uid = b.dicatat_oleh||'unknown';
     if (!karyMap[uid]) karyMap[uid] = { nama:raUsersMap[uid]||uid, trx:0, kas:0, keluar:0 };
     karyMap[uid].kas += b.nominal||0;
