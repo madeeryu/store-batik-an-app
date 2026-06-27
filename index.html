@@ -1457,6 +1457,7 @@
               <th>Produk</th>
               <th class="text-right">Stok Awal Mobil</th>
               <th class="text-right">Terjual</th>
+              <th class="text-right">Diambil Eceran</th>
               <th class="text-right">Stok Akhir Mobil</th>
               <th class="text-right">% Terjual</th>
             </tr>
@@ -2396,6 +2397,30 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-riwayat-stok')">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Riwayat Stok Pasaran (harian, dari tabel Rekap Stok Pasaran) -->
+<div class="modal-backdrop" id="modal-riwayat-stok-pasaran" onclick="handleBackdropClick(event,'modal-riwayat-stok-pasaran')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:560px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="rsp-title">Riwayat Stok</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="rsp-subtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-riwayat-stok-pasaran')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:12px 16px;">
+      <div id="rsp-summary" style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;"></div>
+      <div id="rsp-body">
+        <div style="text-align:center;padding:24px;color:var(--text-muted);">Memuat...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-riwayat-stok-pasaran')">Tutup</button>
     </div>
   </div>
 </div>
@@ -7986,7 +8011,8 @@ let raTrxData = [];
 let raBayarData = [];
 let raKeluarData = [];
 let raStokMap = {};   // produk_id → modal_per_kodi
-let raStokLogHarian = []; // stok_log untuk rekap stok harian
+let raStokLogHarian = []; // stok_log untuk rekap stok harian (semua jenis hari ini)
+let _raStokHarianProdukMap = {}; // produk_id → data ringkas, untuk popup riwayat per produk
 let raUsersMap = {};  // uid → nama
 
 // ---- INIT SAAT NAVIGASI KE REKAP ----
@@ -8221,12 +8247,14 @@ window.loadRekapAdmin = async function() {
     usersSnap.forEach(d => { raUsersMap[d.id] = d.data().nama || d.id; });
 
     // Fetch stok_log untuk rekap stok harian (hanya tab harian)
+    // Ambil SEMUA jenis pergerakan hari ini (penjualan, pindah_ke_eceran, isi_mobil,
+    // koreksi, dll) agar pengambilan stok untuk eceran ikut terhitung di Rekap Stok
+    // Pasaran. Query hanya by created_at (tanpa filter jenis) → tak butuh composite index.
     raStokLogHarian = [];
     if (raTab === 'harian') {
       try {
         const logSnap = await getDocs(query(
           collection(db, 'stok_log'),
-          where('jenis', '==', 'penjualan'),
           where('created_at', '>=', Timestamp.fromDate(dari)),
           where('created_at', '<=', Timestamp.fromDate(sampai))
         ));
@@ -8645,37 +8673,60 @@ function renderRekapStokHarian(dari) {
   const tglStr = dari.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   if (subEl) subEl.textContent = tglStr;
 
-  // --- Bangun map produk dari raTrxData (terjual per produk) ---
-  const produkMap = {}; // produk_id → { nama, terjual_kodi, terjual_pcs }
+  // --- Bangun map produk ---
+  const produkMap = {}; // produk_id → { nama, terjual_kodi, terjual_pcs, eceran_kodi, stok_awal, stok_akhir }
+  const ensure = (pid, nama) => {
+    if (!produkMap[pid]) produkMap[pid] = { nama: nama || pid, terjual_kodi: 0, terjual_pcs: 0, eceran_kodi: 0, stok_awal: null, stok_akhir: null };
+    if (nama && (produkMap[pid].nama === pid)) produkMap[pid].nama = nama;
+    return produkMap[pid];
+  };
+
+  // Terjual grosir per produk (dari raTrxData)
   raTrxData.forEach(t => {
     (t.items || []).forEach(item => {
       const pid = item.produk_id;
       if (!pid) return;
-      if (!produkMap[pid]) produkMap[pid] = { nama: item.produk_nama || pid, terjual_kodi: 0, terjual_pcs: 0, stok_awal: null, stok_akhir: null };
-      produkMap[pid].terjual_kodi += item.jumlah_kodi || 0;
-      produkMap[pid].terjual_pcs  += item.jumlah_pcs  || (item.jumlah_kodi * 20);
+      const e = ensure(pid, item.produk_nama);
+      e.terjual_kodi += item.jumlah_kodi || 0;
+      e.terjual_pcs  += item.jumlah_pcs  || ((item.jumlah_kodi || 0) * 20);
     });
   });
 
-  // --- Isi stok_awal & stok_akhir dari stok_log ---
-  // Group log penjualan by produk_id, sort by created_at
+  // --- Pisahkan log hari ini ---
+  // penjualan & pindah_ke_eceran (dari MOBIL) sama-sama mengurangi stok mobil saat pasaran.
+  // Hanya hitung pindah_ke_eceran yang benar-benar mengurangi stok mobil
+  // (yang diambil dari stok rumah tidak mengubah stok mobil → diabaikan di sini).
+  const penjualanLogs = raStokLogHarian.filter(l => l.jenis === 'penjualan');
+  const eceranLogs    = raStokLogHarian.filter(l =>
+    l.jenis === 'pindah_ke_eceran' &&
+    (l.stok_mobil_sebelum ?? 0) > (l.stok_mobil_sesudah ?? 0)
+  );
+
+  // Pengambilan stok untuk eceran dari mobil (kurangi stok pasaran)
+  eceranLogs.forEach(log => {
+    const e = ensure(log.produk_id, log.produk_nama);
+    const delta = (log.stok_mobil_sebelum ?? 0) - (log.stok_mobil_sesudah ?? 0);
+    e.eceran_kodi += delta > 0 ? delta : (log.jumlah_kodi || 0);
+  });
+
+  // --- Stok awal & akhir mobil dari gabungan log penjualan + eceran (urut waktu) ---
+  const _t = x => x?.created_at?.toDate ? x.created_at.toDate().getTime() : 0;
   const logByProduk = {};
-  raStokLogHarian.forEach(log => {
+  [...penjualanLogs, ...eceranLogs].forEach(log => {
     if (!logByProduk[log.produk_id]) logByProduk[log.produk_id] = [];
     logByProduk[log.produk_id].push(log);
   });
   Object.entries(logByProduk).forEach(([pid, logs]) => {
-    logs.sort((a, b) => {
-      const tA = a.created_at?.toDate ? a.created_at.toDate().getTime() : 0;
-      const tB = b.created_at?.toDate ? b.created_at.toDate().getTime() : 0;
-      return tA - tB;
-    });
+    logs.sort((a, b) => _t(a) - _t(b));
     const first = logs[0];
     const last  = logs[logs.length - 1];
-    if (!produkMap[pid]) produkMap[pid] = { nama: first.produk_nama || pid, terjual_kodi: 0, terjual_pcs: 0, stok_awal: null, stok_akhir: null };
-    produkMap[pid].stok_awal  = first.stok_mobil_sebelum ?? null;
-    produkMap[pid].stok_akhir = last.stok_mobil_sesudah  ?? null;
+    const e = ensure(pid, first.produk_nama);
+    e.stok_awal  = first.stok_mobil_sebelum ?? null;
+    e.stok_akhir = last.stok_mobil_sesudah  ?? null;
   });
+
+  // Simpan untuk popup riwayat per produk
+  _raStokHarianProdukMap = produkMap;
 
   // --- Render ---
   const fmt = v => v === null || v === undefined ? '—' : (+v % 1 === 0 ? `${v} kd` : `${(+v).toFixed(2)} kd`);
@@ -8685,10 +8736,13 @@ function renderRekapStokHarian(dari) {
     return `${pct.toFixed(1)}%`;
   };
 
-  const sorted = Object.entries(produkMap).sort((a, b) => b[1].terjual_kodi - a[1].terjual_kodi);
+  // Urutkan berdasarkan total pergerakan (terjual + diambil eceran) terbanyak
+  const sorted = Object.entries(produkMap).sort(
+    (a, b) => (b[1].terjual_kodi + b[1].eceran_kodi) - (a[1].terjual_kodi + a[1].eceran_kodi)
+  );
 
   if (sorted.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada transaksi di hari ini</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text-muted);">Tidak ada transaksi di hari ini</td></tr>`;
     if (totEl) totEl.innerHTML = '';
     return;
   }
@@ -8701,10 +8755,11 @@ function renderRekapStokHarian(dari) {
       if (pct >= 50) return '#FEF9C3';
       return 'transparent';
     })();
-    return `<tr style="background:${pctBgColor}">
-      <td style="font-weight:600">${d.nama}</td>
+    return `<tr style="background:${pctBgColor};cursor:pointer;" onclick="bukaRiwayatStokPasaran('${pid}')" title="Lihat riwayat pergerakan stok">
+      <td style="font-weight:600">${d.nama} <span style="font-size:11px;color:var(--accent,#2563EB);">🔍</span></td>
       <td class="text-right">${fmt(d.stok_awal)}</td>
       <td class="text-right" style="color:var(--red-text);font-weight:700">${fmt(d.terjual_kodi)}</td>
+      <td class="text-right" style="color:#7C3AED;font-weight:600">${d.eceran_kodi > 0 ? fmt(d.eceran_kodi) : '—'}</td>
       <td class="text-right">${fmt(d.stok_akhir)}</td>
       <td class="text-right">${fmtPct(d.terjual_kodi, d.stok_awal)}</td>
     </tr>`;
@@ -8712,13 +8767,82 @@ function renderRekapStokHarian(dari) {
 
   // Total baris
   const totalTerjual = sorted.reduce((s, [,d]) => s + d.terjual_kodi, 0);
+  const totalEceran  = sorted.reduce((s, [,d]) => s + d.eceran_kodi, 0);
+  const fmtNum = v => (+v % 1 === 0 ? v : (+v).toFixed(2));
   if (totEl) {
     totEl.innerHTML = `
       <span style="font-size:13px;color:var(--text-secondary)">Total Produk: <strong>${sorted.length}</strong></span>
-      <span style="font-size:13px;font-weight:700;color:var(--red-text)">Total Terjual: ${(+totalTerjual % 1 === 0 ? totalTerjual : totalTerjual.toFixed(2))} kd</span>
-      <span style="font-size:11px;color:var(--text-muted)">🟢 ≥80% terjual &nbsp;🟡 ≥50% terjual</span>`;
+      <span style="font-size:13px;font-weight:700;color:var(--red-text)">Total Terjual: ${fmtNum(totalTerjual)} kd</span>
+      <span style="font-size:13px;font-weight:700;color:#7C3AED">Total Diambil Eceran: ${fmtNum(totalEceran)} kd</span>
+      <span style="font-size:11px;color:var(--text-muted)">🟢 ≥80% terjual &nbsp;🟡 ≥50% terjual &nbsp;·&nbsp;🔍 klik baris untuk riwayat</span>`;
   }
 }
+
+// ---- POPUP: Riwayat pergerakan stok per produk (hari ini) ----
+window.bukaRiwayatStokPasaran = function(produkId) {
+  const d = _raStokHarianProdukMap[produkId];
+  if (!d) return;
+
+  document.getElementById('rsp-title').textContent = `📦 ${d.nama}`;
+  document.getElementById('rsp-subtitle').textContent =
+    document.getElementById('ra-stok-harian-subtitle')?.textContent || '';
+
+  const sumEl  = document.getElementById('rsp-summary');
+  const bodyEl = document.getElementById('rsp-body');
+
+  const fmt = v => (v === undefined || v === null) ? '?' : (+v % 1 === 0 ? v : (+v).toFixed(2));
+
+  sumEl.innerHTML = `
+    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;">
+      <span>Stok Awal Mobil: <strong>${fmt(d.stok_awal)} kd</strong></span>
+      <span style="color:var(--red-text)">Terjual: <strong>${fmt(d.terjual_kodi)} kd</strong></span>
+      <span style="color:#7C3AED">Diambil Eceran: <strong>${fmt(d.eceran_kodi)} kd</strong></span>
+      <span>Stok Akhir Mobil: <strong>${fmt(d.stok_akhir)} kd</strong></span>
+    </div>`;
+
+  const _t = x => x?.created_at?.toDate ? x.created_at.toDate().getTime() : 0;
+  const logs = raStokLogHarian
+    .filter(l => l.produk_id === produkId)
+    .sort((a, b) => _t(a) - _t(b));
+
+  if (logs.length === 0) {
+    bodyEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">Tidak ada pergerakan stok hari ini</div>';
+    openModal('modal-riwayat-stok-pasaran');
+    return;
+  }
+
+  const meta = {
+    penjualan:        { icon:'🛍️', label:'Terjual',       color:'var(--red-text)' },
+    pindah_ke_eceran: { icon:'🛒', label:'Diambil Eceran', color:'#7C3AED' },
+    isi_mobil:        { icon:'🚗', label:'Isi Mobil',      color:'#16A34A' },
+    tambah_rumah:     { icon:'🏠', label:'Tambah Stok',    color:'#16A34A' },
+    koreksi:          { icon:'🔧', label:'Koreksi',        color:'#D97706' },
+    opname:           { icon:'📋', label:'Opname',         color:'#6B7280' }
+  };
+
+  bodyEl.innerHTML = logs.map(log => {
+    const m = meta[log.jenis] || { icon:'📦', label:log.jenis, color:'var(--text-secondary)' };
+    const tgl = log.created_at?.toDate ? log.created_at.toDate() : new Date();
+    const jam = tgl.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+    const kd = log.jumlah_kodi ?? 0;
+    const sign = kd > 0 ? '+' : '';
+    return `
+      <div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-weight:700;color:${m.color};font-size:13px;">${m.icon} ${m.label}</span>
+          <span style="font-size:12px;color:var(--text-muted);">🕒 ${jam}</span>
+        </div>
+        <div style="font-size:12.5px;color:var(--text-secondary);margin-top:5px;">
+          Mobil: <strong>${fmt(log.stok_mobil_sebelum)}</strong> → <strong>${fmt(log.stok_mobil_sesudah)}</strong> kd
+          <span style="color:${m.color};font-weight:600;margin-left:6px;">(${sign}${fmt(kd)} kd)</span>
+        </div>
+        ${log.catatan ? `<div style="font-size:12.5px;font-style:italic;margin-top:3px;color:#4B5563;">"${log.catatan}"</div>` : ''}
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">oleh: ${log.created_by_nama || '-'}</div>
+      </div>`;
+  }).join('');
+
+  openModal('modal-riwayat-stok-pasaran');
+};
 
 
 // ---- SECTION 2: GRAFIK ----
