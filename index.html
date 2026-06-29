@@ -2425,6 +2425,30 @@
   </div>
 </div>
 
+<!-- Modal Riwayat Pembayaran (transaksi lunas, dari halaman histori piutang) -->
+<div class="modal-backdrop" id="modal-riwayat-bayar-lunas" onclick="handleBackdropClick(event,'modal-riwayat-bayar-lunas')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:480px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="rbl-title">Riwayat Pembayaran</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="rbl-subtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-riwayat-bayar-lunas')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:12px 16px;">
+      <div id="rbl-summary" style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;"></div>
+      <div id="rbl-body">
+        <div style="text-align:center;padding:24px;color:var(--text-muted);">Memuat...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-riwayat-bayar-lunas')">Tutup</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Catat Bayar -->
 <div class="modal-backdrop" id="modal-catat-bayar" onclick="handleBackdropClick(event,'modal-catat-bayar')">
   <div class="modal" onclick="event.stopPropagation()">
@@ -4136,9 +4160,9 @@ window.bukaHistori = async function(pelangganId, fromPage = 'piutang') {
     lunasEl.innerHTML = lunasTrx.sort((a,b)=>(b.tanggal?.seconds||0)-(a.tanggal?.seconds||0)).map(t => {
       const tgl = t.tanggal?.toDate ? t.tanggal.toDate() : new Date(t.tanggal);
       const itemsHTML = (t.items||[]).map(i => `<div style="font-size:12px;color:var(--text-muted);">📦 ${i.produk_nama} × ${i.jumlah_kodi} kodi = ${formatRupiah(i.subtotal)}</div>`).join('');
-      return `<div class="card card-body" style="margin-bottom:10px;">
+      return `<div class="card card-body" style="margin-bottom:10px;cursor:pointer;" onclick="bukaRiwayatBayarLunas('${t.id}')" title="Lihat riwayat pembayaran">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <span style="font-weight:600;">${formatTanggal(tgl)}</span>
+          <span style="font-weight:600;">${formatTanggal(tgl)} <span style="font-size:11px;color:var(--primary);">🔍</span></span>
           <span class="badge badge-green">✅ Lunas</span>
         </div>
         ${itemsHTML}
@@ -4146,6 +4170,7 @@ window.bukaHistori = async function(pelangganId, fromPage = 'piutang') {
           <span style="color:var(--text-muted);font-size:13px;">Total Tagihan</span>
           <span style="font-weight:700;">${formatRupiah(t.total_tagihan)}</span>
         </div>
+        <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px;">👆 Klik untuk lihat riwayat pembayaran</div>
       </div>`;
     }).join('');
   }
@@ -4161,6 +4186,77 @@ window.switchHistoriTab = function(tab) {
   document.getElementById('histori-tab-aktif').style.color = isAktif ? '#fff' : 'var(--text-muted)';
   document.getElementById('histori-tab-lunas').style.background = isAktif ? '#fff' : 'var(--primary)';
   document.getElementById('histori-tab-lunas').style.color = isAktif ? 'var(--text-muted)' : '#fff';
+};
+
+// ---- POPUP: Riwayat pembayaran transaksi lunas ----
+window.bukaRiwayatBayarLunas = function(trxId) {
+  if (!_historiState) return;
+  const t = _historiState.allTrx.find(x => x.id === trxId);
+  if (!t) return;
+
+  const tglTrx = t.tanggal?.toDate ? t.tanggal.toDate() : new Date(t.tanggal);
+  const bayar = (_historiState.allBayar || [])
+    .filter(b => b.transaksi_id === trxId)
+    .sort((a, b) => _bayarTime(a) - _bayarTime(b));
+
+  document.getElementById('rbl-title').textContent = 'Riwayat Pembayaran';
+  document.getElementById('rbl-subtitle').textContent =
+    `${_historiState.pel?.nama || ''} · Transaksi ${formatTanggal(tglTrx)}`;
+
+  const totalTagihan = t.total_tagihan || 0;
+  const totalBayar   = bayar.reduce((s, b) => s + (b.nominal || 0), 0);
+  const tglLunas     = bayar.length ? _bayarTime(bayar[bayar.length - 1]) : null;
+
+  // Ringkasan item transaksi
+  const itemsHTML = (t.items || []).map(i =>
+    `<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);padding:1px 0;">
+      <span>📦 ${i.produk_nama} × ${i.jumlah_kodi} kodi</span><span>${formatRupiah(i.subtotal)}</span>
+    </div>`).join('');
+
+  document.getElementById('rbl-summary').innerHTML = `
+    ${itemsHTML ? `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed #e5e7eb;">${itemsHTML}</div>` : ''}
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;">
+      <span style="color:var(--text-muted);">Total Tagihan</span>
+      <span style="font-weight:700;">${formatRupiah(totalTagihan)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
+      <span style="color:var(--text-muted);">Total Dibayar</span>
+      <span style="font-weight:700;color:#16A34A;">${formatRupiah(totalBayar)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+      <span style="color:var(--text-muted);">Status</span>
+      <span class="badge badge-green">✅ Lunas${tglLunas ? ' · ' + formatTanggal(tglLunas) : ''}</span>
+    </div>`;
+
+  const bodyEl = document.getElementById('rbl-body');
+  if (bayar.length === 0) {
+    bodyEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">Tidak ada catatan cicilan — kemungkinan dibayar langsung/kontan.</div>';
+  } else {
+    let sisa = totalTagihan;
+    bodyEl.innerHTML =
+      `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${bayar.length}× pembayaran:</div>` +
+      bayar.map(b => {
+        const tgl = _bayarTime(b);
+        const isRetur = b.is_retur || b.metode === 'retur';
+        sisa = Math.max(0, sisa - (b.nominal || 0));
+        const metodeLabel = isRetur
+          ? '<span style="color:#D97706;font-weight:600;">↩️ Retur</span>'
+          : `<span style="color:#6B7280;">${b.metode || 'tunai'}</span>`;
+        return `
+          <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);border-radius:10px;padding:9px 12px;margin-bottom:7px;">
+            <div>
+              <div style="font-weight:600;font-size:13px;">💵 ${formatTanggal(tgl)}</div>
+              <div style="font-size:11px;margin-top:2px;">${metodeLabel}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:700;color:${isRetur ? '#D97706' : '#16A34A'};">${isRetur ? '−' : '+'}${formatRupiah(b.nominal)}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Sisa: ${formatRupiah(sisa)}</div>
+            </div>
+          </div>`;
+      }).join('');
+  }
+
+  openModal('modal-riwayat-bayar-lunas');
 };
 
 // ============================================================
