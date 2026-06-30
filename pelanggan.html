@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1D9E75" />
+  <meta name="description" content="Batik AN — Portal Pelanggan" />
+  <title>Batik AN — Pelanggan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏷️</text></svg>" />
+  <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22Batik%20AN%20Pelanggan%22%2C%22short_name%22%3A%22BatikAN%22%2C%22theme_color%22%3A%22%231D9E75%22%2C%22background_color%22%3A%22%23F5F6FA%22%2C%22display%22%3A%22standalone%22%7D" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green: #1D9E75; --green-dark: #168a62; --green-light: #DCFCE7; --green-text: #16A34A;
+      --bg: #F5F6FA; --white: #FFFFFF; --border: #E8EAED; --input-border: #DDE1E7;
+      --text-primary: #111827; --text-secondary: #6B7280; --text-muted: #9CA3AF;
+      --red-bg: #FEE2E2; --red-text: #DC2626; --amber-bg: #FEF3C7; --amber-text: #D97706;
+      --shadow: 0 1px 4px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04);
+      --radius: 12px; --primary: #1D9E75;
+    }
+    html, body { height: 100%; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text-primary); }
+
+    /* ===== LOGIN ===== */
+    #login-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    .login-card { background: var(--white); border-radius: 18px; box-shadow: 0 8px 40px rgba(0,0,0,0.08); padding: 36px 28px; width: 100%; max-width: 380px; }
+    .login-logo { text-align: center; margin-bottom: 28px; }
+    .login-logo .brand { font-size: 28px; font-weight: 800; color: var(--green); }
+    .login-logo .tagline { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    .login-title { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .login-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; }
+    .error-msg { background: var(--red-bg); color: var(--red-text); padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; margin-bottom: 16px; display: none; }
+
+    /* ===== FORM ===== */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+    .form-control { width: 100%; padding: 11px 14px; border: 1.5px solid var(--input-border); border-radius: 10px; font-size: 14px; font-family: inherit; background: var(--white); color: var(--text-primary); transition: all 0.15s; }
+    .form-control:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(29,158,117,0.1); }
+    .form-control::placeholder { color: var(--text-muted); }
+
+    /* ===== BUTTON ===== */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; }
+    .btn-primary { background: var(--green); color: white; }
+    .btn-primary:hover { background: var(--green-dark); }
+    .btn-primary:disabled { background: #9CA3AF; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--text-secondary); }
+    .btn-ghost:hover { background: var(--bg); color: var(--text-primary); }
+    .w-full { width: 100%; }
+
+    /* ===== BADGE ===== */
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .badge-green { background: var(--green-light); color: var(--green-text); }
+    .badge-red { background: var(--red-bg); color: var(--red-text); }
+    .badge-amber { background: var(--amber-bg); color: var(--amber-text); }
+    .badge-gray { background: #F3F4F6; color: var(--text-secondary); }
+
+    /* ===== CARD ===== */
+    .card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .card-body { padding: 16px; }
+
+    /* ===== APP LAYOUT (mobile-first) ===== */
+    #app { display: none; flex-direction: column; min-height: 100vh; }
+    .topbar { position: sticky; top: 0; z-index: 20; background: var(--green); color: #fff; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    .topbar .tb-brand { font-size: 16px; font-weight: 800; }
+    .topbar .tb-sub { font-size: 11px; opacity: .85; }
+    .topbar .tb-logout { background: rgba(255,255,255,0.15); color: #fff; border: none; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .topbar .tb-logout:hover { background: rgba(255,255,255,0.28); }
+
+    .container { max-width: 720px; margin: 0 auto; width: 100%; padding: 16px; }
+
+    /* Ringkasan piutang */
+    .summary-card { background: linear-gradient(135deg, #1D9E75, #13845f); color: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 6px 24px rgba(29,158,117,0.25); }
+    .summary-card .sc-label { font-size: 13px; opacity: .9; }
+    .summary-card .sc-value { font-size: 30px; font-weight: 800; margin: 4px 0 8px; }
+    .summary-card .sc-meta { font-size: 12px; opacity: .9; display: flex; gap: 14px; flex-wrap: wrap; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 8px; margin: 18px 0 14px; }
+    .tab-btn { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: #fff; color: var(--text-secondary); font-weight: 600; font-size: 14px; cursor: pointer; font-family: inherit; transition: all .15s; }
+    .tab-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+
+    .section-title { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin: 4px 0 10px; }
+
+    /* Transaksi card */
+    .trx-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: var(--shadow); }
+    .trx-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+    .trx-date { font-weight: 700; font-size: 14px; }
+    .trx-pasar { font-size: 12px; color: var(--text-muted); }
+    .trx-item { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--text-secondary); padding: 2px 0; }
+    .trx-totals { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e5e7eb; }
+    .trx-row { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; }
+    .progress-bar { height: 6px; background: #eef0f3; border-radius: 999px; overflow: hidden; margin-top: 8px; }
+    .progress-fill { height: 100%; background: var(--green); border-radius: 999px; transition: width .3s; }
+    .bayar-toggle { margin-top: 10px; font-size: 12.5px; font-weight: 600; color: var(--green); cursor: pointer; user-select: none; }
+    .bayar-list { margin-top: 8px; display: none; }
+    .bayar-list.open { display: block; }
+    .bayar-item { display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; margin-bottom: 6px; }
+
+    /* Stok */
+    .search-box { position: relative; margin-bottom: 12px; }
+    .search-box input { padding-left: 38px; }
+    .search-box .si { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+    .stok-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 12px; box-shadow: var(--shadow); }
+    .stok-name { font-weight: 700; font-size: 14px; }
+    .stok-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .stok-right { text-align: right; flex-shrink: 0; }
+    .stok-price { font-size: 13px; font-weight: 700; color: var(--green-text); }
+    .stok-price-sub { font-size: 11px; color: var(--text-muted); }
+
+    .empty { text-align: center; padding: 40px 16px; color: var(--text-muted); }
+    .empty .ico { font-size: 42px; margin-bottom: 10px; }
+    .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+    .spinner-dark { border: 2px solid rgba(29,158,117,0.25); border-top-color: var(--green); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .toast-wrap { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: #111827; color: #fff; padding: 11px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: 0 6px 24px rgba(0,0,0,0.25); }
+    .toast-error { background: var(--red-text); }
+  </style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="brand">🏷️ Batik AN</div>
+      <div class="tagline">Portal Pelanggan</div>
+    </div>
+    <div class="login-title">Selamat Datang</div>
+    <div class="login-sub">Masuk untuk memantau piutang & stok</div>
+    <div class="error-msg" id="login-error"></div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" id="login-email" class="form-control" placeholder="email@contoh.com" autocomplete="username" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="login-password" class="form-control" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <button class="btn btn-primary w-full" id="btn-login">Masuk</button>
+  </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="app">
+  <div class="topbar">
+    <div>
+      <div class="tb-brand">🏷️ Batik AN</div>
+      <div class="tb-sub" id="tb-nama">Pelanggan</div>
+    </div>
+    <button class="tb-logout" onclick="doLogout()">Keluar</button>
+  </div>
+
+  <div class="container">
+    <!-- Ringkasan piutang -->
+    <div class="summary-card" id="summary-card">
+      <div class="sc-label">Total Sisa Hutang Saya</div>
+      <div class="sc-value" id="sc-total">Rp 0</div>
+      <div class="sc-meta" id="sc-meta"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-btn-piutang" onclick="switchTab('piutang')">📒 Piutang Saya</button>
+      <button class="tab-btn" id="tab-btn-stok" onclick="switchTab('stok')">📦 Stok Ready</button>
+    </div>
+
+    <!-- Tab: Piutang -->
+    <div id="tab-piutang">
+      <div class="section-title">Rincian Transaksi</div>
+      <div id="trx-list">
+        <div class="empty"><div class="ico"><span class="loading-spinner spinner-dark"></span></div>Memuat transaksi...</div>
+      </div>
+    </div>
+
+    <!-- Tab: Stok -->
+    <div id="tab-stok" style="display:none;">
+      <div class="section-title">Stok Ready Pasaran</div>
+      <div class="search-box">
+        <span class="si">🔍</span>
+        <input type="text" class="form-control" id="stok-search" placeholder="Cari produk batik..." oninput="renderStok()" autocomplete="off" />
+      </div>
+      <div id="stok-updated" style="font-size:11px;color:var(--text-muted);margin-bottom:10px;"></div>
+      <div id="stok-list">
+        <div class="empty"><div class="ico"><span class="loading-spinner spinner-dark"></span></div>Memuat stok...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script type="module">
+// ============================================================
+// FIREBASE — project sama dengan app grosir (store-batik-an)
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDmBWaM-0Mj34FlQbOqkZR5nv6D0Vl5aIw",
+  authDomain: "store-batik-an.firebaseapp.com",
+  projectId: "store-batik-an",
+  storageBucket: "store-batik-an.firebasestorage.app",
+  messagingSenderId: "1016593352699",
+  appId: "1:1016593352699:web:6f13430d9832bbae8f6d5e",
+  measurementId: "G-CW6Z3BMV04"
+};
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, query, where }
+  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ============================================================
+// STATE
+// ============================================================
+let currentUser   = null;
+let pelangganDoc  = null;   // dokumen pelanggan milik user
+let allTrx        = [];     // transaksi milik pelanggan
+let allBayar      = [];     // pembayaran milik pelanggan
+let stokData      = [];     // daftar stok (read-only)
+let activeTab     = 'piutang';
+
+// ============================================================
+// HELPERS
+// ============================================================
+function formatRupiah(n) {
+  if (!n && n !== 0) return 'Rp 0';
+  return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+}
+function formatTanggal(d) {
+  if (!d) return '-';
+  const dt = d.toDate ? d.toDate() : new Date(d);
+  const hari  = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const bulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  return `${hari[dt.getDay()]}, ${dt.getDate()} ${bulan[dt.getMonth()]} ${dt.getFullYear()}`;
+}
+function formatPasar(p) {
+  if (p === 'tegal_gubug') return 'Tegal Gubug';
+  if (p === 'jatibarang')  return 'Jatibarang';
+  return p ? String(p).replace(/_/g, ' ') : '-';
+}
+function _time(x) {
+  const s = x?.tanggal || x?.created_at || x?.updated_at;
+  if (s?.toDate) return s.toDate().getTime();
+  if (s?.seconds) return s.seconds * 1000;
+  return new Date(s || 0).getTime();
+}
+window.showToast = function(msg, type = 'info') {
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  t.className = `toast ${type === 'error' ? 'toast-error' : ''}`;
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+};
+
+// ============================================================
+// AUTH
+// ============================================================
+document.getElementById('btn-login').addEventListener('click', doLogin);
+document.getElementById('login-email').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-password').focus(); });
+document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn   = document.getElementById('btn-login');
+  errEl.style.display = 'none';
+  if (!email || !pass) { errEl.textContent = 'Email dan password harus diisi.'; errEl.style.display = 'block'; return; }
+  btn.innerHTML = '<span class="loading-spinner"></span> Masuk...'; btn.disabled = true;
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (e) {
+    let msg = 'Login gagal. Coba lagi.';
+    if (['auth/user-not-found','auth/wrong-password','auth/invalid-credential'].includes(e.code)) msg = 'Email atau password salah.';
+    if (e.code === 'auth/too-many-requests') msg = 'Terlalu banyak percobaan. Coba lagi nanti.';
+    errEl.textContent = msg; errEl.style.display = 'block';
+    btn.innerHTML = 'Masuk'; btn.disabled = false;
+  }
+}
+
+window.doLogout = async function() { await signOut(auth); };
+
+function showLogin(errMsg) {
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  const btn = document.getElementById('btn-login');
+  btn.innerHTML = 'Masuk'; btn.disabled = false;
+  if (errMsg) {
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = errMsg; errEl.style.display = 'block';
+  }
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { currentUser = null; showLogin(); return; }
+  currentUser = user;
+  try {
+    const uDoc = await getDoc(doc(db, 'users', user.uid));
+    if (!uDoc.exists()) { await signOut(auth); showLogin('Akun belum terdaftar. Hubungi admin Batik AN.'); return; }
+    const ud = uDoc.data();
+    if (ud.role !== 'pelanggan') {
+      await signOut(auth);
+      showLogin('Halaman ini khusus pelanggan. Gunakan aplikasi admin untuk akun staf.');
+      return;
+    }
+    if (ud.aktif === false) { await signOut(auth); showLogin('Akun Anda nonaktif. Hubungi admin Batik AN.'); return; }
+    if (!ud.pelanggan_id)  { await signOut(auth); showLogin('Akun belum terhubung ke data pelanggan. Hubungi admin.'); return; }
+
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('tb-nama').textContent = ud.nama || 'Pelanggan';
+    await loadAll(ud.pelanggan_id);
+  } catch (e) {
+    console.error(e);
+    showLogin('Gagal memuat akun: ' + e.message);
+  }
+});
+
+// ============================================================
+// LOAD DATA (selalu pakai filter pelanggan_id agar lolos rules)
+// ============================================================
+async function loadAll(pelangganId) {
+  try {
+    const [pelSnap, trxSnap, bayarSnap] = await Promise.all([
+      getDoc(doc(db, 'pelanggan', pelangganId)),
+      getDocs(query(collection(db, 'transaksi'),  where('pelanggan_id', '==', pelangganId))),
+      getDocs(query(collection(db, 'pembayaran'), where('pelanggan_id', '==', pelangganId)))
+    ]);
+
+    pelangganDoc = pelSnap.exists() ? { id: pelSnap.id, ...pelSnap.data() } : { id: pelangganId, nama: '-' };
+    allTrx   = trxSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allBayar = bayarSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    renderSummary();
+    renderTrx();
+    loadStok(); // async, tidak perlu ditunggu
+  } catch (e) {
+    console.error(e);
+    document.getElementById('trx-list').innerHTML =
+      `<div class="empty"><div class="ico">⚠️</div>Gagal memuat data: ${e.message}</div>`;
+  }
+}
+
+// ============================================================
+// RINGKASAN PIUTANG
+// ============================================================
+function renderSummary() {
+  const belum = allTrx.filter(t => t.status === 'belum_lunas');
+  const totalSisa = belum.reduce((s, t) => s + (t.sisa_hutang || 0), 0);
+  document.getElementById('sc-total').textContent = formatRupiah(totalSisa);
+
+  const lunasCount = allTrx.filter(t => t.status === 'lunas').length;
+  const statusTxt = totalSisa <= 0
+    ? '✅ Semua hutang lunas'
+    : `🔴 ${belum.length} transaksi belum lunas`;
+  document.getElementById('sc-meta').innerHTML = `
+    <span>${statusTxt}</span>
+    <span>Total transaksi: ${allTrx.length}</span>
+    <span>Lunas: ${lunasCount}</span>`;
+}
+
+// ============================================================
+// RINCIAN TRANSAKSI + RIWAYAT PEMBAYARAN
+// ============================================================
+function renderTrx() {
+  const el = document.getElementById('trx-list');
+  if (allTrx.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="ico">🧾</div>Belum ada transaksi tercatat.</div>`;
+    return;
+  }
+
+  // Urutkan: belum lunas dulu, lalu terbaru
+  const sorted = [...allTrx].sort((a, b) => {
+    const sa = a.status === 'belum_lunas' ? 0 : 1;
+    const sb = b.status === 'belum_lunas' ? 0 : 1;
+    if (sa !== sb) return sa - sb;
+    return _time(b) - _time(a);
+  });
+
+  el.innerHTML = sorted.map(t => {
+    const tgl = t.tanggal?.toDate ? t.tanggal.toDate() : new Date(t.tanggal || 0);
+    const lunas = t.status === 'lunas';
+    const total = t.total_tagihan || 0;
+    const sisa  = t.sisa_hutang ?? (lunas ? 0 : total);
+    const dibayar = (t.nominal_dibayar != null) ? t.nominal_dibayar : Math.max(0, total - sisa);
+    const pct = total > 0 ? Math.min(100, Math.round((dibayar / total) * 100)) : (lunas ? 100 : 0);
+    const statusBadge = lunas
+      ? '<span class="badge badge-green">✅ Lunas</span>'
+      : '<span class="badge badge-red">Belum Lunas</span>';
+
+    const itemsHTML = (t.items || []).map(i =>
+      `<div class="trx-item"><span>📦 ${i.produk_nama || '-'} × ${i.jumlah_kodi || 0} kodi</span><span>${formatRupiah(i.subtotal || 0)}</span></div>`
+    ).join('') || '<div class="trx-item"><span>—</span></div>';
+
+    // Riwayat pembayaran transaksi ini (urut waktu, sisa berjalan)
+    const bayarT = allBayar.filter(b => b.transaksi_id === t.id).sort((a, b) => _time(a) - _time(b));
+    let run = total;
+    const bayarHTML = bayarT.map(b => {
+      const isRetur = b.is_retur || b.metode === 'retur';
+      run = Math.max(0, run - (b.nominal || 0));
+      const tglB = b.tanggal?.toDate ? b.tanggal.toDate() : new Date(b.tanggal || 0);
+      return `<div class="bayar-item">
+        <div>
+          <div style="font-weight:600;font-size:12.5px;">💵 ${formatTanggal(tglB)}</div>
+          <div style="font-size:11px;color:${isRetur ? '#D97706' : '#6B7280'};margin-top:1px;">${isRetur ? '↩️ Retur' : (b.metode || 'tunai')}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:700;color:${isRetur ? '#D97706' : '#16A34A'};">${isRetur ? '−' : '+'}${formatRupiah(b.nominal || 0)}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">Sisa: ${formatRupiah(run)}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const toggle = bayarT.length > 0
+      ? `<div class="bayar-toggle" onclick="toggleBayar('${t.id}')" id="tgl-${t.id}">▾ Lihat riwayat bayar (${bayarT.length})</div>
+         <div class="bayar-list" id="bayar-${t.id}">${bayarHTML}</div>`
+      : `<div style="font-size:12px;color:var(--text-muted);margin-top:10px;">${lunas ? 'Dibayar langsung / kontan.' : 'Belum ada pembayaran.'}</div>`;
+
+    return `<div class="trx-card">
+      <div class="trx-head">
+        <div>
+          <div class="trx-date">${formatTanggal(tgl)}</div>
+          <div class="trx-pasar">📍 ${formatPasar(t.pasar)}</div>
+        </div>
+        ${statusBadge}
+      </div>
+      ${itemsHTML}
+      <div class="trx-totals">
+        <div class="trx-row"><span style="color:var(--text-muted);">Total tagihan</span><span style="font-weight:700;">${formatRupiah(total)}</span></div>
+        <div class="trx-row"><span style="color:var(--text-muted);">Sudah dibayar</span><span style="color:var(--green-text);font-weight:600;">${formatRupiah(dibayar)}</span></div>
+        <div class="trx-row"><span style="font-weight:700;">Sisa</span><span style="font-weight:700;color:${sisa > 0 ? 'var(--red-text)' : 'var(--green-text)'};">${formatRupiah(sisa)}</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div style="font-size:11px;color:var(--text-muted);text-align:right;margin-top:3px;">${pct}% lunas</div>
+      </div>
+      ${toggle}
+    </div>`;
+  }).join('');
+}
+
+window.toggleBayar = function(trxId) {
+  const list = document.getElementById(`bayar-${trxId}`);
+  const tgl  = document.getElementById(`tgl-${trxId}`);
+  if (!list) return;
+  const open = list.classList.toggle('open');
+  if (tgl) tgl.innerHTML = (open ? '▴ Sembunyikan riwayat bayar' : `▾ Lihat riwayat bayar (${list.querySelectorAll('.bayar-item').length})`);
+};
+
+// ============================================================
+// STOK READY PASARAN (read-only)
+// ============================================================
+async function loadStok() {
+  try {
+    // produk → untuk tahu mana yang masih aktif
+    let aktifSet = null;
+    try {
+      const prodSnap = await getDocs(collection(db, 'produk'));
+      aktifSet = new Set();
+      prodSnap.forEach(d => { if (d.data().aktif !== false) aktifSet.add(d.id); });
+    } catch (e) { aktifSet = null; /* kalau gagal, tampilkan semua */ }
+
+    const stokSnap = await getDocs(collection(db, 'stok'));
+    stokData = stokSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(s => aktifSet ? aktifSet.has(s.id) : true);
+
+    // Tanggal update terakhir (dari updated_at terbaru)
+    let last = 0;
+    stokData.forEach(s => { const ms = _time(s); if (ms > last) last = ms; });
+    document.getElementById('stok-updated').textContent =
+      last ? `Diperbarui terakhir: ${formatTanggal(new Date(last))}` : '';
+
+    renderStok();
+  } catch (e) {
+    console.error(e);
+    document.getElementById('stok-list').innerHTML =
+      `<div class="empty"><div class="ico">⚠️</div>Gagal memuat stok: ${e.message}</div>`;
+  }
+}
+
+window.renderStok = function() {
+  const el = document.getElementById('stok-list');
+  const q = (document.getElementById('stok-search')?.value || '').toLowerCase().trim();
+
+  let list = stokData.slice();
+  if (q) list = list.filter(s => (s.produk_nama || '').toLowerCase().includes(q));
+
+  // Urutkan: ada stok mobil dulu (ready pasaran), lalu nama
+  list.sort((a, b) => {
+    const ra = (a.stok_mobil || 0) > 0 ? 0 : 1;
+    const rb = (b.stok_mobil || 0) > 0 ? 0 : 1;
+    if (ra !== rb) return ra - rb;
+    return (a.produk_nama || '').localeCompare(b.produk_nama || '', 'id');
+  });
+
+  if (list.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="ico">📦</div>${q ? 'Produk tidak ditemukan.' : 'Belum ada data stok.'}</div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(s => {
+    const pcsPerKodi = s.pcs_per_kodi || 20;
+    const mobilKodi  = s.stok_mobil || 0;                 // stok ready di pasaran (mobil)
+    const mobilPcs   = Math.round(mobilKodi * pcsPerKodi);
+    const hargaKodi  = s.harga_jual_per_kodi || s.harga_default || 0;
+    const hargaPcs   = s.harga_per_pcs || (hargaKodi / pcsPerKodi);
+
+    let badge;
+    if (mobilKodi <= 0)      badge = '<span class="badge badge-red">Habis</span>';
+    else if (mobilKodi <= 2) badge = `<span class="badge badge-amber">${mobilKodi} kodi</span>`;
+    else                     badge = `<span class="badge badge-green">${mobilKodi} kodi</span>`;
+
+    return `<div class="stok-card">
+      <div style="min-width:0;">
+        <div class="stok-name">${s.produk_nama || '-'}</div>
+        <div class="stok-sub">${badge} ${mobilKodi > 0 ? `· ${mobilPcs} pcs ready` : ''}</div>
+      </div>
+      <div class="stok-right">
+        <div class="stok-price">${formatRupiah(hargaKodi)}<span style="font-weight:500;color:var(--text-muted);font-size:11px;">/kodi</span></div>
+        <div class="stok-price-sub">${formatRupiah(hargaPcs)}/pcs</div>
+      </div>
+    </div>`;
+  }).join('');
+};
+
+// ============================================================
+// TABS
+// ============================================================
+window.switchTab = function(tab) {
+  activeTab = tab;
+  const isP = tab === 'piutang';
+  document.getElementById('tab-piutang').style.display = isP ? '' : 'none';
+  document.getElementById('tab-stok').style.display    = isP ? 'none' : '';
+  document.getElementById('tab-btn-piutang').classList.toggle('active', isP);
+  document.getElementById('tab-btn-stok').classList.toggle('active', !isP);
+};
+</script>
+</body>
+</html>
