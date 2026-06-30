@@ -6063,28 +6063,18 @@ window.addItemRow = function() {
     return;
   }
 
-  // Filter produk aktif + tampilkan info stok, disable jika stok habis
-  const produkOptions = allProduk
-    .filter(p => p.aktif !== false)
-    .map(p => {
-      const stok = cekStokMobil(p.id);
-      const habis = stok <= 0;
-      const stokLabel = habis ? ' [HABIS]' : ` [Stok: ${stok} kodi]`;
-      return `<option value="${p.id}" data-harga="${p.harga_default || 0}" data-stok="${stok}" ${habis ? 'disabled' : ''}>${p.nama || '-'}${stokLabel}</option>`;
-    })
-    .join('');
-
   const rowId = `item-row-${itemRowCount}`;
   const row = document.createElement('div');
   row.id = rowId;
   row.className = 'item-entry';
   row.innerHTML = `
-    <div class="form-group" style="margin:0;">
+    <div class="form-group dropdown-search" style="margin:0;">
       <label class="form-label" style="font-size:11px;">Produk</label>
-      <select class="form-control" id="item-produk-${itemRowCount}" onchange="onProdukChange(${itemRowCount})">
-        <option value="">-- Pilih --</option>
-        ${produkOptions}
-      </select>
+      <input type="hidden" id="item-produk-${itemRowCount}" value="" />
+      <input type="text" class="form-control" id="item-search-${itemRowCount}"
+        placeholder="Ketik nama batik..." autocomplete="off"
+        oninput="searchProdukTrx(${itemRowCount})" onfocus="searchProdukTrx(${itemRowCount})" />
+      <div class="dropdown-list" id="item-dropdown-${itemRowCount}"></div>
     </div>
     <div class="form-group" style="margin:0;">
       <label class="form-label" style="font-size:11px;">Satuan</label>
@@ -6117,6 +6107,62 @@ window.addItemRow = function() {
 window.removeItemRow = function(rowId) {
   const el = document.getElementById(rowId);
   if (el) el.remove();
+};
+
+// Typeahead produk: ketik nama batik → rekomendasi muncul + info sisa stok
+window.searchProdukTrx = function(n) {
+  const inp      = document.getElementById(`item-search-${n}`);
+  const hidden   = document.getElementById(`item-produk-${n}`);
+  const dropdown = document.getElementById(`item-dropdown-${n}`);
+  if (!inp || !dropdown) return;
+  const q = inp.value.trim().toLowerCase();
+
+  // Jika ketikan tak lagi cocok dengan produk terpilih → batalkan pilihan & info stok
+  if (hidden && hidden.value) {
+    const sel = allProduk.find(p => p.id === hidden.value);
+    if (!sel || (sel.nama || '').toLowerCase() !== q) {
+      hidden.value = '';
+      const infoEl = document.getElementById(`item-stok-info-${n}`);
+      if (infoEl) infoEl.remove();
+    }
+  }
+
+  let list = allProduk.filter(p => p.aktif !== false);
+  if (q) list = list.filter(p => (p.nama || '').toLowerCase().includes(q));
+
+  // Urutkan: yang ada stok dulu, lalu alfabetis; batasi 10 rekomendasi
+  list = list
+    .map(p => ({ p, stok: cekStokMobil(p.id) }))
+    .sort((a, b) => (b.stok > 0) - (a.stok > 0) || (a.p.nama || '').localeCompare(b.p.nama || '', 'id'))
+    .slice(0, 10);
+
+  if (list.length === 0) {
+    dropdown.innerHTML = '<div class="dropdown-option"><div class="do-sub">Tidak ada produk yang cocok</div></div>';
+  } else {
+    dropdown.innerHTML = list.map(({ p, stok }) => {
+      const habis      = stok <= 0;
+      const pcsPerKodi = p.pcs_per_kodi || 20;
+      const stokPcs    = Math.round(stok * pcsPerKodi);
+      const warna      = habis ? '#DC2626' : stok <= 2 ? '#D97706' : '#16A34A';
+      const ikon       = habis ? '🚫' : stok <= 2 ? '⚠️' : '✅';
+      const stokTxt    = habis ? 'Stok habis' : `Sisa ${stok} kodi (${stokPcs} pcs)`;
+      const clickAttr  = habis ? '' : `onclick="selectProdukTrx(${n}, '${p.id}')"`;
+      return `<div class="dropdown-option" ${clickAttr} style="${habis ? 'opacity:.55;cursor:not-allowed;' : ''}">
+        <div class="do-name">${p.nama || '-'}</div>
+        <div class="do-sub" style="color:${warna};font-weight:600;">${ikon} ${stokTxt} · ${formatRupiah(p.harga_default || 0)}/kodi</div>
+      </div>`;
+    }).join('');
+  }
+  dropdown.classList.add('open');
+};
+
+window.selectProdukTrx = function(n, produkId) {
+  const p = allProduk.find(x => x.id === produkId);
+  if (!p) return;
+  document.getElementById(`item-produk-${n}`).value = produkId;
+  document.getElementById(`item-search-${n}`).value = p.nama || '';
+  document.getElementById(`item-dropdown-${n}`).classList.remove('open');
+  onProdukChange(n);
 };
 
 window.onProdukChange = function(n) {
