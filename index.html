@@ -2656,6 +2656,44 @@
   </div>
 </div>
 
+<!-- Modal Akun Login Pelanggan (owner) -->
+<div class="modal-backdrop" id="modal-akun-pelanggan" onclick="handleBackdropClick(event,'modal-akun-pelanggan')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:440px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">🔑 Akun Login Pelanggan</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="akun-pel-subtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-akun-pelanggan')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="akun-pel-id" />
+      <div id="akun-pel-status"></div>
+      <div id="akun-pel-form">
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">
+          Buatkan akun agar pelanggan bisa membuka <strong>portal pelanggan</strong>
+          (memantau piutang & stok ready). Akun ini hanya bisa <em>melihat</em>.
+        </p>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="akun-pel-email" class="form-control" placeholder="pelanggan@contoh.com" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="text" id="akun-pel-password" class="form-control" placeholder="Minimal 6 karakter" autocomplete="off" />
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Catat & berikan email + password ini ke pelanggan.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-akun-pelanggan')">Tutup</button>
+      <button class="btn btn-primary" id="btn-simpan-akun-pel" onclick="simpanAkunPelanggan()">Buat Akun</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Tambah Produk -->
 <div class="modal-backdrop" id="modal-tambah-produk" onclick="handleBackdropClick(event,'modal-tambah-produk')">
   <div class="modal" onclick="event.stopPropagation()">
@@ -5071,7 +5109,95 @@ window.simpanKaryawan = async function() {
     btn.disabled = false; btn.textContent = 'Buat Akun';
   }
 };
- 
+
+// ============================================================
+// AKUN LOGIN PELANGGAN (owner) — untuk portal pelanggan.html
+// ============================================================
+window.openAkunPelanggan = function(pelangganId) {
+  const p = allPelanggan.find(x => x.id === pelangganId);
+  if (!p) return;
+  document.getElementById('akun-pel-id').value = pelangganId;
+  document.getElementById('akun-pel-subtitle').textContent = p.nama || '';
+  document.getElementById('akun-pel-email').value = '';
+  document.getElementById('akun-pel-password').value = '';
+
+  const statusEl = document.getElementById('akun-pel-status');
+  const formEl   = document.getElementById('akun-pel-form');
+  const btn      = document.getElementById('btn-simpan-akun-pel');
+
+  if (p.uid) {
+    // Sudah punya akun
+    statusEl.innerHTML = `
+      <div class="warning-box green" style="margin-bottom:14px;">
+        <span>✅</span>
+        <div>
+          <strong>Akun login sudah aktif.</strong><br/>
+          <span style="font-size:12px;">Pelanggan ini sudah bisa masuk ke portal <code>pelanggan.html</code>. Untuk reset password, lakukan di Firebase Console → Authentication.</span>
+        </div>
+      </div>`;
+    formEl.style.display = 'none';
+    btn.style.display = 'none';
+  } else {
+    statusEl.innerHTML = '';
+    formEl.style.display = 'block';
+    btn.style.display = '';
+    btn.disabled = false; btn.textContent = 'Buat Akun';
+  }
+  openModal('modal-akun-pelanggan');
+};
+
+window.simpanAkunPelanggan = async function() {
+  const pelangganId = document.getElementById('akun-pel-id').value;
+  const email = document.getElementById('akun-pel-email').value.trim();
+  const password = document.getElementById('akun-pel-password').value;
+  const p = allPelanggan.find(x => x.id === pelangganId);
+  if (!p) return;
+
+  if (!email || !password) { showToast('Isi email dan password', 'error'); return; }
+  if (password.length < 6) { showToast('Password minimal 6 karakter', 'error'); return; }
+
+  const btn = document.getElementById('btn-simpan-akun-pel');
+  btn.disabled = true; btn.textContent = 'Membuat akun...';
+  try {
+    // 1. Buat akun Auth via REST API (agar sesi owner tidak ikut logout)
+    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: true })
+    });
+    const data = await res.json();
+    if (data.error) {
+      const m = data.error.message;
+      if (m === 'EMAIL_EXISTS') throw new Error('Email sudah dipakai akun lain.');
+      if (m === 'INVALID_EMAIL') throw new Error('Format email tidak valid.');
+      if (m && m.startsWith('WEAK_PASSWORD')) throw new Error('Password terlalu lemah (min 6 karakter).');
+      throw new Error(m);
+    }
+    const uid = data.localId;
+
+    // 2. Buat dokumen users/{uid} sebagai pelanggan
+    await setDoc(doc(db, 'users', uid), {
+      nama: p.nama,
+      role: 'pelanggan',
+      pelanggan_id: pelangganId,
+      aktif: true,
+      createdAt: serverTimestamp()
+    });
+
+    // 3. Hubungkan dokumen pelanggan ke akun (field uid)
+    await updateDoc(doc(db, 'pelanggan', pelangganId), { uid, login_email: email });
+
+    // Update state lokal agar tombol langsung berubah status
+    p.uid = uid; p.login_email = email;
+
+    showToast(`Akun login untuk "${p.nama}" berhasil dibuat ✅`, 'success');
+    closeModal('modal-akun-pelanggan');
+  } catch (e) {
+    showToast('Gagal: ' + e.message, 'error');
+    btn.disabled = false; btn.textContent = 'Buat Akun';
+  }
+};
+
 // ============================================================
 // PATCH navigateTo — tambahkan piutang, rekap, pengaturan, histori
 // ============================================================
@@ -5510,6 +5636,8 @@ window.showDetailPelanggan = function(id) {
   let footerHtml = `<button class="btn btn-primary" onclick="closeModal('modal-detail-pelanggan');bukaHistori('${p.id}','pelanggan')">📊 Riwayat & Aktivitas</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-detail-pelanggan');editPelanggan('${p.id}')">✏️ Edit</button>`;
   if (isOwner) {
+    const akunLabel = p.uid ? '🔑 Akun Login ✅' : '🔑 Buat Akun Login';
+    footerHtml += `<button class="btn btn-secondary" onclick="closeModal('modal-detail-pelanggan');openAkunPelanggan('${p.id}')">${akunLabel}</button>`;
     if (p.diblokir_manual) {
       footerHtml += `<button class="btn btn-secondary" onclick="toggleBlokir('${p.id}', false)">✅ Aktifkan</button>`;
     } else {
