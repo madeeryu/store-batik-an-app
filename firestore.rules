@@ -2,65 +2,66 @@ rules_version = '2';
 
 // ============================================================
 // Firestore Security Rules — Batik AN (project: store-batik-an)
+// GABUNGAN: rules lama + pembatasan untuk akun "pelanggan".
 // ------------------------------------------------------------
-// Tujuan:
-//  - STAF (owner/karyawan): akses penuh ke SEMUA koleksi (app admin & eceran).
-//  - PELANGGAN: hanya BACA stok, produk, dan data miliknya sendiri.
-//  - PELANGGAN tidak bisa menulis apa pun, dan tidak bisa melihat data
-//    pelanggan lain maupun data internal (arus kas, pengeluaran, eceran, dll).
+// Perilaku:
+//  - Akun lama (owner/karyawan, atau akun login apa pun yang BUKAN pelanggan):
+//    tetap punya akses penuh ke semua koleksi — SAMA PERSIS seperti rules lama
+//    (catch-all `request.auth != null`). Tidak ada yang berubah untuk staf.
+//  - Akun dengan role 'pelanggan': HANYA boleh BACA stok, produk, dan data
+//    miliknya sendiri (pelanggan/transaksi/pembayaran). Tidak bisa menulis,
+//    tidak bisa melihat data pelanggan lain / data internal.
 //
 // Cara pasang: Firebase Console → Firestore Database → Rules → tempel → Publish.
-// (Atau via Firebase CLI: `firebase deploy --only firestore:rules`)
 // ============================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // ---------- Helper ----------
-    function isSignedIn()    { return request.auth != null; }
-    function userData()      { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
-    function myRole()        { return isSignedIn() ? userData().role : 'none'; }
-    function isStaff()       { return isSignedIn() && (myRole() == 'owner' || myRole() == 'karyawan'); }
-    function isPelanggan()   { return isSignedIn() && myRole() == 'pelanggan'; }
-    function myPelangganId() { return userData().pelanggan_id; }
+    function isSignedIn() { return request.auth != null; }
 
-    // ---------- STAF: akses penuh ke seluruh koleksi ----------
-    // Catch-all ini menjaga app admin & eceran tetap berjalan normal,
-    // termasuk koleksi baru di masa depan. Aturan di bawahnya hanya
-    // MENAMBAH izin baca untuk pelanggan (rules bersifat OR / saling menambah).
-    match /{document=**} {
-      allow read, write: if isStaff();
+    // True hanya jika dok users ada DAN role-nya 'pelanggan'.
+    // Jika dok users tidak ada / tanpa role → dianggap BUKAN pelanggan,
+    // sehingga akun lama tetap dapat akses penuh (mempertahankan rules lama).
+    function isPelanggan() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'pelanggan';
+    }
+    function myPelangganId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.pelanggan_id;
     }
 
-    // ---------- STOK & PRODUK: pelanggan boleh BACA saja ----------
+    // ---------- USERS (dari rules lama) ----------
+    // Setiap user boleh baca dokumennya sendiri (dipakai saat login pelanggan
+    // untuk membaca role & pelanggan_id). Tulis users hanya oleh owner.
+    match /users/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+    }
+
+    // ---------- Izin BACA untuk pelanggan (read-only) ----------
     match /stok/{id}   { allow read: if isPelanggan(); }
     match /produk/{id} { allow read: if isPelanggan(); }
 
-    // ---------- PELANGGAN: hanya boleh baca dokumennya sendiri ----------
     match /pelanggan/{id} {
       allow read: if isPelanggan() && id == myPelangganId();
     }
-
-    // ---------- TRANSAKSI: pelanggan hanya baca miliknya ----------
-    // Wajib query dengan where('pelanggan_id','==', <id-nya>) agar lolos rules.
+    // Wajib query pakai where('pelanggan_id','==', <id-nya>) agar lolos rules.
     match /transaksi/{id} {
       allow read: if isPelanggan() && resource.data.pelanggan_id == myPelangganId();
     }
-
-    // ---------- PEMBAYARAN: pelanggan hanya baca miliknya ----------
     match /pembayaran/{id} {
       allow read: if isPelanggan() && resource.data.pelanggan_id == myPelangganId();
     }
 
-    // ---------- USERS: setiap user boleh baca dokumennya sendiri ----------
-    // Diperlukan saat login untuk mengetahui role & pelanggan_id.
-    // (Staf sudah tercakup catch-all di atas untuk membaca semua users.)
-    match /users/{id} {
-      allow read: if isSignedIn() && request.auth.uid == id;
+    // ---------- Catch-all (dari rules lama, dipersempit) ----------
+    // Semua user login KECUALI pelanggan → akses penuh, persis rules lama.
+    // Pelanggan dikecualikan agar pembatasan baca/tulis di atas berlaku.
+    match /{document=**} {
+      allow read, write: if isSignedIn() && !isPelanggan();
     }
-
-    // Catatan: koleksi internal (pengeluaran, rekap_ecer_harian, stok_log,
-    // mitra, eceran_*, stok_eceran*, stok_rumah_log, pengaturan, dst) TIDAK
-    // diberi izin pelanggan di sini, sehingga otomatis hanya bisa diakses staf.
   }
 }
