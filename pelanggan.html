@@ -549,6 +549,20 @@ window.toggleBayar = function(trxId) {
 // ============================================================
 function _esc(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
 
+// Ubah link berbagi jadi URL gambar langsung yang bisa dipakai <img>.
+// Khususnya Google Drive: link ".../file/d/<id>/view" TIDAK bisa dipakai <img>,
+// jadi dikonversi ke CDN lh3.googleusercontent.com (andal & tanpa redirect).
+// Syarat: file di-share "Anyone with the link".
+function _imgUrl(url) {
+  if (!url) return '';
+  const u = String(url).trim();
+  if (u.includes('drive.google.com') || u.includes('docs.google.com')) {
+    const m = u.match(/\/d\/([-\w]{20,})/) || u.match(/[?&]id=([-\w]{20,})/);
+    if (m) return `https://lh3.googleusercontent.com/d/${m[1]}=w1000`;
+  }
+  return u;
+}
+
 async function loadEtalase() {
   try {
     // Ambil produk (nama, harga, foto, aktif, pcs_per_kodi) + stok (ready)
@@ -612,7 +626,7 @@ window.renderEtalase = function() {
       ? '<span class="badge badge-green prod-badge">✅ Ready</span>'
       : '<span class="badge badge-gray prod-badge">Kosong</span>';
     const thumb = p.foto_url
-      ? `<img src="${_esc(p.foto_url)}" alt="${_esc(p.nama)}" loading="lazy" onerror="this.style.display='none';this.parentNode.querySelector('.ph-ico').style.display='flex';" /><span class="ph-ico" style="display:none;">🧵</span>`
+      ? `<img src="${_esc(_imgUrl(p.foto_url))}" alt="${_esc(p.nama)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.parentNode.querySelector('.ph-ico').style.display='flex';" /><span class="ph-ico" style="display:none;">🧵</span>`
       : `<span class="ph-ico">🧵</span>`;
     const btn = p.ready
       ? `<button class="btn btn-outline" onclick="addToCart('${p.id}')">+ Pesan</button>`
