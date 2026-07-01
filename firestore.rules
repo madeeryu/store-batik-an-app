@@ -57,6 +57,17 @@ service cloud.firestore {
       allow read: if isPelanggan() && resource.data.pelanggan_id == myPelangganId();
     }
 
+    // ---------- PESANAN (dari etalase portal pelanggan) ----------
+    // Pelanggan boleh MEMBUAT pesanan atas nama dirinya & membaca pesanannya
+    // sendiri. Ubah status/hapus hanya staf (lewat catch-all). Tidak boleh
+    // mengubah pesanan yang sudah dibuat.
+    match /pesanan/{id} {
+      allow create: if isPelanggan()
+                    && request.resource.data.pelanggan_id == myPelangganId()
+                    && request.resource.data.status == 'baru';
+      allow read:   if isPelanggan() && resource.data.pelanggan_id == myPelangganId();
+    }
+
     // ---------- Catch-all (dari rules lama, dipersempit) ----------
     // Semua user login KECUALI pelanggan → akses penuh, persis rules lama.
     // Pelanggan dikecualikan agar pembatasan baca/tulis di atas berlaku.

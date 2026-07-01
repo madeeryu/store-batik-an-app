@@ -109,6 +109,48 @@
     .stok-price { font-size: 13px; font-weight: 700; color: var(--green-text); }
     .stok-price-sub { font-size: 11px; color: var(--text-muted); }
 
+    /* ===== ETALASE (storefront) ===== */
+    .etalase-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    @media (min-width: 560px) { .etalase-grid { grid-template-columns: repeat(3, 1fr); } }
+    .prod-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+    .prod-thumb { position: relative; width: 100%; aspect-ratio: 1 / 1; background: linear-gradient(135deg,#eef2f0,#e2e8e4); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .prod-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .prod-thumb .ph-ico { font-size: 40px; opacity: .5; }
+    .prod-badge { position: absolute; top: 8px; left: 8px; }
+    .prod-body { padding: 10px 11px 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .prod-name { font-weight: 700; font-size: 13.5px; line-height: 1.25; }
+    .prod-price { font-size: 13px; font-weight: 700; color: var(--green-text); }
+    .prod-price small { font-weight: 500; color: var(--text-muted); font-size: 10.5px; }
+    .prod-price-sub { font-size: 10.5px; color: var(--text-muted); margin-top: -2px; }
+    .prod-card .btn { margin-top: auto; padding: 8px 10px; font-size: 13px; border-radius: 9px; }
+    .btn-outline { background: #fff; color: var(--green); border: 1.5px solid var(--green); }
+    .btn-outline:hover { background: var(--green-light); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Floating cart bar */
+    .cart-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; width: calc(100% - 32px); max-width: 688px; background: var(--green); color: #fff; border-radius: 14px; padding: 12px 16px; display: none; align-items: center; justify-content: space-between; box-shadow: 0 8px 30px rgba(29,158,117,0.4); cursor: pointer; z-index: 40; }
+    .cart-bar.show { display: flex; }
+    .cart-bar .cb-count { background: rgba(255,255,255,0.25); border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 700; }
+
+    /* Cart modal */
+    .cart-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; display: none; align-items: flex-end; justify-content: center; }
+    .cart-backdrop.show { display: flex; }
+    .cart-sheet { background: #fff; width: 100%; max-width: 560px; max-height: 88vh; border-radius: 18px 18px 0 0; display: flex; flex-direction: column; overflow: hidden; animation: sheetUp .22s ease; }
+    @keyframes sheetUp { from { transform: translateY(40px); opacity: .4; } to { transform: translateY(0); opacity: 1; } }
+    .cart-head { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .cart-head .ch-title { font-size: 16px; font-weight: 800; }
+    .cart-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); line-height: 1; }
+    .cart-items { padding: 12px 16px; overflow-y: auto; flex: 1; }
+    .cart-row { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
+    .cart-row .cr-name { font-weight: 600; font-size: 13.5px; }
+    .cart-row .cr-price { font-size: 11.5px; color: var(--text-muted); }
+    .qty-ctrl { display: flex; align-items: center; gap: 6px; }
+    .qty-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: #fff; font-size: 16px; font-weight: 700; cursor: pointer; color: var(--green); line-height: 1; }
+    .qty-input { width: 46px; text-align: center; padding: 5px; border: 1px solid var(--input-border); border-radius: 8px; font-family: inherit; font-size: 13px; }
+    .unit-sel { padding: 5px 6px; border: 1px solid var(--input-border); border-radius: 8px; font-family: inherit; font-size: 12px; background: #fff; }
+    .cart-del { background: none; border: none; color: var(--red-text); cursor: pointer; font-size: 16px; padding: 4px; }
+    .cart-foot { padding: 14px 16px; border-top: 1px solid var(--border); }
+
     .empty { text-align: center; padding: 40px 16px; color: var(--text-muted); }
     .empty .ico { font-size: 42px; margin-bottom: 10px; }
     .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
@@ -176,16 +218,43 @@
       </div>
     </div>
 
-    <!-- Tab: Stok -->
+    <!-- Tab: Etalase / Stok Ready -->
     <div id="tab-stok" style="display:none;">
-      <div class="section-title">Stok Ready Pasaran</div>
+      <div class="section-title">Etalase — Stok Ready Pasaran</div>
       <div class="search-box">
         <span class="si">🔍</span>
-        <input type="text" class="form-control" id="stok-search" placeholder="Cari produk batik..." oninput="renderStok()" autocomplete="off" />
+        <input type="text" class="form-control" id="stok-search" placeholder="Cari produk batik..." oninput="renderEtalase()" autocomplete="off" />
       </div>
       <div id="stok-updated" style="font-size:11px;color:var(--text-muted);margin-bottom:10px;"></div>
-      <div id="stok-list">
-        <div class="empty"><div class="ico"><span class="loading-spinner spinner-dark"></span></div>Memuat stok...</div>
+      <div id="etalase-grid" class="etalase-grid">
+        <div class="empty" style="grid-column:1/-1;"><div class="ico"><span class="loading-spinner spinner-dark"></span></div>Memuat etalase...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Floating cart bar -->
+<div class="cart-bar" id="cart-bar" onclick="openCart()">
+  <div>🛒 <span class="cb-count" id="cart-count">0</span> item</div>
+  <div style="font-weight:800;">Lihat Keranjang →</div>
+</div>
+
+<!-- Cart / checkout sheet -->
+<div class="cart-backdrop" id="cart-backdrop" onclick="if(event.target===this)closeCart()">
+  <div class="cart-sheet">
+    <div class="cart-head">
+      <div class="ch-title">🛒 Keranjang Pesanan</div>
+      <button class="cart-close" onclick="closeCart()">&times;</button>
+    </div>
+    <div class="cart-items" id="cart-items"></div>
+    <div class="cart-foot">
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label" style="font-size:12px;">Catatan (opsional)</label>
+        <input type="text" class="form-control" id="cart-note" placeholder="mis. minta warna cerah, ambil hari Selasa..." autocomplete="off" />
+      </div>
+      <button class="btn btn-primary w-full" id="btn-checkout" onclick="checkout()">Kirim Pesanan</button>
+      <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px;">
+        Pesanan diteruskan ke admin. Harga & jumlah final dikonfirmasi admin saat transaksi.
       </div>
     </div>
   </div>
@@ -210,8 +279,23 @@ const firebaseConfig = {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, getDocs, query, where }
+import { getFirestore, collection, doc, getDoc, getDocs, addDoc, query, where, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// ============================================================
+// NOTIFIKASI TELEGRAM (gratis & otomatis)
+// ------------------------------------------------------------
+// Cara mengisi (sekali saja):
+//  1. Di Telegram, chat @BotFather → /newbot → ikuti langkah → dapat TOKEN.
+//  2. Chat bot baru Anda (kirim "halo"), atau tambahkan bot ke GRUP admin.
+//  3. Buka: https://api.telegram.org/bot<TOKEN>/getUpdates → cari "chat":{"id": ...}
+//     Itu CHAT ID (grup biasanya diawali tanda minus, mis. -1001234567890).
+//  4. Isi kedua nilai di bawah, commit & deploy.
+// Catatan: token ini tampil di kode sisi-klien. Untuk toko kecil risikonya
+// kecil (paling banter orang iseng kirim pesan ke bot Anda). Kalau mau token
+// tersembunyi, perlu server/Cloud Function — bisa ditambahkan nanti.
+const TELEGRAM_BOT_TOKEN = ""; // ← isi token bot
+const TELEGRAM_CHAT_ID   = ""; // ← isi chat id admin / grup
 
 // PENTING: pakai NAMA APP tersendiri ('pelanggan-portal') — bukan default.
 // Firebase Auth menyimpan sesi login per (apiKey + nama app). App admin
@@ -229,7 +313,8 @@ let currentUser   = null;
 let pelangganDoc  = null;   // dokumen pelanggan milik user
 let allTrx        = [];     // transaksi milik pelanggan
 let allBayar      = [];     // pembayaran milik pelanggan
-let stokData      = [];     // daftar stok (read-only)
+let produkData    = [];     // gabungan produk + stok untuk etalase
+let cart          = [];     // { produk_id, nama, harga_kodi, harga_pcs, jumlah, satuan }
 let activeTab     = 'piutang';
 
 // ============================================================
@@ -347,7 +432,7 @@ async function loadAll(pelangganId) {
 
     renderSummary();
     renderTrx();
-    loadStok(); // async, tidak perlu ditunggu
+    loadEtalase(); // async, tidak perlu ditunggu
   } catch (e) {
     console.error(e);
     document.getElementById('trx-list').innerHTML =
@@ -460,81 +545,227 @@ window.toggleBayar = function(trxId) {
 };
 
 // ============================================================
-// STOK READY PASARAN (read-only)
+// ETALASE — stok ready (status saja) + pemesanan
 // ============================================================
-async function loadStok() {
+function _esc(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+
+async function loadEtalase() {
   try {
-    // produk → untuk tahu mana yang masih aktif
-    let aktifSet = null;
-    try {
-      const prodSnap = await getDocs(collection(db, 'produk'));
-      aktifSet = new Set();
-      prodSnap.forEach(d => { if (d.data().aktif !== false) aktifSet.add(d.id); });
-    } catch (e) { aktifSet = null; /* kalau gagal, tampilkan semua */ }
+    // Ambil produk (nama, harga, foto, aktif, pcs_per_kodi) + stok (ready)
+    const [prodSnap, stokSnap] = await Promise.all([
+      getDocs(collection(db, 'produk')),
+      getDocs(collection(db, 'stok'))
+    ]);
 
-    const stokSnap = await getDocs(collection(db, 'stok'));
-    stokData = stokSnap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(s => aktifSet ? aktifSet.has(s.id) : true);
+    const stokMap = {};
+    stokSnap.forEach(d => { stokMap[d.id] = d.data(); });
 
-    // Tanggal update terakhir (dari updated_at terbaru)
     let last = 0;
-    stokData.forEach(s => { const ms = _time(s); if (ms > last) last = ms; });
-    document.getElementById('stok-updated').textContent =
-      last ? `Diperbarui terakhir: ${formatTanggal(new Date(last))}` : '';
+    produkData = prodSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => p.aktif !== false)
+      .map(p => {
+        const s = stokMap[p.id] || {};
+        const pcsPerKodi = p.pcs_per_kodi || s.pcs_per_kodi || 20;
+        const hargaKodi  = p.harga_default || s.harga_jual_per_kodi || 0;
+        const hargaPcs   = p.harga_per_pcs || (hargaKodi / pcsPerKodi);
+        const ms = _time(s); if (ms > last) last = ms;
+        return {
+          id: p.id,
+          nama: p.nama || s.produk_nama || '-',
+          foto_url: p.foto_url || '',
+          harga_kodi: hargaKodi,
+          harga_pcs: hargaPcs,
+          pcs_per_kodi: pcsPerKodi,
+          ready: (s.stok_mobil || 0) > 0   // READY = ada stok di mobil (siap pasaran)
+        };
+      });
 
-    renderStok();
+    document.getElementById('stok-updated').textContent =
+      last ? `Stok diperbarui: ${formatTanggal(new Date(last))}` : '';
+
+    renderEtalase();
   } catch (e) {
     console.error(e);
-    document.getElementById('stok-list').innerHTML =
-      `<div class="empty"><div class="ico">⚠️</div>Gagal memuat stok: ${e.message}</div>`;
+    document.getElementById('etalase-grid').innerHTML =
+      `<div class="empty" style="grid-column:1/-1;"><div class="ico">⚠️</div>Gagal memuat etalase: ${e.message}</div>`;
   }
 }
 
-window.renderStok = function() {
-  const el = document.getElementById('stok-list');
+window.renderEtalase = function() {
+  const el = document.getElementById('etalase-grid');
   const q = (document.getElementById('stok-search')?.value || '').toLowerCase().trim();
 
-  let list = stokData.slice();
-  if (q) list = list.filter(s => (s.produk_nama || '').toLowerCase().includes(q));
+  let list = produkData.slice();
+  if (q) list = list.filter(p => (p.nama || '').toLowerCase().includes(q));
 
-  // Urutkan: ada stok mobil dulu (ready pasaran), lalu nama
-  list.sort((a, b) => {
-    const ra = (a.stok_mobil || 0) > 0 ? 0 : 1;
-    const rb = (b.stok_mobil || 0) > 0 ? 0 : 1;
-    if (ra !== rb) return ra - rb;
-    return (a.produk_nama || '').localeCompare(b.produk_nama || '', 'id');
-  });
+  // Urutkan: yang ready dulu, lalu nama
+  list.sort((a, b) => (a.ready === b.ready ? (a.nama||'').localeCompare(b.nama||'','id') : (a.ready ? -1 : 1)));
 
   if (list.length === 0) {
-    el.innerHTML = `<div class="empty"><div class="ico">📦</div>${q ? 'Produk tidak ditemukan.' : 'Belum ada data stok.'}</div>`;
+    el.innerHTML = `<div class="empty" style="grid-column:1/-1;"><div class="ico">📦</div>${q ? 'Produk tidak ditemukan.' : 'Belum ada produk.'}</div>`;
     return;
   }
 
-  el.innerHTML = list.map(s => {
-    const pcsPerKodi = s.pcs_per_kodi || 20;
-    const mobilKodi  = s.stok_mobil || 0;                 // stok ready di pasaran (mobil)
-    const mobilPcs   = Math.round(mobilKodi * pcsPerKodi);
-    const hargaKodi  = s.harga_jual_per_kodi || s.harga_default || 0;
-    const hargaPcs   = s.harga_per_pcs || (hargaKodi / pcsPerKodi);
-
-    let badge;
-    if (mobilKodi <= 0)      badge = '<span class="badge badge-red">Habis</span>';
-    else if (mobilKodi <= 2) badge = `<span class="badge badge-amber">${mobilKodi} kodi</span>`;
-    else                     badge = `<span class="badge badge-green">${mobilKodi} kodi</span>`;
-
-    return `<div class="stok-card">
-      <div style="min-width:0;">
-        <div class="stok-name">${s.produk_nama || '-'}</div>
-        <div class="stok-sub">${badge} ${mobilKodi > 0 ? `· ${mobilPcs} pcs ready` : ''}</div>
-      </div>
-      <div class="stok-right">
-        <div class="stok-price">${formatRupiah(hargaKodi)}<span style="font-weight:500;color:var(--text-muted);font-size:11px;">/kodi</span></div>
-        <div class="stok-price-sub">${formatRupiah(hargaPcs)}/pcs</div>
+  el.innerHTML = list.map(p => {
+    const badge = p.ready
+      ? '<span class="badge badge-green prod-badge">✅ Ready</span>'
+      : '<span class="badge badge-gray prod-badge">Kosong</span>';
+    const thumb = p.foto_url
+      ? `<img src="${_esc(p.foto_url)}" alt="${_esc(p.nama)}" loading="lazy" onerror="this.style.display='none';this.parentNode.querySelector('.ph-ico').style.display='flex';" /><span class="ph-ico" style="display:none;">🧵</span>`
+      : `<span class="ph-ico">🧵</span>`;
+    const btn = p.ready
+      ? `<button class="btn btn-outline" onclick="addToCart('${p.id}')">+ Pesan</button>`
+      : `<button class="btn btn-outline" disabled>Stok kosong</button>`;
+    return `<div class="prod-card">
+      <div class="prod-thumb">${thumb}${badge}</div>
+      <div class="prod-body">
+        <div class="prod-name">${_esc(p.nama)}</div>
+        <div class="prod-price">${formatRupiah(p.harga_kodi)} <small>/kodi</small></div>
+        <div class="prod-price-sub">${formatRupiah(p.harga_pcs)}/pcs</div>
+        ${btn}
       </div>
     </div>`;
   }).join('');
 };
+
+// ============================================================
+// KERANJANG PESANAN
+// ============================================================
+window.addToCart = function(produkId) {
+  const p = produkData.find(x => x.id === produkId);
+  if (!p) return;
+  const ex = cart.find(c => c.produk_id === produkId);
+  if (ex) { ex.jumlah += 1; }
+  else cart.push({ produk_id: p.id, nama: p.nama, harga_kodi: p.harga_kodi, harga_pcs: p.harga_pcs, jumlah: 1, satuan: 'kodi' });
+  updateCartBar();
+  showToast(`"${p.nama}" masuk keranjang`, 'info');
+};
+
+function updateCartBar() {
+  const bar = document.getElementById('cart-bar');
+  const cnt = cart.reduce((s, c) => s + 1, 0); // jumlah baris item
+  document.getElementById('cart-count').textContent = cnt;
+  bar.classList.toggle('show', cnt > 0 && activeTab === 'stok');
+}
+
+window.openCart = function() {
+  renderCart();
+  document.getElementById('cart-backdrop').classList.add('show');
+};
+window.closeCart = function() {
+  document.getElementById('cart-backdrop').classList.remove('show');
+};
+
+function renderCart() {
+  const el = document.getElementById('cart-items');
+  const btn = document.getElementById('btn-checkout');
+  if (cart.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="ico">🛒</div>Keranjang kosong.</div>`;
+    btn.disabled = true;
+    return;
+  }
+  btn.disabled = false;
+  el.innerHTML = cart.map((c, i) => {
+    const harga = c.satuan === 'pcs' ? c.harga_pcs : c.harga_kodi;
+    return `<div class="cart-row">
+      <div style="flex:1;min-width:0;">
+        <div class="cr-name">${_esc(c.nama)}</div>
+        <div class="cr-price">± ${formatRupiah(harga)}/${c.satuan}</div>
+      </div>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="changeQty(${i},-1)">−</button>
+        <input class="qty-input" type="number" min="1" step="1" value="${c.jumlah}" onchange="setQty(${i}, this.value)" />
+        <button class="qty-btn" onclick="changeQty(${i},1)">+</button>
+      </div>
+      <select class="unit-sel" onchange="setUnit(${i}, this.value)">
+        <option value="kodi" ${c.satuan==='kodi'?'selected':''}>kodi</option>
+        <option value="pcs" ${c.satuan==='pcs'?'selected':''}>pcs</option>
+      </select>
+      <button class="cart-del" onclick="removeFromCart(${i})" title="Hapus">🗑️</button>
+    </div>`;
+  }).join('');
+}
+
+window.changeQty = function(i, delta) {
+  if (!cart[i]) return;
+  cart[i].jumlah = Math.max(1, (cart[i].jumlah || 1) + delta);
+  renderCart();
+};
+window.setQty = function(i, val) {
+  if (!cart[i]) return;
+  const n = Math.max(1, Math.floor(parseFloat(val) || 1));
+  cart[i].jumlah = n; renderCart();
+};
+window.setUnit = function(i, unit) {
+  if (!cart[i]) return;
+  cart[i].satuan = unit; renderCart();
+};
+window.removeFromCart = function(i) {
+  cart.splice(i, 1);
+  renderCart(); updateCartBar();
+  if (cart.length === 0) closeCart();
+};
+
+// ============================================================
+// CHECKOUT — simpan pesanan + notifikasi Telegram
+// ============================================================
+window.checkout = async function() {
+  if (cart.length === 0) { showToast('Keranjang masih kosong', 'error'); return; }
+  const btn = document.getElementById('btn-checkout');
+  btn.disabled = true; btn.innerHTML = '<span class="loading-spinner"></span> Mengirim...';
+
+  const note = document.getElementById('cart-note').value.trim();
+  const items = cart.map(c => ({
+    produk_id: c.produk_id, produk_nama: c.nama,
+    jumlah: c.jumlah, satuan: c.satuan
+  }));
+
+  try {
+    // 1) Simpan pesanan ke Firestore (muncul di menu "Pesanan Masuk" admin)
+    const pesananRef = await addDoc(collection(db, 'pesanan'), {
+      pelanggan_id: pelangganDoc.id,
+      pelanggan_nama: pelangganDoc.nama || '-',
+      pelanggan_hp: pelangganDoc.hp || '',
+      items,
+      catatan: note,
+      status: 'baru',
+      created_at: serverTimestamp()
+    });
+
+    // 2) Notifikasi Telegram ke admin (gratis, best-effort)
+    const barisItem = items.map(it => `• ${it.produk_nama} — ${it.jumlah} ${it.satuan}`).join('\n');
+    const pesan =
+      `🛍️ <b>PESANAN BARU</b>\n` +
+      `👤 ${pelangganDoc.nama || '-'}${pelangganDoc.hp ? ' (' + pelangganDoc.hp + ')' : ''}\n` +
+      `🕒 ${new Date().toLocaleString('id-ID')}\n\n` +
+      `${barisItem}` +
+      (note ? `\n\n📝 Catatan: ${note}` : '') +
+      `\n\n#pesanan ${pesananRef.id.slice(0,6)}`;
+    const terkirim = await notifyTelegram(pesan);
+
+    cart = []; document.getElementById('cart-note').value = '';
+    updateCartBar(); closeCart();
+    showToast(terkirim ? 'Pesanan terkirim ke admin ✅' : 'Pesanan tersimpan ✅ (admin akan cek)', 'success');
+  } catch (e) {
+    console.error(e);
+    showToast('Gagal mengirim pesanan: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Kirim Pesanan';
+  }
+};
+
+async function notifyTelegram(text) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return false;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: 'HTML', disable_web_page_preview: true })
+    });
+    return res.ok;
+  } catch (e) { console.warn('Telegram gagal:', e.message); return false; }
+}
 
 // ============================================================
 // TABS
@@ -546,6 +777,7 @@ window.switchTab = function(tab) {
   document.getElementById('tab-stok').style.display    = isP ? 'none' : '';
   document.getElementById('tab-btn-piutang').classList.toggle('active', isP);
   document.getElementById('tab-btn-stok').classList.toggle('active', !isP);
+  updateCartBar(); // sembunyikan bar keranjang saat di tab piutang
 };
 </script>
 </body>
