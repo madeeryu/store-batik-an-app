@@ -937,7 +937,10 @@
           <div class="page-title">🛍️ Pesanan Masuk</div>
           <div class="page-subtitle">Pesanan dari etalase portal pelanggan</div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="loadPesanan()">🔄 Refresh</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-danger btn-sm" id="btn-bersihkan-pesanan" onclick="bersihkanPesanan()">🧹 Bersihkan selesai/batal</button>
+          <button class="btn btn-secondary btn-sm" onclick="loadPesanan()">🔄 Refresh</button>
+        </div>
       </div>
       <div class="filter-tabs" style="margin-bottom:14px;">
         <button class="filter-tab active" id="pesanan-tab-baru" onclick="setFilterPesanan('baru', this)">🆕 Baru</button>
@@ -3018,7 +3021,7 @@ import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
-  getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, setDoc,
+  getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, setDoc, deleteDoc,
   query, where, orderBy, limit, writeBatch, serverTimestamp, Timestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -5295,6 +5298,8 @@ function renderPesanan() {
     if (status === 'baru')     actions = `<button class="btn btn-primary btn-sm" onclick="setStatusPesanan('${p.id}','diproses')">▶️ Proses</button>`;
     if (status === 'diproses') actions = `<button class="btn btn-primary btn-sm" onclick="setStatusPesanan('${p.id}','selesai')">✅ Selesai</button>`;
     const batal = (status !== 'selesai' && status !== 'batal') ? `<button class="btn btn-danger btn-sm" onclick="setStatusPesanan('${p.id}','batal')">Batalkan</button>` : '';
+    // Hapus permanen hanya untuk pesanan yang sudah selesai / dibatalkan
+    const hapus = (status === 'selesai' || status === 'batal') ? `<button class="btn btn-danger btn-sm" onclick="hapusPesanan('${p.id}')">🗑️ Hapus</button>` : '';
 
     return `<div class="card card-body" style="margin-bottom:12px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
@@ -5306,7 +5311,7 @@ function renderPesanan() {
       </div>
       ${items || '<div style="font-size:12px;color:var(--text-muted);">(tanpa item)</div>'}
       ${p.catatan ? `<div style="font-size:12px;font-style:italic;color:#4B5563;margin-top:6px;">📝 ${p.catatan}</div>` : ''}
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">${actions}${batal}${waLink}</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">${actions}${batal}${waLink}${hapus}</div>
     </div>`;
   }).join('');
 }
@@ -5321,6 +5326,47 @@ window.setStatusPesanan = async function(id, status) {
     showToast('Status pesanan diperbarui ✅', 'success');
   } catch (e) {
     showToast('Gagal: ' + e.message, 'error');
+  }
+};
+
+// Hapus permanen satu pesanan (hanya yang sudah selesai/batal via tombolnya)
+window.hapusPesanan = async function(id) {
+  if (!confirm('Hapus pesanan ini secara permanen? Data tidak bisa dikembalikan.')) return;
+  try {
+    await deleteDoc(doc(db, 'pesanan', id));
+    _pesananData = _pesananData.filter(x => x.id !== id);
+    renderPesanan();
+    updatePesananBadge();
+    showToast('Pesanan dihapus 🗑️', 'success');
+  } catch (e) {
+    showToast('Gagal menghapus: ' + e.message, 'error');
+  }
+};
+
+// Bersihkan (hapus permanen) semua pesanan berstatus selesai & batal sekaligus
+window.bersihkanPesanan = async function() {
+  const target = _pesananData.filter(p => p.status === 'selesai' || p.status === 'batal');
+  if (target.length === 0) { showToast('Tidak ada pesanan selesai/batal untuk dibersihkan', 'info'); return; }
+  if (!confirm(`Hapus permanen ${target.length} pesanan yang sudah selesai/batal? Data tidak bisa dikembalikan.`)) return;
+
+  const btn = document.getElementById('btn-bersihkan-pesanan');
+  if (btn) { btn.disabled = true; btn.textContent = 'Membersihkan...'; }
+  try {
+    // Hapus paralel per batch kecil agar aman
+    const ids = target.map(p => p.id);
+    for (let i = 0; i < ids.length; i += 20) {
+      await Promise.all(ids.slice(i, i + 20).map(id => deleteDoc(doc(db, 'pesanan', id))));
+    }
+    const hapusSet = new Set(ids);
+    _pesananData = _pesananData.filter(p => !hapusSet.has(p.id));
+    renderPesanan();
+    updatePesananBadge();
+    showToast(`${ids.length} pesanan dibersihkan 🗑️`, 'success');
+  } catch (e) {
+    showToast('Gagal membersihkan: ' + e.message, 'error');
+    loadPesanan(); // muat ulang agar state konsisten bila sebagian terhapus
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🧹 Bersihkan selesai/batal'; }
   }
 };
 
