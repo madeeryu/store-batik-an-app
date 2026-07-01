@@ -213,7 +213,12 @@ import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
 import { getFirestore, collection, doc, getDoc, getDocs, query, where }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const app  = initializeApp(firebaseConfig);
+// PENTING: pakai NAMA APP tersendiri ('pelanggan-portal') — bukan default.
+// Firebase Auth menyimpan sesi login per (apiKey + nama app). App admin
+// (index.html) memakai app default '[DEFAULT]', jadi dengan nama berbeda,
+// sesi login di portal pelanggan ini TERPISAH total dan tidak akan menimpa
+// / mengganti sesi admin yang sedang login di tab lain (origin sama).
+const app  = initializeApp(firebaseConfig, 'pelanggan-portal');
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
