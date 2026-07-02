@@ -7906,6 +7906,19 @@ function _pcsPerKodiOf(pid) {
   return (p?.stok?.pcs_per_kodi) || (p?.pcs_per_kodi) || 20;
 }
 
+// Jumlah kodi yang BENAR-BENAR masuk ke stok rumah pada satu entri log.
+// Pakai selisih snapshot (sesudah − sebelum) sebagai sumber kebenaran, karena
+// entri lama sempat keliru menyimpan angka PCS di field jumlah_kodi. Bila
+// snapshot tidak tersedia / selisihnya tidak masuk akal, fallback ke jumlah_kodi.
+function _kodiMasukRumah(l) {
+  const a = l.stok_rumah_sebelum, b = l.stok_rumah_sesudah;
+  if (typeof a === 'number' && typeof b === 'number') {
+    const d = b - a;
+    if (d > 0) return d;
+  }
+  return l.jumlah_kodi || 0;
+}
+
 async function loadProduksiMasuk() {
   const detEl = document.getElementById('pm-detail');
   const kodiEl = document.getElementById('pm-total-kodi');
@@ -7933,16 +7946,20 @@ async function loadProduksiMasuk() {
     let totalKodi = 0;
     logs.forEach(l => {
       const pid = l.produk_id || l.produk_nama || '-';
+      // Pakai selisih snapshot stok rumah (ground truth kodi) — akurat untuk data
+      // lama yang keliru menyimpan angka PCS di field jumlah_kodi. Fallback ke
+      // jumlah_kodi jika snapshot tidak ada / tidak masuk akal.
+      const km = _kodiMasukRumah(l);
       if (!per[pid]) per[pid] = { pid, nama: l.produk_nama || pid, kodi: 0, entri: 0, entries: [] };
-      per[pid].kodi += l.jumlah_kodi || 0;
+      per[pid].kodi += km;
       per[pid].entri += 1;
       per[pid].entries.push({
         at: l.created_at?.toDate ? l.created_at.toDate() : new Date(l.created_at || 0),
-        kodi: l.jumlah_kodi || 0,
+        kodi: km,
         catatan: l.catatan || '',
         oleh: l.created_by_nama || '-'
       });
-      totalKodi += l.jumlah_kodi || 0;
+      totalKodi += km;
     });
 
     let totalPcs = 0;
