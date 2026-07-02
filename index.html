@@ -7856,6 +7856,15 @@ window.navProduksi = function(delta) {
   loadProduksiMasuk();
 };
 
+window.toggleProduksiDetail = function(i) {
+  const row = document.getElementById(`pm-det-${i}`);
+  const arw = document.getElementById(`pm-arw-${i}`);
+  if (!row) return;
+  const show = row.style.display === 'none';
+  row.style.display = show ? '' : 'none';
+  if (arw) arw.textContent = show ? '▴' : '▾';
+};
+
 function _periodeRange(periode, offset) {
   const now = new Date();
   const nmBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -7924,14 +7933,26 @@ async function loadProduksiMasuk() {
     let totalKodi = 0;
     logs.forEach(l => {
       const pid = l.produk_id || l.produk_nama || '-';
-      if (!per[pid]) per[pid] = { nama: l.produk_nama || pid, kodi: 0, entri: 0 };
+      if (!per[pid]) per[pid] = { pid, nama: l.produk_nama || pid, kodi: 0, entri: 0, entries: [] };
       per[pid].kodi += l.jumlah_kodi || 0;
       per[pid].entri += 1;
+      per[pid].entries.push({
+        at: l.created_at?.toDate ? l.created_at.toDate() : new Date(l.created_at || 0),
+        kodi: l.jumlah_kodi || 0,
+        catatan: l.catatan || '',
+        oleh: l.created_by_nama || '-'
+      });
       totalKodi += l.jumlah_kodi || 0;
     });
 
     let totalPcs = 0;
-    Object.entries(per).forEach(([pid, d]) => { d.pcs = Math.round(d.kodi * _pcsPerKodiOf(pid)); totalPcs += d.pcs; });
+    Object.entries(per).forEach(([pid, d]) => {
+      const ppk = _pcsPerKodiOf(pid);
+      d.pcs = Math.round(d.kodi * ppk);
+      d.pcsPerKodi = ppk;
+      d.entries.sort((a, b) => a.at - b.at); // urut tanggal
+      totalPcs += d.pcs;
+    });
 
     const fmtKodi = v => (+v % 1 === 0 ? v : (+v).toFixed(2));
     if (kodiEl)  kodiEl.textContent  = `${fmtKodi(totalKodi)} kodi`;
@@ -7944,23 +7965,44 @@ async function loadProduksiMasuk() {
       return;
     }
 
+    const fmtTgl = dt => dt.toLocaleString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+
     detEl.innerHTML = `
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th style="min-width:140px;">Produk</th>
+              <th style="min-width:150px;">Produk</th>
               <th class="text-right">Kodi Masuk</th>
               <th class="text-right">PCS Masuk</th>
               <th class="text-right">Input</th>
             </tr>
           </thead>
           <tbody>
-            ${rows.map(d => `<tr>
-              <td style="font-weight:600;">${d.nama}</td>
+            ${rows.map((d, i) => `
+            <tr onclick="toggleProduksiDetail(${i})" style="cursor:pointer;" title="Klik untuk lihat rincian tanggal">
+              <td style="font-weight:600;"><span id="pm-arw-${i}" style="color:var(--text-muted);display:inline-block;width:14px;">▾</span> ${d.nama}</td>
               <td class="text-right" style="color:var(--green-text);font-weight:700;">${fmtKodi(d.kodi)} kd</td>
               <td class="text-right">${d.pcs.toLocaleString('id-ID')} pcs</td>
               <td class="text-right" style="color:var(--text-muted);">${d.entri}×</td>
+            </tr>
+            <tr id="pm-det-${i}" style="display:none;background:#F8FAFC;">
+              <td colspan="4" style="padding:0;">
+                <div style="padding:8px 14px 12px 30px;">
+                  ${d.entries.map(e => `
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px dashed var(--border);">
+                      <div style="min-width:0;">
+                        <div style="font-size:12.5px;font-weight:600;">📅 ${fmtTgl(e.at)}</div>
+                        ${e.catatan ? `<div style="font-size:11px;color:var(--text-muted);font-style:italic;">"${e.catatan}"</div>` : ''}
+                        <div style="font-size:11px;color:var(--text-muted);">oleh: ${e.oleh}</div>
+                      </div>
+                      <div style="text-align:right;flex-shrink:0;">
+                        <div style="font-size:12.5px;font-weight:700;color:var(--green-text);">+${fmtKodi(e.kodi)} kd</div>
+                        <div style="font-size:11px;color:var(--text-muted);">${Math.round(e.kodi * d.pcsPerKodi).toLocaleString('id-ID')} pcs</div>
+                      </div>
+                    </div>`).join('')}
+                </div>
+              </td>
             </tr>`).join('')}
           </tbody>
         </table>
