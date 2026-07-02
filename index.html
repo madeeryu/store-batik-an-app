@@ -966,6 +966,18 @@
         </button>
       </div>
 
+      <div class="search-filter" style="margin-bottom:16px;">
+        <div class="search-box flex-1">
+          <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" class="form-control" id="search-produk" placeholder="Cari nama produk..." oninput="renderProduk()" style="padding-left:38px;" />
+        </div>
+        <div class="filter-tabs">
+          <button class="filter-tab active" onclick="setFilterProduk('semua', this)">Semua</button>
+          <button class="filter-tab" onclick="setFilterProduk('aktif', this)">✅ Aktif</button>
+          <button class="filter-tab" onclick="setFilterProduk('nonaktif', this)">Nonaktif</button>
+        </div>
+      </div>
+
       <div class="card">
         <div id="produk-list">
           <div style="padding:40px;text-align:center;color:var(--text-muted);">Memuat data...</div>
@@ -6020,13 +6032,38 @@ async function loadProduk() {
   }
 }
 
+let produkFilterStatus = 'semua';
+
+window.setFilterProduk = function(status, el) {
+  produkFilterStatus = status;
+  document.querySelectorAll('#page-produk .filter-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderProduk();
+};
+
 function renderProduk() {
   const listEl = document.getElementById('produk-list');
   if (allProduk.length === 0) {
     listEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">Belum ada produk. Tambah produk pertama!</div>';
     return;
   }
-  listEl.innerHTML = allProduk.map(p => `
+
+  const q = (document.getElementById('search-produk')?.value || '').toLowerCase().trim();
+  const filtered = allProduk.filter(p => {
+    const matchSearch = !q || (p.nama || '').toLowerCase().includes(q);
+    const isAktif = p.aktif !== false;
+    const matchFilter = produkFilterStatus === 'semua'
+      || (produkFilterStatus === 'aktif' && isAktif)
+      || (produkFilterStatus === 'nonaktif' && !isAktif);
+    return matchSearch && matchFilter;
+  });
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">Tidak ada produk yang cocok.</div>';
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(p => `
     <div class="list-item">
       <div class="li-main">
         <div class="li-name">${p.nama}</div>
@@ -6955,7 +6992,11 @@ async function loadStok() {
     const totalMobil = allStok.reduce((s, p) => s + (p.stok.stok_mobil || 0), 0);
     document.getElementById('stok-subtitle').textContent = `${allStok.length} produk · ${totalMobil} kodi di mobil`;
 
-    renderStok(allStok);
+    // Pertahankan pencarian yang sedang aktif — jangan reset daftar ke atas
+    // setelah tambah/edit/koreksi stok (loadStok dipanggil ulang).
+    const _sq = (document.getElementById('search-stok')?.value || '').toLowerCase().trim();
+    if (_sq) renderStok(allStok.filter(p => (p.nama || '').toLowerCase().includes(_sq)));
+    else renderStok(allStok);
   } catch (e) {
     console.error(e);
     listEl.innerHTML = `<div style="padding:32px;text-align:center;color:#DC2626;">❌ Gagal memuat: ${e.message}</div>`;
