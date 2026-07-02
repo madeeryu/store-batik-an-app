@@ -1947,6 +1947,36 @@
         </div>
       </div>
 
+      <!-- Barang Masuk dari Produksi (mingguan/bulanan/tahunan) -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div class="card-title">🏭 Barang Masuk dari Produksi</div>
+          <div class="filter-tabs" id="pm-period-tabs">
+            <button class="filter-tab active" data-period="minggu" onclick="setPeriodeProduksi('minggu',this)">Minggu Ini</button>
+            <button class="filter-tab" data-period="bulan" onclick="setPeriodeProduksi('bulan',this)">Bulan Ini</button>
+            <button class="filter-tab" data-period="tahun" onclick="setPeriodeProduksi('tahun',this)">Tahun Ini</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="pm-periode-label" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;"></div>
+          <div class="stok-summary-grid" id="pm-summary" style="margin-bottom:14px;">
+            <div class="stok-summary-card">
+              <div class="stok-summary-label">Total Kodi Masuk</div>
+              <div class="stok-summary-value text-green" id="pm-total-kodi">0 kodi</div>
+            </div>
+            <div class="stok-summary-card">
+              <div class="stok-summary-label">Total PCS Masuk</div>
+              <div class="stok-summary-value" id="pm-total-pcs">0 pcs</div>
+            </div>
+            <div class="stok-summary-card">
+              <div class="stok-summary-label">Jumlah Input</div>
+              <div class="stok-summary-value" id="pm-total-entri">0×</div>
+            </div>
+          </div>
+          <div id="pm-detail"></div>
+        </div>
+      </div>
+
       <!-- Filter pencarian -->
       <div class="search-filter" style="margin-bottom:16px;">
         <div class="search-box flex-1">
@@ -7181,6 +7211,7 @@ const jumlahKodiTambah = satuanTambah === 'pcs' ? jumlah / pcsPerKodiTambah : ju
       produk_id: produkId,
       produk_nama: p.nama,
       jenis: 'tambah_rumah',
+      sumber: sumber,                     // 'produksi' | 'pabrik' — untuk rekap barang masuk
       jumlah_kodi: jumlahKodiTambah,      // selalu dalam kodi (desimal)
       jumlah_input: jumlah,               // angka yang diketik user
       satuan_input: satuanTambah,         // 'kodi' atau 'pcs'
@@ -7788,15 +7819,134 @@ function loadRekapStok() {
     loadStok().then(() => {
       _rekapStokData = [...allStok];
       renderRekapStok(_rekapStokData);
+      loadProduksiMasuk();
     });
     return;
   }
   _rekapStokData = [...allStok];
   renderRekapStok(_rekapStokData);
+  loadProduksiMasuk();
 
   // Update subtitle
   const sub = document.getElementById('rekap-stok-subtitle');
   if (sub) sub.textContent = `${allStok.length} produk — diperbarui dari data stok saat ini`;
+}
+
+// ============================================================
+// BARANG MASUK DARI PRODUKSI (mingguan / bulanan / tahunan)
+// ============================================================
+let _pmPeriode = 'minggu';
+
+window.setPeriodeProduksi = function(periode, el) {
+  _pmPeriode = periode;
+  document.querySelectorAll('#pm-period-tabs .filter-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  loadProduksiMasuk();
+};
+
+function _periodeRange(periode) {
+  const now = new Date();
+  let start, label;
+  if (periode === 'bulan') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const nmBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    label = `${nmBulan[now.getMonth()]} ${now.getFullYear()}`;
+  } else if (periode === 'tahun') {
+    start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+    label = `Tahun ${now.getFullYear()}`;
+  } else { // minggu (mulai Senin)
+    start = new Date(now);
+    const diff = (start.getDay() + 6) % 7; // 0=Senin
+    start.setDate(start.getDate() - diff); start.setHours(0, 0, 0, 0);
+    const f = d => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    label = `Minggu ini (${f(start)} – ${f(now)})`;
+  }
+  return { start, end: now, label };
+}
+
+// Cocokkan log penambahan stok rumah yang bersumber dari PRODUKSI.
+// Log baru punya field sumber; log lama hanya menyimpan di catatan.
+function _isProduksiLog(l) {
+  if (l.jenis !== 'tambah_rumah') return false;
+  if (l.sumber) return l.sumber === 'produksi';
+  return /produksi/i.test(l.catatan || '');
+}
+
+function _pcsPerKodiOf(pid) {
+  const p = (allStok || []).find(x => x.id === pid);
+  return (p?.stok?.pcs_per_kodi) || (p?.pcs_per_kodi) || 20;
+}
+
+async function loadProduksiMasuk() {
+  const detEl = document.getElementById('pm-detail');
+  const kodiEl = document.getElementById('pm-total-kodi');
+  const pcsEl = document.getElementById('pm-total-pcs');
+  const entriEl = document.getElementById('pm-total-entri');
+  const labelEl = document.getElementById('pm-periode-label');
+  if (!detEl) return;
+
+  const { start, end, label } = _periodeRange(_pmPeriode);
+  if (labelEl) labelEl.textContent = `Periode: ${label}`;
+  detEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0;"><span class="loading-spinner" style="border-top-color:var(--green);"></span> Memuat data produksi...</div>';
+
+  try {
+    // Query per rentang created_at saja (indeks otomatis), filter jenis+sumber di klien
+    const snap = await getDocs(query(
+      collection(db, 'stok_log'),
+      where('created_at', '>=', Timestamp.fromDate(start)),
+      where('created_at', '<=', Timestamp.fromDate(end))
+    ));
+    const logs = snap.docs.map(d => d.data()).filter(_isProduksiLog);
+
+    const per = {};
+    let totalKodi = 0;
+    logs.forEach(l => {
+      const pid = l.produk_id || l.produk_nama || '-';
+      if (!per[pid]) per[pid] = { nama: l.produk_nama || pid, kodi: 0, entri: 0 };
+      per[pid].kodi += l.jumlah_kodi || 0;
+      per[pid].entri += 1;
+      totalKodi += l.jumlah_kodi || 0;
+    });
+
+    let totalPcs = 0;
+    Object.entries(per).forEach(([pid, d]) => { d.pcs = Math.round(d.kodi * _pcsPerKodiOf(pid)); totalPcs += d.pcs; });
+
+    const fmtKodi = v => (+v % 1 === 0 ? v : (+v).toFixed(2));
+    if (kodiEl)  kodiEl.textContent  = `${fmtKodi(totalKodi)} kodi`;
+    if (pcsEl)   pcsEl.textContent   = `${totalPcs.toLocaleString('id-ID')} pcs`;
+    if (entriEl) entriEl.textContent = `${logs.length}×`;
+
+    const rows = Object.values(per).sort((a, b) => b.kodi - a.kodi);
+    if (rows.length === 0) {
+      detEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Belum ada barang masuk dari produksi pada ${label.toLowerCase()}.</div>`;
+      return;
+    }
+
+    detEl.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="min-width:140px;">Produk</th>
+              <th class="text-right">Kodi Masuk</th>
+              <th class="text-right">PCS Masuk</th>
+              <th class="text-right">Input</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(d => `<tr>
+              <td style="font-weight:600;">${d.nama}</td>
+              <td class="text-right" style="color:var(--green-text);font-weight:700;">${fmtKodi(d.kodi)} kd</td>
+              <td class="text-right">${d.pcs.toLocaleString('id-ID')} pcs</td>
+              <td class="text-right" style="color:var(--text-muted);">${d.entri}×</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch (e) {
+    console.error('loadProduksiMasuk error:', e);
+    detEl.innerHTML = `<div style="color:#DC2626;padding:12px;font-size:13px;">Gagal memuat data produksi: ${e.message}</div>`;
+  }
 }
 // ============================================================
 // END REKAP STOK
