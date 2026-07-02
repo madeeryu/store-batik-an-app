@@ -1958,7 +1958,11 @@
           </div>
         </div>
         <div class="card-body">
-          <div id="pm-periode-label" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;"></div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:14px;">
+            <button class="btn btn-secondary btn-sm" id="pm-prev" onclick="navProduksi(-1)" title="Sebelumnya">◀</button>
+            <div id="pm-periode-label" style="font-size:14px;font-weight:700;min-width:190px;text-align:center;"></div>
+            <button class="btn btn-secondary btn-sm" id="pm-next" onclick="navProduksi(1)" title="Berikutnya">▶</button>
+          </div>
           <div class="stok-summary-grid" id="pm-summary" style="margin-bottom:14px;">
             <div class="stok-summary-card">
               <div class="stok-summary-label">Total Kodi Masuk</div>
@@ -7836,32 +7840,48 @@ function loadRekapStok() {
 // BARANG MASUK DARI PRODUKSI (mingguan / bulanan / tahunan)
 // ============================================================
 let _pmPeriode = 'minggu';
+let _pmOffset  = 0; // 0 = periode sekarang, -1 = sebelumnya, dst (tidak boleh > 0)
 
 window.setPeriodeProduksi = function(periode, el) {
   _pmPeriode = periode;
+  _pmOffset = 0; // ganti jenis periode → kembali ke periode sekarang
   document.querySelectorAll('#pm-period-tabs .filter-tab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
   loadProduksiMasuk();
 };
 
-function _periodeRange(periode) {
+window.navProduksi = function(delta) {
+  _pmOffset += delta;
+  if (_pmOffset > 0) _pmOffset = 0; // jangan ke masa depan
+  loadProduksiMasuk();
+};
+
+function _periodeRange(periode, offset) {
   const now = new Date();
-  let start, label;
+  const nmBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  let start, end, label;
   if (periode === 'bulan') {
-    start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    const nmBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    label = `${nmBulan[now.getMonth()]} ${now.getFullYear()}`;
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    start = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+    end   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+    label = `${nmBulan[d.getMonth()]} ${d.getFullYear()}`;
   } else if (periode === 'tahun') {
-    start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-    label = `Tahun ${now.getFullYear()}`;
+    const y = now.getFullYear() + offset;
+    start = new Date(y, 0, 1, 0, 0, 0, 0);
+    end   = new Date(y, 11, 31, 23, 59, 59, 999);
+    label = `Tahun ${y}`;
   } else { // minggu (mulai Senin)
     start = new Date(now);
     const diff = (start.getDay() + 6) % 7; // 0=Senin
-    start.setDate(start.getDate() - diff); start.setHours(0, 0, 0, 0);
-    const f = d => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-    label = `Minggu ini (${f(start)} – ${f(now)})`;
+    start.setDate(start.getDate() - diff + offset * 7);
+    start.setHours(0, 0, 0, 0);
+    end = new Date(start);
+    end.setDate(start.getDate() + 6); end.setHours(23, 59, 59, 999);
+    const f  = d => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    const fy = d => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    label = `${f(start)} – ${fy(end)}`;
   }
-  return { start, end: now, label };
+  return { start, end, label };
 }
 
 // Cocokkan log penambahan stok rumah yang bersumber dari PRODUKSI.
@@ -7885,8 +7905,10 @@ async function loadProduksiMasuk() {
   const labelEl = document.getElementById('pm-periode-label');
   if (!detEl) return;
 
-  const { start, end, label } = _periodeRange(_pmPeriode);
-  if (labelEl) labelEl.textContent = `Periode: ${label}`;
+  const { start, end, label } = _periodeRange(_pmPeriode, _pmOffset);
+  if (labelEl) labelEl.textContent = label;
+  const nextBtn = document.getElementById('pm-next');
+  if (nextBtn) nextBtn.disabled = _pmOffset >= 0; // tidak bisa ke masa depan
   detEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0;"><span class="loading-spinner" style="border-top-color:var(--green);"></span> Memuat data produksi...</div>';
 
   try {
