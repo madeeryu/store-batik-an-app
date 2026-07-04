@@ -1518,6 +1518,23 @@
       </div>
     </div>
 
+    <!-- SECTION 2A: GRAFIK BARANG KELUAR (mingguan: per hari pasar, bulanan: per minggu) -->
+    <div class="card" id="ra-stok-keluar-wrap" style="display:none;margin-bottom:16px;">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div class="card-title">📤 Barang Keluar (Terjual)</div>
+        <div class="filter-tabs">
+          <button class="filter-tab active" id="ra-sk-unit-kodi" onclick="setSkUnit('kodi')">Kodi</button>
+          <button class="filter-tab" id="ra-sk-unit-pcs" onclick="setSkUnit('pcs')">PCS</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="ra-sk-subtitle" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;"></div>
+        <div class="rekap-admin-chart-wrap">
+          <canvas id="ra-chart-stok-keluar"></canvas>
+        </div>
+      </div>
+    </div>
+
     <!-- SECTION 2B: GRAFIK PIE — Ringkasan Keuangan Total Bulan -->
     <div class="rekap-grafik-full" id="ra-grafik-pie-wrap" style="margin-bottom:16px;">
       <div class="card-header"><div class="card-title">📊 Ringkasan Keuangan Periode Ini</div></div>
@@ -6034,6 +6051,9 @@ async function loadProduk() {
 
 let produkFilterStatus = 'semua';
 
+// Expose untuk oninput di kotak pencarian (module scope tidak otomatis global)
+window.renderProduk = () => renderProduk();
+
 window.setFilterProduk = function(status, el) {
   produkFilterStatus = status;
   document.querySelectorAll('#page-produk .filter-tab').forEach(t => t.classList.remove('active'));
@@ -9058,6 +9078,12 @@ function renderRekapAdmin(dari, sampai) {
   document.getElementById('ra-grafik-wrap').style.display = showGrafik ? '' : 'none';
   if (showGrafik) renderGrafik(dari, sampai);
 
+  // Section 2A: Grafik Barang Keluar (mingguan: per hari pasar, bulanan: per minggu)
+  const showSk = raTab === 'mingguan' || raTab === 'bulanan';
+  const skWrap = document.getElementById('ra-stok-keluar-wrap');
+  if (skWrap) skWrap.style.display = showSk ? '' : 'none';
+  if (showSk) { _skRange = { dari, sampai }; renderGrafikStokKeluar(dari, sampai); }
+
   // Section 3: Karyawan
   renderKaryawanTable();
 
@@ -9739,6 +9765,108 @@ function renderGrafik(dari, sampai) {
       }
     });
   }
+}
+
+// ---- SECTION 2A: GRAFIK BARANG KELUAR (kodi/pcs terjual) ----
+let raChartStokKeluar = null;
+let raSkUnit = 'kodi';   // 'kodi' | 'pcs'
+let _skRange = null;     // { dari, sampai } terakhir, untuk re-render saat ganti satuan
+
+window.setSkUnit = function(unit) {
+  raSkUnit = unit;
+  document.getElementById('ra-sk-unit-kodi')?.classList.toggle('active', unit === 'kodi');
+  document.getElementById('ra-sk-unit-pcs')?.classList.toggle('active', unit === 'pcs');
+  if (_skRange) renderGrafikStokKeluar(_skRange.dari, _skRange.sampai);
+};
+
+// Jumlah keluar (kodi & pcs) dari transaksi dalam rentang [msA, msB]
+function _skTotals(msA, msB) {
+  let kodi = 0, pcs = 0;
+  const pasarSet = new Set();
+  raTrxData.forEach(t => {
+    const ms = _trxDate(t).getTime();
+    if (ms < msA || ms > msB) return;
+    if (t.pasar) pasarSet.add(formatPasar(t.pasar));
+    (t.items || []).forEach(it => {
+      kodi += it.jumlah_kodi || 0;
+      pcs  += it.jumlah_pcs  || ((it.jumlah_kodi || 0) * 20);
+    });
+  });
+  return { kodi, pcs, pasar: [...pasarSet] };
+}
+
+function renderGrafikStokKeluar(dari, sampai) {
+  const canvas = document.getElementById('ra-chart-stok-keluar');
+  if (!canvas) return;
+  if (raChartStokKeluar) { raChartStokKeluar.destroy(); raChartStokKeluar = null; }
+  const ctx = canvas.getContext('2d');
+  const subEl = document.getElementById('ra-sk-subtitle');
+
+  const labels = [];
+  const dataKodi = [];
+  const dataPcs = [];
+
+  if (raTab === 'mingguan') {
+    // Perbandingan per hari (hari pasar) dalam minggu
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(dari);
+      d.setDate(dari.getDate() + i);
+      const msA = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0,0,0).getTime();
+      const msB = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23,59,59,999).getTime();
+      const { kodi, pcs, pasar } = _skTotals(msA, msB);
+      const hari = d.toLocaleDateString('id-ID', { weekday:'short', day:'numeric' });
+      labels.push(pasar.length ? `${hari} · ${pasar.join('/')}` : hari);
+      dataKodi.push(kodi);
+      dataPcs.push(pcs);
+    }
+    if (subEl) subEl.textContent = 'Perbandingan barang keluar per hari pasar dalam minggu ini';
+  } else {
+    // Bulanan: perbandingan per minggu dalam bulan
+    let weekStart = new Date(dari);
+    let w = 1;
+    while (weekStart <= sampai) {
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      if (weekEnd > sampai) weekEnd.setTime(sampai.getTime());
+      weekEnd.setHours(23,59,59,999);
+      const { kodi, pcs } = _skTotals(weekStart.getTime(), weekEnd.getTime());
+      const f = x => x.toLocaleDateString('id-ID', { day:'numeric', month:'short' });
+      labels.push(`Mgg ${w} (${f(weekStart)}–${f(weekEnd)})`);
+      dataKodi.push(kodi);
+      dataPcs.push(pcs);
+      weekStart.setDate(weekStart.getDate() + 7);
+      w++;
+    }
+    if (subEl) subEl.textContent = 'Perbandingan total barang keluar per minggu dalam bulan ini';
+  }
+
+  const isKodi = raSkUnit === 'kodi';
+  const data = (isKodi ? dataKodi : dataPcs).map(v => +v.toFixed(2));
+  const satuan = isKodi ? 'kodi' : 'pcs';
+
+  raChartStokKeluar = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: `Barang Keluar (${satuan})`,
+        data,
+        backgroundColor: 'rgba(220,38,38,0.7)',
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: { callbacks: { label: c => ` ${(+c.raw).toLocaleString('id-ID')} ${satuan}` } }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: v => `${(+v).toLocaleString('id-ID')} ${satuan.slice(0,2)}` } }
+      }
+    }
+  });
 }
 
 // ---- SECTION 3: KARYAWAN ----
