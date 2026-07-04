@@ -9845,14 +9845,18 @@ function renderGrafikStokKeluar(dari, sampai) {
   const satuan = isKodi ? 'kodi' : 'pcs';
 
   raChartStokKeluar = new Chart(ctx, {
-    type: 'bar',
+    type: 'line',
     data: {
       labels,
       datasets: [{
         label: `Barang Keluar (${satuan})`,
         data,
-        backgroundColor: 'rgba(220,38,38,0.7)',
-        borderRadius: 6
+        borderColor: '#DC2626',
+        backgroundColor: 'rgba(220,38,38,0.08)',
+        tension: 0.3,
+        fill: true,
+        pointRadius: 4,
+        pointBackgroundColor: '#DC2626'
       }]
     },
     options: {
