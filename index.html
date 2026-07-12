@@ -1200,7 +1200,7 @@
       </div>
 
       <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:12px;">
-        ℹ️ Pembayaran cicilan dibagi <strong>setara</strong> ke semua produk dalam nota (produk yang sudah terpenuhi tidak menerima pembagian lagi). Klik produk untuk rincian pelanggan & nota.
+        ℹ️ Pembayaran cicilan dibagi <strong>setara</strong> ke semua produk dalam nota (produk yang sudah terpenuhi tidak menerima pembagian lagi). Total halaman ini mengikuti <strong>sisa hutang buku piutang</strong>, jadi selalu cocok dengan Total Piutang Keseluruhan. Klik produk untuk rincian pelanggan & nota.
       </div>
 
       <div id="pp-list">
@@ -8270,38 +8270,55 @@ window.navigateTo = function(page) {
 // ============================================================
 let _ppData = []; // hasil agregasi per produk, untuk filter/render
 
-// Alokasi pembayaran satu nota ke produk-produknya dengan PEMBAGIAN SETARA:
-// tiap pembayaran (urut tanggal) dibagi rata ke semua produk yang sisanya
-// masih > 0; produk yang sudah terpenuhi tidak menerima bagian lagi, dan
-// kelebihan bagian (karena sisa produk lebih kecil dari jatah) dibagi ulang
-// setara ke produk yang masih terbuka.
-function _alokasiNota(trx, bayarNota) {
+// Alokasi ke produk-produk nota dengan PEMBAGIAN SETARA.
+// Sumber kebenaran total dibayar = total_tagihan − sisa_hutang (field yang
+// sama dengan halaman Piutang), sehingga total halaman ini SELALU cocok
+// dengan Total Piutang Keseluruhan — termasuk nota migrasi yang
+// pembayarannya tidak tercatat di koleksi pembayaran.
+// Catatan matematis: pembagian setara per-pembayaran (berurutan) identik
+// dengan pembagian setara satu kali dari total dibayar (water-filling),
+// jadi hasil per produk sama persis dengan aturan cicilan yang diminta.
+function _alokasiNota(trx) {
   const EPS = 0.5; // toleransi rupiah (pembulatan)
-  const items = (trx.items || [])
+  let items = (trx.items || [])
     .filter(it => (it.subtotal || 0) > 0)
     .map(it => ({
       key: (it.produk_id && it.produk_id !== 'migrasi') ? it.produk_id : ('nama:' + (it.produk_nama || '-')),
       nama: it.produk_nama || '-',
+      migrasi: it.produk_id === 'migrasi' || !it.produk_id,
       total: it.subtotal || 0,
-      sisa: it.subtotal || 0
+      sisa: 0
     }));
-  if (items.length === 0) return items;
 
-  const pays = [...bayarNota].sort((a, b) => (a.tanggal?.seconds || 0) - (b.tanggal?.seconds || 0));
-  pays.forEach(b => {
-    let P = b.nominal || 0;
-    let open = items.filter(i => i.sisa > EPS);
-    let guard = 0;
-    while (P > EPS && open.length > 0 && guard++ < 50) {
-      const share = P / open.length;
-      open.forEach(i => {
-        const bayar = Math.min(share, i.sisa);
-        i.sisa -= bayar;
-        P -= bayar;
-      });
-      open = items.filter(i => i.sisa > EPS);
-    }
-  });
+  const totalTagihan = trx.total_tagihan || items.reduce((s, i) => s + i.total, 0);
+  if (items.length === 0) {
+    if (totalTagihan > 0) {
+      items = [{ key: 'nama:(Tanpa rincian produk)', nama: '(Tanpa rincian produk)', migrasi: true, total: totalTagihan, sisa: 0 }];
+    } else return [];
+  }
+
+  // Selaraskan subtotal item dengan total tagihan nota (skala proporsional
+  // bila berbeda) agar Σ sisa produk = sisa_hutang nota, persis buku piutang.
+  const sumItems = items.reduce((s, i) => s + i.total, 0);
+  if (sumItems > 0 && Math.abs(sumItems - totalTagihan) > EPS) {
+    const f = totalTagihan / sumItems;
+    items.forEach(i => { i.total *= f; });
+  }
+
+  let dibayar = Math.max(0, totalTagihan - (trx.sisa_hutang ?? totalTagihan));
+  items.forEach(i => { i.sisa = i.total; });
+
+  let open = items.filter(i => i.sisa > EPS);
+  let guard = 0;
+  while (dibayar > EPS && open.length > 0 && guard++ < 60) {
+    const share = dibayar / open.length;
+    open.forEach(i => {
+      const bayar = Math.min(share, i.sisa);
+      i.sisa -= bayar;
+      dibayar -= bayar;
+    });
+    open = items.filter(i => i.sisa > EPS);
+  }
   items.forEach(i => { if (i.sisa <= EPS) i.sisa = 0; });
   return items;
 }
@@ -8312,28 +8329,25 @@ async function loadPiutangProduk() {
   listEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">⏳ Menghitung piutang per produk...</div>';
 
   try {
-    const [trxSnap, lunasSnap, bayarSnap] = await Promise.all([
+    const [trxSnap, lunasSnap] = await Promise.all([
       getDocs(query(collection(db, 'transaksi'), where('status', '==', 'belum_lunas'))),
-      getDocs(query(collection(db, 'transaksi'), where('status', '==', 'lunas'))),
-      getDocs(collection(db, 'pembayaran'))
+      getDocs(query(collection(db, 'transaksi'), where('status', '==', 'lunas')))
     ]);
     const trxList   = trxSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const lunasList = lunasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const bayarList = bayarSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    const agg = {}; // key → { nama, totalSisa, notaOut, notaLunas, pelMap, notaDetail[] }
-    const ensure = (key, nama) => {
-      if (!agg[key]) agg[key] = { nama, totalSisa: 0, notaOut: 0, notaLunas: 0, pelMap: {}, notaDetail: [] };
+    const agg = {}; // key → { nama, migrasi, totalSisa, notaOut, notaLunas, pelMap, notaDetail[] }
+    const ensure = (key, nama, migrasi) => {
+      if (!agg[key]) agg[key] = { nama, migrasi: !!migrasi, totalSisa: 0, notaOut: 0, notaLunas: 0, pelMap: {}, notaDetail: [] };
       return agg[key];
     };
 
     // Nota belum lunas → alokasi pembayaran setara per produk
     trxList.forEach(trx => {
-      const bayarNota = bayarList.filter(b => b.transaksi_id === trx.id);
-      const items = _alokasiNota(trx, bayarNota);
+      const items = _alokasiNota(trx);
       const tglMs = trx.tanggal?.seconds ? trx.tanggal.seconds * 1000 : new Date(trx.tanggal || 0).getTime();
       items.forEach(i => {
-        const a = ensure(i.key, i.nama);
+        const a = ensure(i.key, i.nama, i.migrasi);
         if (i.sisa > 0) {
           a.totalSisa += i.sisa;
           a.notaOut += 1;
@@ -8352,8 +8366,9 @@ async function loadPiutangProduk() {
     lunasList.forEach(trx => {
       (trx.items || []).forEach(it => {
         if ((it.subtotal || 0) <= 0) return;
-        const key = (it.produk_id && it.produk_id !== 'migrasi') ? it.produk_id : ('nama:' + (it.produk_nama || '-'));
-        ensure(key, it.produk_nama || '-').notaLunas += 1;
+        const isMigrasi = it.produk_id === 'migrasi' || !it.produk_id;
+        const key = !isMigrasi ? it.produk_id : ('nama:' + (it.produk_nama || '-'));
+        ensure(key, it.produk_nama || '-', isMigrasi).notaLunas += 1;
       });
     });
 
@@ -8382,7 +8397,10 @@ window.renderPiutangProduk = function() {
   const listEl = document.getElementById('pp-list');
   if (!listEl) return;
   const q = (document.getElementById('pp-search')?.value || '').toLowerCase().trim();
-  const list = q ? _ppData.filter(a => (a.nama || '').toLowerCase().includes(q)) : _ppData;
+  let list = q ? _ppData.filter(a => (a.nama || '').toLowerCase().includes(q)) : _ppData;
+  // Produk reguler dulu, nota migrasi (produk digabung) dikelompokkan di bawah
+  list = [...list.filter(a => !a.migrasi), ...list.filter(a => a.migrasi)];
+  const firstMigrasiIdx = list.findIndex(a => a.migrasi);
 
   if (list.length === 0) {
     listEl.innerHTML = `<div class="card card-body" style="text-align:center;color:var(--text-muted);">${q ? 'Tidak ada produk yang cocok.' : '🎉 Tidak ada piutang produk — semua nota lunas!'}</div>`;
@@ -8414,10 +8432,19 @@ window.renderPiutangProduk = function() {
           </div>`).join('')}
       </div>`;
 
-    return `<div class="card" style="margin-bottom:10px;overflow:hidden;">
+    const migrasiHeader = (a.migrasi && i === firstMigrasiIdx) ? `
+      <div style="margin:18px 0 10px;">
+        <div style="font-size:13px;font-weight:800;">📝 Nota Migrasi — produk digabung</div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">
+          Nota pindahan dari catatan manual: beberapa produk tercatat sebagai satu baris teks.
+          Untuk merincinya per produk, buka kartu piutang pelanggan → ✏️ Edit nota.
+        </div>
+      </div>` : '';
+
+    return `${migrasiHeader}<div class="card" style="margin-bottom:10px;overflow:hidden;${a.migrasi ? 'border-left:3px solid #D97706;' : ''}">
       <div onclick="togglePpDetail(${i})" style="cursor:pointer;padding:13px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
         <div style="min-width:0;">
-          <div style="font-weight:700;font-size:14.5px;"><span id="pp-arw-${i}" style="color:var(--text-muted);display:inline-block;width:14px;">▾</span> ${a.nama}</div>
+          <div style="font-weight:700;font-size:14.5px;"><span id="pp-arw-${i}" style="color:var(--text-muted);display:inline-block;width:14px;">▾</span> ${a.nama} ${a.migrasi ? '<span class="badge badge-amber" style="font-size:10px;">📝 migrasi</span>' : ''}</div>
           <div style="font-size:11.5px;color:var(--text-muted);margin-top:3px;">
             Masih di <strong>${a.notaOut} nota</strong> (${pelPreview}) · Nota terbayar: <strong style="color:#16A34A;">${a.notaLunas}</strong>
           </div>
