@@ -773,6 +773,11 @@
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
         Piutang
       </a>
+      <!-- PIUTANG PER PRODUK SUB-MENU: hanya muncul saat di halaman piutang -->
+      <a class="nav-item" id="nav-piutang-produk" data-page="piutang-produk" onclick="navigateTo('piutang-produk')" style="display:none;padding-left:32px;font-size:13px;">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        📦 Piutang per Produk
+      </a>
       <a class="nav-item" data-page="pesanan" onclick="navigateTo('pesanan')">
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
         Pesanan Masuk
@@ -1162,7 +1167,47 @@
  
       <div id="piutang-list"></div>
     </div>
- 
+
+    <!-- ====== PIUTANG PER PRODUK (sub-page piutang) ====== -->
+    <div class="page" id="page-piutang-produk">
+      <div class="page-header flex justify-between" style="align-items:flex-start;">
+        <div>
+          <div class="page-title">📦 Piutang per Produk</div>
+          <div class="page-subtitle" id="pp-subtitle">Barang yang masih menjadi hutang, dikalkulasi per jenis batik</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="navigateTo('piutang')">← Kembali ke Piutang</button>
+      </div>
+
+      <!-- Ringkasan -->
+      <div class="stok-summary-grid" style="margin-bottom:16px;">
+        <div class="stok-summary-card">
+          <div class="stok-summary-label">Produk Terhutang</div>
+          <div class="stok-summary-value" id="pp-total-produk">0</div>
+        </div>
+        <div class="stok-summary-card">
+          <div class="stok-summary-label">Total Piutang Produk</div>
+          <div class="stok-summary-value" style="color:#DC2626;" id="pp-total-piutang">Rp 0</div>
+        </div>
+        <div class="stok-summary-card">
+          <div class="stok-summary-label">Nota Belum Lunas</div>
+          <div class="stok-summary-value" id="pp-total-nota">0</div>
+        </div>
+      </div>
+
+      <div class="search-box" style="margin-bottom:14px;position:relative;">
+        <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" class="form-control" id="pp-search" placeholder="Cari jenis batik..." oninput="renderPiutangProduk()" style="padding-left:38px;" />
+      </div>
+
+      <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:12px;">
+        ℹ️ Pembayaran cicilan dibagi <strong>setara</strong> ke semua produk dalam nota (produk yang sudah terpenuhi tidak menerima pembagian lagi). Klik produk untuk rincian pelanggan & nota.
+      </div>
+
+      <div id="pp-list">
+        <div style="padding:40px;text-align:center;color:var(--text-muted);">Memuat data...</div>
+      </div>
+    </div>
+
     <!-- ====== HISTORI PELANGGAN (sub-page) ====== -->
     <div class="page" id="page-histori">
       <div class="page-header" style="display:flex;align-items:center;gap:12px;">
@@ -1210,7 +1255,7 @@
         </div>
       </div>
 
-      <!-- Tab hutang aktif / riwayat lunas -->
+      <!-- Tab hutang aktif / riwayat lunas / list pembayaran -->
       <div style="display:flex;gap:0;margin-bottom:16px;border-radius:10px;overflow:hidden;border:1px solid var(--border);">
         <button id="histori-tab-aktif" onclick="switchHistoriTab('aktif')"
           style="flex:1;padding:10px;font-weight:600;background:var(--primary);color:#fff;border:none;cursor:pointer;">
@@ -1220,9 +1265,14 @@
           style="flex:1;padding:10px;font-weight:600;background:#fff;color:var(--text-muted);border:none;cursor:pointer;">
           Riwayat Lunas
         </button>
+        <button id="histori-tab-bayar" onclick="switchHistoriTab('bayar')"
+          style="flex:1;padding:10px;font-weight:600;background:#fff;color:var(--text-muted);border:none;cursor:pointer;">
+          💵 Pembayaran
+        </button>
       </div>
       <div id="histori-content-aktif"></div>
       <div id="histori-content-lunas" style="display:none;"></div>
+      <div id="histori-content-bayar" style="display:none;"></div>
     </div>
 
     <!-- ====== ARUS KAS & SALDO MODAL (owner only) ====== -->
@@ -3314,7 +3364,13 @@ function buildPiutangCard(p) {
     ? '<span class="badge badge-red">🚫 DIBLOKIR</span>'
     : '<span class="badge badge-green">✅ Aktif</span>';
  
-  const trxHTML = p.transaksi.map(trx => {
+  // Urutkan nota: tanggal terbaru di atas, terlama di bawah
+  const trxUrut = [...p.transaksi].sort((a, b) => {
+    const tA = a.tanggal?.seconds ? a.tanggal.seconds * 1000 : new Date(a.tanggal || 0).getTime();
+    const tB = b.tanggal?.seconds ? b.tanggal.seconds * 1000 : new Date(b.tanggal || 0).getTime();
+    return tB - tA;
+  });
+  const trxHTML = trxUrut.map(trx => {
     const pct = trx.total_tagihan > 0 ? Math.round(((trx.total_tagihan - trx.sisa_hutang) / trx.total_tagihan) * 100) : 0;
     const itemsHTML = (trx.items || []).map(item =>
       `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;">
@@ -4308,19 +4364,78 @@ window.bukaHistori = async function(pelangganId, fromPage = 'piutang') {
       </div>`;
     }).join('');
   }
- 
+
+  // Tab list pembayaran masuk (dengan info nota tempat dibayarkan)
+  renderHistoriBayarList(allTrx, allBayar);
+
   switchHistoriTab('aktif');
 };
  
 window.switchHistoriTab = function(tab) {
-  const isAktif = tab === 'aktif';
-  document.getElementById('histori-content-aktif').style.display = isAktif ? '' : 'none';
-  document.getElementById('histori-content-lunas').style.display = isAktif ? 'none' : '';
-  document.getElementById('histori-tab-aktif').style.background = isAktif ? 'var(--primary)' : '#fff';
-  document.getElementById('histori-tab-aktif').style.color = isAktif ? '#fff' : 'var(--text-muted)';
-  document.getElementById('histori-tab-lunas').style.background = isAktif ? '#fff' : 'var(--primary)';
-  document.getElementById('histori-tab-lunas').style.color = isAktif ? 'var(--text-muted)' : '#fff';
+  ['aktif', 'lunas', 'bayar'].forEach(t => {
+    const content = document.getElementById(`histori-content-${t}`);
+    const btn     = document.getElementById(`histori-tab-${t}`);
+    const active  = t === tab;
+    if (content) content.style.display = active ? '' : 'none';
+    if (btn) {
+      btn.style.background = active ? 'var(--primary)' : '#fff';
+      btn.style.color      = active ? '#fff' : 'var(--text-muted)';
+    }
+  });
 };
+
+// ---- TAB: LIST PEMBAYARAN MASUK (per pelanggan, dengan info nota) ----
+function renderHistoriBayarList(allTrx, allBayar) {
+  const el = document.getElementById('histori-content-bayar');
+  if (!el) return;
+
+  const bayarSorted = [...allBayar].sort((a, b) => (_bayarTime(b)?.getTime?.() || 0) - (_bayarTime(a)?.getTime?.() || 0));
+
+  if (bayarSorted.length === 0) {
+    el.innerHTML = '<div class="card card-body" style="text-align:center;color:var(--text-muted);">Belum ada pembayaran tercatat</div>';
+    return;
+  }
+
+  const totalMasuk = bayarSorted.filter(b => !b.is_retur).reduce((s, b) => s + (b.nominal || 0), 0);
+  const totalRetur = bayarSorted.filter(b => b.is_retur || b.metode === 'retur').reduce((s, b) => s + (b.nominal || 0), 0);
+
+  const rows = bayarSorted.map(b => {
+    const isRetur = b.is_retur || b.metode === 'retur';
+    const tgl = _bayarTime(b);
+    // Info nota tempat pembayaran ini dibayarkan
+    const trx = allTrx.find(t => t.id === b.transaksi_id);
+    let notaInfo;
+    if (trx) {
+      const tglNota = trx.tanggal?.toDate ? trx.tanggal.toDate() : new Date(trx.tanggal || 0);
+      const produkStr = (trx.items || []).map(i => i.produk_nama).filter(Boolean).slice(0, 3).join(', ');
+      const lebih = (trx.items || []).length > 3 ? ', …' : '';
+      const stBadge = trx.status === 'lunas'
+        ? '<span class="badge badge-green" style="font-size:10px;">Lunas</span>'
+        : '<span class="badge badge-red" style="font-size:10px;">Belum Lunas</span>';
+      notaInfo = `🧾 Nota ${formatTanggal(tglNota)} ${stBadge}
+        <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">${produkStr}${lebih} · Total ${formatRupiah(trx.total_tagihan || 0)}</div>`;
+    } else {
+      notaInfo = '<span style="color:var(--text-muted);">🧾 Nota tidak ditemukan (mungkin sudah dihapus)</span>';
+    }
+    return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px dashed var(--border);">
+      <div style="min-width:0;flex:1;">
+        <div style="font-weight:700;font-size:13.5px;">💵 ${formatTanggal(tgl)}</div>
+        <div style="font-size:11.5px;color:${isRetur ? '#D97706' : '#6B7280'};margin:1px 0 4px;">${isRetur ? '↩️ Retur' : (b.metode || 'tunai')}${b.dicatat_oleh_nama ? ` · oleh ${b.dicatat_oleh_nama}` : ''}</div>
+        <div style="font-size:12px;">${notaInfo}</div>
+      </div>
+      <div style="font-weight:800;font-size:14px;color:${isRetur ? '#D97706' : '#16A34A'};white-space:nowrap;">${isRetur ? '−' : '+'}${formatRupiah(b.nominal || 0)}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="card card-body">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;">Total pembayaran: <strong style="color:#16A34A;">${formatRupiah(totalMasuk)}</strong></span>
+      ${totalRetur > 0 ? `<span style="font-size:13px;">Retur: <strong style="color:#D97706;">${formatRupiah(totalRetur)}</strong></span>` : ''}
+      <span style="font-size:13px;color:var(--text-muted);">${bayarSorted.length}× pembayaran</span>
+    </div>
+    ${rows}
+  </div>`;
+}
 
 // ---- POPUP: Riwayat pembayaran transaksi lunas ----
 window.bukaRiwayatBayarLunas = function(trxId) {
@@ -5700,7 +5815,8 @@ const pageTitles = {
   dashboard: 'Dashboard', transaksi: 'Transaksi Baru', piutang: 'Piutang',
   pelanggan: 'Pelanggan', produk: 'Produk', rekap: 'Rekap', pengaturan: 'Pengaturan',
   histori: 'Histori Pelanggan', stok: 'Stok',  'rekap-stok': '📊 Rekap Stok',
-  'arus-kas': '💵 Arus Kas & Modal', pesanan: '🛍️ Pesanan Masuk'
+  'arus-kas': '💵 Arus Kas & Modal', pesanan: '🛍️ Pesanan Masuk',
+  'piutang-produk': '📦 Piutang per Produk'
 };
 
 // navigateTo didefinisikan lengkap di bawah (bagian PATCH), tidak perlu duplikat di sini
@@ -8141,6 +8257,188 @@ window.navigateTo = function(page) {
   } else if (page === 'riwayat-stok') {
     loadRiwayatStokPage();
   }
+
+  // ---- Sub-menu Piutang (Piutang per Produk) ----
+  const navPiutangProduk = document.getElementById('nav-piutang-produk');
+  const isPiutangFamily  = ['piutang','piutang-produk'].includes(page);
+  if (navPiutangProduk) navPiutangProduk.style.display = isPiutangFamily ? 'flex' : 'none';
+  if (page === 'piutang-produk') loadPiutangProduk();
+};
+
+// ============================================================
+// PIUTANG PER PRODUK — barang yang masih menjadi hutang
+// ============================================================
+let _ppData = []; // hasil agregasi per produk, untuk filter/render
+
+// Alokasi pembayaran satu nota ke produk-produknya dengan PEMBAGIAN SETARA:
+// tiap pembayaran (urut tanggal) dibagi rata ke semua produk yang sisanya
+// masih > 0; produk yang sudah terpenuhi tidak menerima bagian lagi, dan
+// kelebihan bagian (karena sisa produk lebih kecil dari jatah) dibagi ulang
+// setara ke produk yang masih terbuka.
+function _alokasiNota(trx, bayarNota) {
+  const EPS = 0.5; // toleransi rupiah (pembulatan)
+  const items = (trx.items || [])
+    .filter(it => (it.subtotal || 0) > 0)
+    .map(it => ({
+      key: (it.produk_id && it.produk_id !== 'migrasi') ? it.produk_id : ('nama:' + (it.produk_nama || '-')),
+      nama: it.produk_nama || '-',
+      total: it.subtotal || 0,
+      sisa: it.subtotal || 0
+    }));
+  if (items.length === 0) return items;
+
+  const pays = [...bayarNota].sort((a, b) => (a.tanggal?.seconds || 0) - (b.tanggal?.seconds || 0));
+  pays.forEach(b => {
+    let P = b.nominal || 0;
+    let open = items.filter(i => i.sisa > EPS);
+    let guard = 0;
+    while (P > EPS && open.length > 0 && guard++ < 50) {
+      const share = P / open.length;
+      open.forEach(i => {
+        const bayar = Math.min(share, i.sisa);
+        i.sisa -= bayar;
+        P -= bayar;
+      });
+      open = items.filter(i => i.sisa > EPS);
+    }
+  });
+  items.forEach(i => { if (i.sisa <= EPS) i.sisa = 0; });
+  return items;
+}
+
+async function loadPiutangProduk() {
+  const listEl = document.getElementById('pp-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">⏳ Menghitung piutang per produk...</div>';
+
+  try {
+    const [trxSnap, lunasSnap, bayarSnap] = await Promise.all([
+      getDocs(query(collection(db, 'transaksi'), where('status', '==', 'belum_lunas'))),
+      getDocs(query(collection(db, 'transaksi'), where('status', '==', 'lunas'))),
+      getDocs(collection(db, 'pembayaran'))
+    ]);
+    const trxList   = trxSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const lunasList = lunasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const bayarList = bayarSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const agg = {}; // key → { nama, totalSisa, notaOut, notaLunas, pelMap, notaDetail[] }
+    const ensure = (key, nama) => {
+      if (!agg[key]) agg[key] = { nama, totalSisa: 0, notaOut: 0, notaLunas: 0, pelMap: {}, notaDetail: [] };
+      return agg[key];
+    };
+
+    // Nota belum lunas → alokasi pembayaran setara per produk
+    trxList.forEach(trx => {
+      const bayarNota = bayarList.filter(b => b.transaksi_id === trx.id);
+      const items = _alokasiNota(trx, bayarNota);
+      const tglMs = trx.tanggal?.seconds ? trx.tanggal.seconds * 1000 : new Date(trx.tanggal || 0).getTime();
+      items.forEach(i => {
+        const a = ensure(i.key, i.nama);
+        if (i.sisa > 0) {
+          a.totalSisa += i.sisa;
+          a.notaOut += 1;
+          const pel = trx.pelanggan_nama || '-';
+          if (!a.pelMap[pel]) a.pelMap[pel] = { sisa: 0, nota: 0 };
+          a.pelMap[pel].sisa += i.sisa;
+          a.pelMap[pel].nota += 1;
+          a.notaDetail.push({ pel, tglMs, totalProduk: i.total, dibayar: i.total - i.sisa, sisa: i.sisa });
+        } else {
+          a.notaLunas += 1; // porsi produk ini sudah terpenuhi walau nota belum lunas
+        }
+      });
+    });
+
+    // Nota lunas → hitung sebagai nota terbayar untuk tiap produknya
+    lunasList.forEach(trx => {
+      (trx.items || []).forEach(it => {
+        if ((it.subtotal || 0) <= 0) return;
+        const key = (it.produk_id && it.produk_id !== 'migrasi') ? it.produk_id : ('nama:' + (it.produk_nama || '-'));
+        ensure(key, it.produk_nama || '-').notaLunas += 1;
+      });
+    });
+
+    // Hanya tampilkan produk yang masih punya piutang
+    _ppData = Object.values(agg)
+      .filter(a => a.totalSisa > 0)
+      .sort((a, b) => b.totalSisa - a.totalSisa);
+    _ppData.forEach(a => a.notaDetail.sort((x, y) => y.tglMs - x.tglMs));
+
+    // Ringkasan atas
+    const totPiutang = _ppData.reduce((s, a) => s + a.totalSisa, 0);
+    document.getElementById('pp-total-produk').textContent  = _ppData.length;
+    document.getElementById('pp-total-piutang').textContent = formatRupiah(totPiutang);
+    document.getElementById('pp-total-nota').textContent    = trxList.length;
+    const sub = document.getElementById('pp-subtitle');
+    if (sub) sub.textContent = `${_ppData.length} jenis batik masih terhutang di ${trxList.length} nota belum lunas`;
+
+    renderPiutangProduk();
+  } catch (e) {
+    console.error('loadPiutangProduk error:', e);
+    listEl.innerHTML = `<div style="padding:24px;color:#DC2626;">Gagal memuat: ${e.message}</div>`;
+  }
+}
+
+window.renderPiutangProduk = function() {
+  const listEl = document.getElementById('pp-list');
+  if (!listEl) return;
+  const q = (document.getElementById('pp-search')?.value || '').toLowerCase().trim();
+  const list = q ? _ppData.filter(a => (a.nama || '').toLowerCase().includes(q)) : _ppData;
+
+  if (list.length === 0) {
+    listEl.innerHTML = `<div class="card card-body" style="text-align:center;color:var(--text-muted);">${q ? 'Tidak ada produk yang cocok.' : '🎉 Tidak ada piutang produk — semua nota lunas!'}</div>`;
+    return;
+  }
+
+  const fmtTgl = ms => new Date(ms).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  listEl.innerHTML = list.map((a, i) => {
+    const pelArr = Object.entries(a.pelMap).sort((x, y) => y[1].sisa - x[1].sisa);
+    const pelPreview = pelArr.slice(0, 3).map(([nm]) => nm).join(', ') + (pelArr.length > 3 ? `, +${pelArr.length - 3} lainnya` : '');
+
+    const detailHTML = `
+      <div style="padding:4px 14px 14px;background:#F8FAFC;border-top:1px solid var(--border);">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px;">Per Pelanggan</div>
+        ${pelArr.map(([nm, d]) => `
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px dashed var(--border);">
+            <span style="font-weight:600;">${nm} <span style="color:var(--text-muted);font-weight:400;">(${d.nota} nota)</span></span>
+            <span style="font-weight:700;color:#DC2626;">${formatRupiah(d.sisa)}</span>
+          </div>`).join('')}
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px;">Rincian Nota</div>
+        ${a.notaDetail.map(n => `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-size:12px;padding:5px 0;border-bottom:1px dashed var(--border);">
+            <div>
+              <div style="font-weight:600;">🧾 ${fmtTgl(n.tglMs)} · ${n.pel}</div>
+              <div style="color:var(--text-muted);font-size:11px;">Porsi produk: ${formatRupiah(n.totalProduk)} · Terbayar: ${formatRupiah(n.dibayar)}</div>
+            </div>
+            <div style="font-weight:700;color:#DC2626;white-space:nowrap;">Sisa ${formatRupiah(n.sisa)}</div>
+          </div>`).join('')}
+      </div>`;
+
+    return `<div class="card" style="margin-bottom:10px;overflow:hidden;">
+      <div onclick="togglePpDetail(${i})" style="cursor:pointer;padding:13px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div style="min-width:0;">
+          <div style="font-weight:700;font-size:14.5px;"><span id="pp-arw-${i}" style="color:var(--text-muted);display:inline-block;width:14px;">▾</span> ${a.nama}</div>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:3px;">
+            Masih di <strong>${a.notaOut} nota</strong> (${pelPreview}) · Nota terbayar: <strong style="color:#16A34A;">${a.notaLunas}</strong>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-weight:800;font-size:15px;color:#DC2626;">${formatRupiah(a.totalSisa)}</div>
+          <div style="font-size:10.5px;color:var(--text-muted);">total piutang produk</div>
+        </div>
+      </div>
+      <div id="pp-det-${i}" style="display:none;">${detailHTML}</div>
+    </div>`;
+  }).join('');
+};
+
+window.togglePpDetail = function(i) {
+  const det = document.getElementById(`pp-det-${i}`);
+  const arw = document.getElementById(`pp-arw-${i}`);
+  if (!det) return;
+  const show = det.style.display === 'none';
+  det.style.display = show ? '' : 'none';
+  if (arw) arw.textContent = show ? '▴' : '▾';
 };
 
 // ---- FILTER PERIODE ----
