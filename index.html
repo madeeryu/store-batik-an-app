@@ -1578,6 +1578,7 @@
         </div>
       </div>
       <div class="card-body">
+        <div id="ra-sk-totals" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;"></div>
         <div id="ra-sk-subtitle" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;"></div>
         <div class="rekap-admin-chart-wrap">
           <canvas id="ra-chart-stok-keluar"></canvas>
@@ -9326,12 +9327,12 @@ window.loadRekapAdmin = async function() {
     raUsersMap = {};
     usersSnap.forEach(d => { raUsersMap[d.id] = d.data().nama || d.id; });
 
-    // Fetch stok_log untuk rekap stok harian (hanya tab harian)
-    // Ambil SEMUA jenis pergerakan hari ini (penjualan, pindah_ke_eceran, isi_mobil,
-    // koreksi, dll) agar pengambilan stok untuk eceran ikut terhitung di Rekap Stok
-    // Pasaran. Query hanya by created_at (tanpa filter jenis) → tak butuh composite index.
+    // Fetch stok_log untuk rentang rekap (harian, mingguan, bulanan).
+    // Harian memakai semua jenis untuk tabel Rekap Stok Pasaran; mingguan &
+    // bulanan memakainya untuk total "dipindah ke eceran". Query hanya by
+    // created_at (tanpa filter jenis) → tak butuh composite index.
     raStokLogHarian = [];
-    if (raTab === 'harian') {
+    if (['harian', 'mingguan', 'bulanan'].includes(raTab)) {
       try {
         const logSnap = await getDocs(query(
           collection(db, 'stok_log'),
@@ -10126,6 +10127,31 @@ function renderGrafikStokKeluar(dari, sampai) {
   if (raChartStokKeluar) { raChartStokKeluar.destroy(); raChartStokKeluar = null; }
   const ctx = canvas.getContext('2d');
   const subEl = document.getElementById('ra-sk-subtitle');
+
+  // Total periode ini: kodi terjual (grosir) & kodi dipindahkan ke eceran
+  const totEl = document.getElementById('ra-sk-totals');
+  if (totEl) {
+    let totKodi = 0, totPcs = 0;
+    raTrxData.forEach(t => (t.items || []).forEach(it => {
+      totKodi += it.jumlah_kodi || 0;
+      totPcs  += it.jumlah_pcs  || ((it.jumlah_kodi || 0) * 20);
+    }));
+    const ecerKodi = raStokLogHarian
+      .filter(l => l.jenis === 'pindah_ke_eceran')
+      .reduce((s, l) => s + (l.jumlah_kodi || 0), 0);
+    const fk = v => (+v % 1 === 0 ? (+v).toLocaleString('id-ID') : (+v).toFixed(2));
+    totEl.innerHTML = `
+      <div style="flex:1;min-width:170px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:9px 14px;">
+        <div style="font-size:11px;color:#DC2626;font-weight:700;">🛍️ TOTAL TERJUAL</div>
+        <div style="font-size:17px;font-weight:800;margin-top:2px;">${fk(totKodi)} kodi
+          <span style="font-size:11px;color:var(--text-muted);font-weight:500;">(${Math.round(totPcs).toLocaleString('id-ID')} pcs)</span>
+        </div>
+      </div>
+      <div style="flex:1;min-width:170px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:10px;padding:9px 14px;">
+        <div style="font-size:11px;color:#7C3AED;font-weight:700;">🛒 DIPINDAH KE ECERAN</div>
+        <div style="font-size:17px;font-weight:800;margin-top:2px;">${fk(ecerKodi)} kodi</div>
+      </div>`;
+  }
 
   const labels = [];
   const dataKodi = [];
