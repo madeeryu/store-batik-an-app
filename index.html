@@ -3912,15 +3912,35 @@ window.openCatatBayar = async function(pelangganId, pelangganNama) {
 window.updateSisaHutangInfo = function() {
   const sel = document.getElementById('bayar-transaksi-select');
   const opt = sel.options[sel.selectedIndex];
+  const nominalInput = document.getElementById('bayar-nominal');
   if (opt) {
     const sisa = parseFloat(opt.dataset.sisa || 0);
     document.getElementById('bayar-sisa-info').textContent = `Sisa hutang transaksi ini: ${formatRupiah(sisa)}`;
+    nominalInput.max = sisa; // batas maksimal input nominal
+  } else {
+    nominalInput.removeAttribute('max');
   }
+  updateNominalPreview(); // re-validasi nominal yang sudah terisi (misalnya saat ganti transaksi)
 };
  
 window.updateNominalPreview = function() {
-  const val = parseFloat(document.getElementById('bayar-nominal').value) || 0;
-  document.getElementById('bayar-nominal-preview').textContent = val > 0 ? formatRupiah(val) : '';
+  const input = document.getElementById('bayar-nominal');
+  const preview = document.getElementById('bayar-nominal-preview');
+  const sel = document.getElementById('bayar-transaksi-select');
+  const opt = sel.options[sel.selectedIndex];
+  const sisa = opt ? parseFloat(opt.dataset.sisa || 0) : 0;
+  let val = parseFloat(input.value) || 0;
+
+  if (sisa > 0 && val > sisa) {
+    // Nominal melebihi sisa hutang -> paksa turun ke batas maksimal
+    val = sisa;
+    input.value = sisa;
+    preview.innerHTML = `⚠️ Nominal tidak boleh melebihi sisa hutang (${formatRupiah(sisa)})`;
+    preview.style.color = '#DC2626';
+  } else {
+    preview.textContent = val > 0 ? formatRupiah(val) : '';
+    preview.style.color = 'var(--primary)';
+  }
 };
  
 window.simpanPembayaran = async function() {
@@ -3935,6 +3955,14 @@ window.simpanPembayaran = async function() {
   if (!trxId) { showToast('Pilih transaksi terlebih dahulu', 'error'); return; }
   if (!nominal || nominal <= 0) { showToast('Masukkan nominal yang valid', 'error'); return; }
   if (!tanggalVal) { showToast('Pilih tanggal bayar', 'error'); return; }
+  // Validasi: nominal tidak boleh melebihi sisa hutang transaksi terpilih
+  const selTrx = document.getElementById('bayar-transaksi-select');
+  const optTrx = selTrx.options[selTrx.selectedIndex];
+  const sisaTrx = optTrx ? parseFloat(optTrx.dataset.sisa || 0) : 0;
+  if (nominal > sisaTrx) {
+    showToast(`Nominal melebihi sisa hutang (maks ${formatRupiah(sisaTrx)})`, 'error');
+    return;
+  }
  
   btn.disabled = true;
   btn.textContent = 'Menyimpan...';
