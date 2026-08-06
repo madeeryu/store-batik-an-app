@@ -2638,6 +2638,51 @@
     </div>
   </div>
 </div>
+<!-- Modal Edit Pembayaran -->
+<div class="modal-backdrop" id="modal-edit-bayar" onclick="handleBackdropClick(event,'modal-edit-bayar')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Edit Pembayaran</div>
+      <button class="modal-close" onclick="closeModal('modal-edit-bayar')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-bayar-id" />
+      <input type="hidden" id="edit-bayar-transaksi-id" />
+      <input type="hidden" id="edit-bayar-pelanggan-id" />
+      <input type="hidden" id="edit-bayar-nominal-lama" />
+      <div class="form-group">
+        <label class="form-label">Pelanggan</label>
+        <input type="text" class="form-control" id="edit-bayar-nama" readonly style="background:#f9fafb;" />
+      </div>
+      <div id="edit-bayar-maks-info" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;"></div>
+      <div class="form-group">
+        <label class="form-label">Nominal Bayar (Rp)</label>
+        <input type="number" class="form-control" id="edit-bayar-nominal" placeholder="Contoh: 500000" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tanggal Bayar</label>
+        <input type="date" class="form-control" id="edit-bayar-tanggal" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Metode Pembayaran</label>
+        <div style="display:flex;gap:10px;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="radio" name="edit-bayar-metode" value="tunai" checked /> Tunai
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="radio" name="edit-bayar-metode" value="transfer" /> Transfer
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-edit-bayar')" style="background:#f3f4f6;color:#374151;border:1px solid var(--border);">Batal</button>
+      <button class="btn btn-primary" id="btn-simpan-edit-bayar" onclick="simpanEditBayar()">Simpan Perubahan</button>
+    </div>
+  </div>
+</div>
  
 <!-- Modal Tambah Karyawan -->
 <div class="modal-backdrop" id="modal-tambah-karyawan" onclick="handleBackdropClick(event,'modal-tambah-karyawan')">
@@ -4027,7 +4072,130 @@ window.simpanPembayaran = async function() {
     btn.textContent = 'Simpan Pembayaran';
   }
 };
+// ============================================================
+// EDIT PEMBAYARAN
+// ============================================================
+window.openEditBayar = function(bayarId) {
+  if (!_historiState) { showToast('Data histori belum siap, coba lagi', 'error'); return; }
+  const b = _historiState.allBayar.find(x => x.id === bayarId);
+  if (!b) { showToast('Data pembayaran tidak ditemukan', 'error'); return; }
+  if (b.is_retur || b.metode === 'retur') { showToast('Pembayaran retur tidak bisa diedit di sini', 'error'); return; }
 
+  const trx = _historiState.allTrx.find(t => t.id === b.transaksi_id);
+  if (!trx) { showToast('Transaksi terkait tidak ditemukan, pembayaran ini tidak bisa diedit', 'error'); return; }
+
+  document.getElementById('edit-bayar-id').value = b.id;
+  document.getElementById('edit-bayar-transaksi-id').value = b.transaksi_id;
+  document.getElementById('edit-bayar-pelanggan-id').value = b.pelanggan_id || _historiState.pelangganId;
+  document.getElementById('edit-bayar-nominal-lama').value = b.nominal || 0;
+  document.getElementById('edit-bayar-nama').value = b.pelanggan_nama || _historiState.pel?.nama || '';
+  document.getElementById('edit-bayar-nominal').value = b.nominal || 0;
+
+  const tgl = _bayarTime(b);
+  document.getElementById('edit-bayar-tanggal').value = tgl ? tgl.toISOString().split('T')[0] : '';
+
+  const metodeVal = b.metode === 'transfer' ? 'transfer' : 'tunai';
+  document.querySelector(`input[name="edit-bayar-metode"][value="${metodeVal}"]`).checked = true;
+
+  // Batas maksimal nominal baru = sisa hutang transaksi saat ini + nominal lama pembayaran ini
+  const maksNominal = (trx.sisa_hutang || 0) + (b.nominal || 0);
+  document.getElementById('edit-bayar-maks-info').textContent =
+    `Total tagihan transaksi: ${formatRupiah(trx.total_tagihan || 0)} · Maksimal nominal edit: ${formatRupiah(maksNominal)}`;
+  document.getElementById('edit-bayar-nominal').max = maksNominal;
+
+  openModal('modal-edit-bayar');
+};
+
+window.simpanEditBayar = async function() {
+  const btn = document.getElementById('btn-simpan-edit-bayar');
+  const bayarId = document.getElementById('edit-bayar-id').value;
+  const trxId = document.getElementById('edit-bayar-transaksi-id').value;
+  const pelangganId = document.getElementById('edit-bayar-pelanggan-id').value;
+  const nominalLama = parseFloat(document.getElementById('edit-bayar-nominal-lama').value) || 0;
+  const nominalBaru = parseFloat(document.getElementById('edit-bayar-nominal').value);
+  const tanggalVal = document.getElementById('edit-bayar-tanggal').value;
+  const metode = document.querySelector('input[name="edit-bayar-metode"]:checked')?.value || 'tunai';
+
+  if (!nominalBaru || nominalBaru <= 0) { showToast('Masukkan nominal yang valid', 'error'); return; }
+  if (!tanggalVal) { showToast('Pilih tanggal bayar', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+
+  try {
+    const { doc, getDoc, updateDoc, collection, getDocs, query, where, writeBatch, Timestamp } =
+      await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    const trxRef = doc(db, 'transaksi', trxId);
+    const trxSnap = await getDoc(trxRef);
+    if (!trxSnap.exists()) throw new Error('Transaksi terkait tidak ditemukan');
+    const trxData = trxSnap.data();
+
+    const selisih = nominalBaru - nominalLama; // + berarti nominal ditambah, - berarti dikurangi
+    const totalTagihan = trxData.total_tagihan || 0;
+    const sisaBaru = (trxData.sisa_hutang || 0) - selisih;
+
+    if (sisaBaru < 0) {
+      const maks = (trxData.sisa_hutang || 0) + nominalLama;
+      throw new Error(`Nominal terlalu besar. Maksimal untuk pembayaran ini: ${formatRupiah(maks)}`);
+    }
+    if (sisaBaru > totalTagihan) {
+      throw new Error('Nominal tidak valid untuk transaksi ini');
+    }
+
+    const nominalDibayarBaru = Math.max(0, totalTagihan - sisaBaru);
+    const statusBaru = sisaBaru <= 0 ? 'lunas' : 'belum_lunas';
+
+    const batch = writeBatch(db);
+
+    // 1. Update dokumen pembayaran
+    const bayarRef = doc(db, 'pembayaran', bayarId);
+    batch.update(bayarRef, {
+      nominal: nominalBaru,
+      tanggal: Timestamp.fromDate(new Date(tanggalVal)),
+      metode: metode,
+      diedit_oleh: currentUser.uid,
+      diedit_oleh_nama: currentUserData?.nama || currentUser.email,
+      diedit_at: serverTimestamp()
+    });
+
+    // 2. Update transaksi (sisa hutang, nominal dibayar, status)
+    batch.update(trxRef, {
+      sisa_hutang: sisaBaru,
+      nominal_dibayar: nominalDibayarBaru,
+      status: statusBaru
+    });
+
+    await batch.commit();
+
+    // 3. Hitung ulang total_hutang_aktif pelanggan
+    const remainSnap = await getDocs(query(collection(db, 'transaksi'),
+      where('pelanggan_id', '==', pelangganId), where('status', '==', 'belum_lunas')));
+    const totalHutang = remainSnap.docs.reduce((s, d) => s + (d.data().sisa_hutang || 0), 0);
+    const pelRef = doc(db, 'pelanggan', pelangganId);
+    await updateDoc(pelRef, { total_hutang_aktif: totalHutang });
+
+    showToast('Pembayaran berhasil diperbarui ✅', 'success');
+    closeModal('modal-edit-bayar');
+
+    // Muat ulang data agar semua tampilan (histori, piutang, dashboard) konsisten
+    if (typeof loadPiutang === 'function') loadPiutang();
+    if (typeof loadDashboard === 'function') loadDashboard();
+    if (_historiState && _historiState.pelangganId) {
+      bukaHistori(_historiState.pelangganId, window._historiBack);
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('Gagal: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan Perubahan';
+  }
+};
+
+// ============================================================
+// FITUR RETUR BATIK
+// ============================================================
 // ============================================================
 // FITUR RETUR BATIK
 // ============================================================
@@ -4452,7 +4620,10 @@ function renderHistoriBayarList(allTrx, allBayar) {
         <div style="font-size:11.5px;color:${isRetur ? '#D97706' : '#6B7280'};margin:1px 0 4px;">${isRetur ? '↩️ Retur' : (b.metode || 'tunai')}${b.dicatat_oleh_nama ? ` · oleh ${b.dicatat_oleh_nama}` : ''}</div>
         <div style="font-size:12px;">${notaInfo}</div>
       </div>
-      <div style="font-weight:800;font-size:14px;color:${isRetur ? '#D97706' : '#16A34A'};white-space:nowrap;">${isRetur ? '−' : '+'}${formatRupiah(b.nominal || 0)}</div>
+      <div style="text-align:right;white-space:nowrap;">
+        <div style="font-weight:800;font-size:14px;color:${isRetur ? '#D97706' : '#16A34A'};">${isRetur ? '−' : '+'}${formatRupiah(b.nominal || 0)}</div>
+        ${!isRetur ? `<button onclick="openEditBayar('${b.id}')" style="margin-top:4px;background:none;border:none;color:var(--primary);font-size:11px;cursor:pointer;padding:2px 4px;">✏️ Edit</button>` : ''}
+      </div>
     </div>`;
   }).join('');
 
